@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Item *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Get-CimInstance *)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(Select-Object *)",
+      "PowerShell(Write-Output *)",
+      "PowerShell(Set-Location *)",
+      "PowerShell(flutter *)",
+      "PowerShell(dart *)",
+      "PowerShell(adb *)",
+      "PowerShell(emulator *)",
+      "PowerShell(sdkmanager *)",
+      "PowerShell(avdmanager *)",
+      "PowerShell(git *)",
+      "PowerShell(gh *)",
+      "Bash(flutter *)",
+      "Bash(adb *)",
+      "Bash(git *)",
+      "Bash(gh *)"
+    ]
+  }
+}
