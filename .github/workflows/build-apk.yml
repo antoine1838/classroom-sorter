@@ -1,0 +1,81 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]     # un tag v1.0.0, v1.2.3... déclenche une Release
+  workflow_dispatch:   # permet de lancer le build manuellement depuis l'onglet Actions
+
+permissions:
+  contents: write      # nécessaire pour que le workflow crée la Release
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    env:
+      # Remonté au niveau job pour pouvoir tester sa présence dans un `if:`.
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle   # met en cache ~/.gradle/caches et ~/.gradle/wrapper (clé = hash des *.gradle*)
+
+      - name: Installer Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      - name: Configurer la signature (keystore)
+        if: env.KEYSTORE_BASE64 != ''
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
+          {
+            echo "storeFile=keystore.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Déterminer la version depuis le tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Compiler l'APK release
+        # --build-number = versionCode Android, basé sur le n° de run (monotone croissant)
+        run: flutter build apk --release --build-number=$GITHUB_RUN_NUMBER ${APP_VERSION:+--build-name=$APP_VERSION}
+
+      - name: Renommer l'APK selon la convention
+        # Tag v1.0.0 -> classroom-sorter-1.0.0.apk ; sinon -> classroom-sorter-build-<run>.apk
+        run: |
+          LABEL="${APP_VERSION:-build-$GITHUB_RUN_NUMBER}"
+          mv build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/classroom-sorter-$LABEL.apk"
+          echo "APK_LABEL=$LABEL" >> "$GITHUB_ENV"
+          echo "APK_PATH=build/app/outputs/flutter-apk/classroom-sorter-$LABEL.apk" >> "$GITHUB_ENV"
+
+      - name: Publier l'APK en artefact
+        uses: actions/upload-artifact@v7
+        with:
+          name: classroom-sorter-${{ env.APK_LABEL }}
+          path: ${{ env.APK_PATH }}
+          if-no-files-found: error
+
+      - name: Publier la Release GitHub (sur tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: ${{ env.APK_PATH }}
+          generate_release_notes: true
