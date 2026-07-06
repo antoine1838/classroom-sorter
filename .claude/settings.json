@@ -10,6 +10,7 @@
       "PowerShell(Select-Object *)",
       "PowerShell(Write-Output *)",
       "PowerShell(Set-Location *)",
+      "PowerShell(cd *)",
       "PowerShell(flutter *)",
       "PowerShell(dart *)",
       "PowerShell(adb *)",
