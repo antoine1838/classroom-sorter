@@ -39,7 +39,7 @@ class SeatingEngine {
   final Random _rng;
 
   late final List<String> _seats; // places utilisables
-  late final Map<String, Set<String>> _neighbors; // place -> voisines (8 dir.)
+  late final Map<String, Set<String>> _neighbors; // place -> voisines (4 dir.)
   late final Map<String, Student> _byId;
 
   static const double hardPenalty = 1000.0;
@@ -49,16 +49,19 @@ class SeatingEngine {
   SeatingEngine(this.cls, {int? seed}) : _rng = Random(seed) {
     _seats = cls.room.seatKeys;
     _byId = {for (final s in cls.students) s.id: s};
+    // « Voisins » = places orthogonalement adjacentes (gauche, droite, devant,
+    // derrière). Pas de diagonale. Un couloir de colonne coupe le lien
+    // horizontal (mais jamais le lien devant/derrière).
+    const dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)];
     _neighbors = {};
     for (final k in _seats) {
       final (r, c) = Room.parse(k);
       final set = <String>{};
-      for (var dr = -1; dr <= 1; dr++) {
-        for (var dc = -1; dc <= 1; dc++) {
-          if (dr == 0 && dc == 0) continue;
-          if (cls.room.isSeat(r + dr, c + dc)) {
-            set.add(Room.keyOf(r + dr, c + dc));
-          }
+      for (final (dr, dc) in dirs) {
+        final nr = r + dr;
+        final nc = c + dc;
+        if (cls.room.isSeat(nr, nc) && !cls.room.colAisleBetween(c, nc)) {
+          set.add(Room.keyOf(nr, nc));
         }
       }
       _neighbors[k] = set;
