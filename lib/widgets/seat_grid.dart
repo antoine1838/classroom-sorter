@@ -12,9 +12,25 @@ import '../models/room.dart';
 import '../models/student.dart';
 
 const double kCell = 62;
-const double kGap = 6;
+const double kGap = 6; // espace normal entre deux colonnes
+const double kAisle = 24; // largeur d'un couloir entre colonnes
+const double kRowGap = 14; // espace entre rangs (toujours un couloir)
 
-double gridWidth(Room room) => room.cols * kCell + (room.cols - 1) * kGap;
+/// Largeur de l'espace inter-colonnes après la colonne [c].
+/// En mode éditeur, l'espace reste large partout pour être facile à toucher ;
+/// en affichage, il ne s'élargit qu'aux vrais couloirs.
+double _colGapWidth(Room room, int c, {required bool editor}) {
+  final aisle = room.hasColAisleAfter(c);
+  return editor ? kAisle : (aisle ? kAisle : kGap);
+}
+
+double gridWidth(Room room, {bool editor = false}) {
+  var w = room.cols * kCell;
+  for (var c = 0; c < room.cols - 1; c++) {
+    w += _colGapWidth(room, c, editor: editor);
+  }
+  return w;
+}
 
 Color studentColor(Student s, ColorScheme cs) => switch (s.gender) {
       Gender.fille => const Color(0xFFF3B8D0),
@@ -45,10 +61,21 @@ class _FrontBanner extends StatelessWidget {
 }
 
 /// Enveloppe scrollable (H + V) commune aux deux grilles.
+///
+/// Fournit aussi le rendu des couloirs entre colonnes. Si [onToggleAisle] est
+/// non nul (mode éditeur), les espaces inter-colonnes sont tappables pour
+/// ajouter/retirer un couloir ; sinon ils sont seulement affichés.
 class _ScrollableGrid extends StatelessWidget {
   final Room room;
   final Widget Function(int r, int c) cellBuilder;
-  const _ScrollableGrid({required this.room, required this.cellBuilder});
+  final void Function(int c)? onToggleAisle;
+  const _ScrollableGrid({
+    required this.room,
+    required this.cellBuilder,
+    this.onToggleAisle,
+  });
+
+  bool get _editor => onToggleAisle != null;
 
   @override
   Widget build(BuildContext context) {
@@ -61,18 +88,17 @@ class _ScrollableGrid extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FrontBanner(gridWidth(room)),
+              _FrontBanner(gridWidth(room, editor: _editor)),
               for (var r = 0; r < room.rows; r++)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: kGap),
+                  padding:
+                      EdgeInsets.only(bottom: r < room.rows - 1 ? kRowGap : 0),
                   child: Row(
                     children: [
-                      for (var c = 0; c < room.cols; c++)
-                        Padding(
-                          padding: EdgeInsets.only(
-                              right: c < room.cols - 1 ? kGap : 0),
-                          child: cellBuilder(r, c),
-                        ),
+                      for (var c = 0; c < room.cols; c++) ...[
+                        cellBuilder(r, c),
+                        if (c < room.cols - 1) _colGap(context, c),
+                      ],
                     ],
                   ),
                 ),
@@ -80,6 +106,38 @@ class _ScrollableGrid extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _colGap(BuildContext context, int c) {
+    final cs = Theme.of(context).colorScheme;
+    final aisle = room.hasColAisleAfter(c);
+    final gap = SizedBox(
+      width: _colGapWidth(room, c, editor: _editor),
+      height: kCell,
+      child: Center(
+        child: aisle
+            ? Container(
+                width: 4,
+                height: kCell * 0.82,
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              )
+            : (_editor
+                ? Container(width: 2, height: kCell * 0.5, color: cs.outlineVariant)
+                : const SizedBox.shrink()),
+      ),
+    );
+    if (!_editor) return gap;
+    // HitTestBehavior.opaque : tout l'espace du couloir est cliquable, pas
+    // seulement le fin trait peint — sinon la cible (2–4 px) est presque
+    // impossible à toucher, surtout pour retirer un couloir existant.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onToggleAisle!(c),
+      child: gap,
     );
   }
 }
@@ -94,6 +152,10 @@ class RoomEditorGrid extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return _ScrollableGrid(
       room: room,
+      onToggleAisle: (c) {
+        room.toggleColAisle(c);
+        onChanged();
+      },
       cellBuilder: (r, c) {
         final isSeat = room.isSeat(r, c);
         return InkWell(

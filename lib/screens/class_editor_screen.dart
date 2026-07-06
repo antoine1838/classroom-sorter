@@ -99,6 +99,8 @@ class _RoomTab extends StatelessWidget {
       final (r, c) = Room.parse(k);
       return !cls.room.isSeat(r, c);
     });
+    // Retirer les couloirs devenus hors grille.
+    cls.room.pruneColAisles();
     state.touch();
   }
 
@@ -137,8 +139,9 @@ class _RoomTab extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'Touchez une case pour retirer/remettre une place '
-            '(par ex. pour dessiner les allées).',
+            'Touchez une case pour retirer/remettre une place. '
+            'Touchez l\'espace entre deux colonnes pour ajouter un couloir : '
+            'les élèves de part et d\'autre ne seront plus voisins.',
             style: TextStyle(fontSize: 12),
           ),
         ),
