@@ -21,5 +21,10 @@ do {
     $booted = (& $adb shell getprop sys.boot_completed 2>$null)
 } until ($booted -match '1')
 
+# Clavier : le clavier physique du PC est activé au niveau de l'AVD
+# (hw.keyboard=yes dans config.ini) -> tape directement avec ton clavier une
+# fois la fenêtre de l'émulateur au premier plan. Le clavier virtuel reste
+# dispo en touchant un champ (ou via Alt+K).
+
 Write-Host "Téléphone prêt ! Lancement de l'application..." -ForegroundColor Green
 flutter run
