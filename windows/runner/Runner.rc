@@ -92,9 +92,9 @@ BEGIN
             VALUE "CompanyName", "Antoine1838" "\0"
             VALUE "FileDescription", "Plan de classe" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "classroom_sort" "\0"
+            VALUE "InternalName", "plandeclasse" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 Antoine1838. All rights reserved." "\0"
-            VALUE "OriginalFilename", "classroom_sort.exe" "\0"
+            VALUE "OriginalFilename", "plandeclasse.exe" "\0"
             VALUE "ProductName", "Plan de classe" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

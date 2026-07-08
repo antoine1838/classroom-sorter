@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/classroom.dart';
 
 class Repository {
-  static const _key = 'classroom_sort_classes_v1';
+  static const _key = 'plandeclasse_classes_v1';
 
   Future<List<ClassGroup>> load() async {
     final prefs = await SharedPreferences.getInstance();
