@@ -56,7 +56,10 @@ jobs:
 
       - name: Compiler l'APK release
         # --build-number = versionCode Android, basé sur le n° de run (monotone croissant)
-        run: flutter build apk --release --build-number=$GITHUB_RUN_NUMBER ${APP_VERSION:+--build-name=$APP_VERSION}
+        # --target-platform : on ne compile que les ABI ARM (téléphones réels : arm64 + 32 bits).
+        # On omet x86_64, qui ne sert qu'aux émulateurs -> AOT/CMake plus rapides, aucun impact
+        # utilisateur. Pour tester en local sur émulateur x86_64 : `flutter run` (debug, ABI auto).
+        run: flutter build apk --release --target-platform android-arm64,android-arm --build-number=$GITHUB_RUN_NUMBER ${APP_VERSION:+--build-name=$APP_VERSION}
 
       - name: Renommer l'APK selon la convention
         # Tag v1.0.0 -> classroom-sorter-1.0.0.apk ; sinon -> classroom-sorter-build-<run>.apk
