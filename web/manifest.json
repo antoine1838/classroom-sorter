@@ -1,11 +1,11 @@
 {
-    "name": "classroom_sort",
-    "short_name": "classroom_sort",
+    "name": "Plan de classe",
+    "short_name": "Plan de classe",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#3F51B5",
+    "theme_color": "#3F51B5",
+    "description": "Générateur de plans de classe",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
