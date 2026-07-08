@@ -2,7 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:classroom_sort/main.dart';
+import 'package:plandeclasse/main.dart';
 
 void main() {
   testWidgets("L'accueil s'affiche au démarrage", (tester) async {

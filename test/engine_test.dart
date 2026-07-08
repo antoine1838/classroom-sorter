@@ -1,11 +1,11 @@
 // Tests unitaires du moteur d'affectation.
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:classroom_sort/engine/seating_engine.dart';
-import 'package:classroom_sort/models/classroom.dart';
-import 'package:classroom_sort/models/room.dart';
-import 'package:classroom_sort/models/rule.dart';
-import 'package:classroom_sort/models/student.dart';
+import 'package:plandeclasse/engine/seating_engine.dart';
+import 'package:plandeclasse/models/classroom.dart';
+import 'package:plandeclasse/models/room.dart';
+import 'package:plandeclasse/models/rule.dart';
+import 'package:plandeclasse/models/student.dart';
 
 ClassGroup _classWith({
   required List<Student> students,
