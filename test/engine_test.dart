@@ -99,6 +99,49 @@ void main() {
     expect(res.violations, isEmpty);
   });
 
+  test('objectif « séparer les agités » : deux agités non voisins', () {
+    final cls = _classWith(
+      room: Room(rows: 1, cols: 5),
+      students: [
+        Student(id: 'a', firstName: 'A', temperament: Temperament.agite),
+        Student(id: 'b', firstName: 'B', temperament: Temperament.agite),
+        Student(id: 'c', firstName: 'C', temperament: Temperament.calme),
+      ],
+      rules: [],
+      balance: BalanceSettings(separateAgites: true),
+    );
+
+    final res = SeatingEngine(cls, seed: 5).generate();
+    final seatA = res.assignment.entries.firstWhere((e) => e.value == 'a').key;
+    final seatB = res.assignment.entries.firstWhere((e) => e.value == 'b').key;
+    final (_, ca) = Room.parse(seatA);
+    final (_, cb) = Room.parse(seatB);
+
+    expect((ca - cb).abs() > 1, isTrue,
+        reason: 'les deux agités ne devraient pas être côte à côte');
+  });
+
+  test('mauvaise vue : placé dans la moitié avant (près du tableau)', () {
+    final cls = _classWith(
+      room: Room(rows: 4, cols: 2), // moitié avant = rangs 0 et 1
+      students: [
+        Student(id: 'a', firstName: 'A', poorEyesight: true),
+        Student(id: 'b', firstName: 'B'),
+        Student(id: 'c', firstName: 'C'),
+        Student(id: 'd', firstName: 'D'),
+      ],
+      rules: [],
+    );
+
+    final res = SeatingEngine(cls, seed: 2).generate();
+    final seatA = res.assignment.entries.firstWhere((e) => e.value == 'a').key;
+    final (rowA, _) = Room.parse(seatA);
+
+    expect(rowA < 2, isTrue,
+        reason: 'A (mauvaise vue) doit être dans la moitié avant');
+    expect(res.violations, isEmpty);
+  });
+
   test('trop d\'élèves : les surnuméraires sont signalés', () {
     final cls = _classWith(
       room: Room(rows: 1, cols: 2), // 2 places

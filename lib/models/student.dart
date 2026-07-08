@@ -5,6 +5,8 @@ enum Gender { fille, garcon, autre }
 
 enum Level { faible, moyen, fort, nonDefini }
 
+enum Temperament { calme, agite, nonDefini }
+
 extension GenderLabel on Gender {
   String get label => switch (this) {
         Gender.fille => 'Fille',
@@ -22,12 +24,26 @@ extension LevelLabel on Level {
       };
 }
 
+extension TemperamentLabel on Temperament {
+  String get label => switch (this) {
+        Temperament.calme => 'Calme',
+        Temperament.agite => 'Agité',
+        Temperament.nonDefini => 'Non défini',
+      };
+}
+
 class Student {
   final String id;
   String firstName;
   String lastName;
   Gender gender;
   Level level;
+  Temperament temperament;
+
+  /// Mauvaise vue : doit être placé dans la moitié de la salle la plus proche
+  /// du tableau (rangs de devant).
+  bool poorEyesight;
+
   String notes;
 
   Student({
@@ -36,6 +52,8 @@ class Student {
     this.lastName = '',
     this.gender = Gender.autre,
     this.level = Level.nonDefini,
+    this.temperament = Temperament.nonDefini,
+    this.poorEyesight = false,
     this.notes = '',
   });
 
@@ -59,6 +77,8 @@ class Student {
         'lastName': lastName,
         'gender': gender.name,
         'level': level.name,
+        'temperament': temperament.name,
+        'poorEyesight': poorEyesight,
         'notes': notes,
       };
 
@@ -74,6 +94,11 @@ class Student {
           (l) => l.name == j['level'],
           orElse: () => Level.nonDefini,
         ),
+        temperament: Temperament.values.firstWhere(
+          (t) => t.name == j['temperament'],
+          orElse: () => Temperament.nonDefini,
+        ),
+        poorEyesight: (j['poorEyesight'] ?? false) as bool,
         notes: (j['notes'] ?? '') as String,
       );
 }

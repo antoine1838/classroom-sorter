@@ -211,6 +211,8 @@ class _StudentsTab extends StatelessWidget {
                       ),
                       title: Text(s.fullName),
                       subtitle: Text('${s.gender.label} · ${s.level.label}'
+                          '${s.temperament != Temperament.nonDefini ? ' · ${s.temperament.label}' : ''}'
+                          '${s.poorEyesight ? ' · Mauvaise vue' : ''}'
                           '${s.notes.isNotEmpty ? ' · ${s.notes}' : ''}'),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
@@ -245,6 +247,8 @@ class _StudentsTab extends StatelessWidget {
         ..lastName = result.lastName
         ..gender = result.gender
         ..level = result.level
+        ..temperament = result.temperament
+        ..poorEyesight = result.poorEyesight
         ..notes = result.notes;
     }
     state.touch();
@@ -320,6 +324,8 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
       TextEditingController(text: widget.initial.notes);
   late Gender _gender = widget.initial.gender;
   late Level _level = widget.initial.level;
+  late Temperament _temperament = widget.initial.temperament;
+  late bool _poorEyesight = widget.initial.poorEyesight;
 
   @override
   void dispose() {
@@ -370,6 +376,24 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               onChanged: (v) => setState(() => _level = v ?? _level),
             ),
             const SizedBox(height: 12),
+            DropdownButtonFormField<Temperament>(
+              initialValue: _temperament,
+              decoration: const InputDecoration(labelText: 'Tempérament'),
+              items: [
+                for (final t in Temperament.values)
+                  DropdownMenuItem(value: t, child: Text(t.label)),
+              ],
+              onChanged: (v) => setState(() => _temperament = v ?? _temperament),
+            ),
+            const SizedBox(height: 4),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Mauvaise vue'),
+              subtitle: const Text('À placer près du tableau (moitié avant)'),
+              value: _poorEyesight,
+              onChanged: (v) => setState(() => _poorEyesight = v),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _notes,
               decoration: const InputDecoration(
@@ -393,6 +417,8 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               lastName: _last.text.trim(),
               gender: _gender,
               level: _level,
+              temperament: _temperament,
+              poorEyesight: _poorEyesight,
               notes: _notes.text.trim(),
             ),
           ),
@@ -453,6 +479,15 @@ class _RulesTab extends StatelessWidget {
                 value: cls.balance.mixLevel,
                 onChanged: (v) {
                   cls.balance.mixLevel = v;
+                  state.touch();
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Séparer les élèves agités'),
+                subtitle: const Text('Éviter deux élèves agités côte à côte'),
+                value: cls.balance.separateAgites,
+                onChanged: (v) {
+                  cls.balance.separateAgites = v;
                   state.touch();
                 },
               ),
