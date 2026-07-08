@@ -42,13 +42,21 @@ class SeatingEngine {
   late final Map<String, Set<String>> _neighbors; // place -> voisines (4 dir.)
   late final Map<String, Student> _byId;
 
+  /// Nombre de rangs constituant la « moitié avant » (près du tableau), rang 0
+  /// inclus. Pour un nombre impair de rangs, le rang du milieu est compté
+  /// devant (moitié généreuse).
+  late final int _frontHalfRows;
+
   static const double hardPenalty = 1000.0;
   static const double softPenalty = 10.0;
   static const double balancePenalty = 3.0;
+  // Deux élèves agités côte à côte : préférence forte, mais reste souple.
+  static const double agitePenalty = 6.0;
 
   SeatingEngine(this.cls, {int? seed}) : _rng = Random(seed) {
     _seats = cls.room.seatKeys;
     _byId = {for (final s in cls.students) s.id: s};
+    _frontHalfRows = (cls.room.rows / 2).ceil();
     // « Voisins » = places orthogonalement adjacentes (gauche, droite, devant,
     // derrière). Pas de diagonale. Un couloir de colonne coupe le lien
     // horizontal (mais jamais le lien devant/derrière).
@@ -216,8 +224,18 @@ class SeatingEngine {
       }
     }
 
+    // Mauvaise vue : doit être dans la moitié avant (près du tableau). Dure.
+    seatOf.forEach((sid, seat) {
+      final s = _byId[sid];
+      if (s == null || !s.poorEyesight) return;
+      final (r, _) = Room.parse(seat);
+      if (r >= _frontHalfRows) cost += hardPenalty;
+    });
+
     // Objectifs d'équilibre : pénaliser les voisins identiques.
-    if (cls.balance.mixGender || cls.balance.mixLevel) {
+    if (cls.balance.mixGender ||
+        cls.balance.mixLevel ||
+        cls.balance.separateAgites) {
       final occ = <String, String>{}; // seat -> studentId
       seatOf.forEach((sid, seat) => occ[seat] = sid);
       for (final k in _seats) {
@@ -240,6 +258,11 @@ class SeatingEngine {
               s2.level != Level.nonDefini &&
               s.level == s2.level) {
             cost += balancePenalty;
+          }
+          if (cls.balance.separateAgites &&
+              s.temperament == Temperament.agite &&
+              s2.temperament == Temperament.agite) {
+            cost += agitePenalty;
           }
         }
       }
@@ -288,6 +311,18 @@ class SeatingEngine {
           }
         case RuleType.fixedSeat:
           break;
+      }
+    }
+
+    // Mauvaise vue : contrainte dure « moitié avant ».
+    for (final s in cls.students) {
+      if (!s.poorEyesight) continue;
+      final seat = seatOf[s.id];
+      if (seat == null) continue; // déjà signalé comme non placé
+      final (r, _) = Room.parse(seat);
+      if (r >= _frontHalfRows) {
+        violations.add(
+            "${s.fullName} (mauvaise vue) n'est pas dans la moitié avant, près du tableau.");
       }
     }
 

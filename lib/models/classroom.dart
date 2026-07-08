@@ -10,17 +10,24 @@ import 'student.dart';
 class BalanceSettings {
   bool mixGender; // alterner filles / garçons dans le voisinage
   bool mixLevel; // alterner les niveaux dans le voisinage
+  bool separateAgites; // éviter deux élèves agités côte à côte
 
-  BalanceSettings({this.mixGender = false, this.mixLevel = false});
+  BalanceSettings({
+    this.mixGender = false,
+    this.mixLevel = false,
+    this.separateAgites = true,
+  });
 
   Map<String, dynamic> toJson() => {
         'mixGender': mixGender,
         'mixLevel': mixLevel,
+        'separateAgites': separateAgites,
       };
 
   factory BalanceSettings.fromJson(Map<String, dynamic> j) => BalanceSettings(
         mixGender: (j['mixGender'] ?? false) as bool,
         mixLevel: (j['mixLevel'] ?? false) as bool,
+        separateAgites: (j['separateAgites'] ?? true) as bool,
       );
 }
 

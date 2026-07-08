@@ -21,7 +21,7 @@ class Room {
 
   Room({
     this.rows = 5,
-    this.cols = 6,
+    this.cols = 7,
     Set<String>? disabled,
     Set<int>? colAisles,
   })  : disabled = disabled ?? <String>{},
@@ -97,7 +97,7 @@ class Room {
 
   factory Room.fromJson(Map<String, dynamic> j) => Room(
         rows: (j['rows'] ?? 5) as int,
-        cols: (j['cols'] ?? 6) as int,
+        cols: (j['cols'] ?? 7) as int,
         disabled: ((j['disabled'] ?? const []) as List)
             .map((e) => e as String)
             .toSet(),
