@@ -1250,7 +1250,7 @@ class _ReportCard extends StatelessWidget {
               const _ReportLine(
                 icon: Icons.check_circle,
                 color: Colors.green,
-                text: 'Toutes les contraintes sont respectées 🎉',
+                text: 'Toutes les règles sont respectées 🎉',
               ),
             for (final v in result.violations)
               _ReportLine(icon: Icons.error, color: Colors.red.shade600, text: v),
@@ -1259,6 +1259,17 @@ class _ReportCard extends StatelessWidget {
                   icon: Icons.warning_amber,
                   color: Colors.orange.shade700,
                   text: w),
+            if (result.balance.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text('Équilibre', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 2),
+              for (final n in result.balance)
+                _ReportLine(
+                  icon: n.ok ? Icons.check_circle_outline : Icons.info_outline,
+                  color: n.ok ? Colors.green : Colors.orange.shade700,
+                  text: n.label,
+                ),
+            ],
           ],
         ),
       ),
