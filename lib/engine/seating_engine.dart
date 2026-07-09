@@ -260,8 +260,8 @@ class SeatingEngine {
             cost += balancePenalty;
           }
           if (cls.balance.separateAgites &&
-              s.temperament == Temperament.agite &&
-              s2.temperament == Temperament.agite) {
+              s.energy == Energy.agite &&
+              s2.energy == Energy.agite) {
             cost += agitePenalty;
           }
         }

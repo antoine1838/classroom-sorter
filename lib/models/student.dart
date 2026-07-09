@@ -5,7 +5,7 @@ enum Gender { fille, garcon, autre }
 
 enum Level { faible, moyen, fort, nonDefini }
 
-enum Temperament { calme, agite, nonDefini }
+enum Energy { calme, agite, nonDefini }
 
 extension GenderLabel on Gender {
   String get label => switch (this) {
@@ -24,11 +24,11 @@ extension LevelLabel on Level {
       };
 }
 
-extension TemperamentLabel on Temperament {
+extension EnergyLabel on Energy {
   String get label => switch (this) {
-        Temperament.calme => 'Calme',
-        Temperament.agite => 'Agité',
-        Temperament.nonDefini => 'Non défini',
+        Energy.calme => 'Calme',
+        Energy.agite => 'Agité',
+        Energy.nonDefini => 'Non défini',
       };
 }
 
@@ -38,7 +38,7 @@ class Student {
   String lastName;
   Gender gender;
   Level level;
-  Temperament temperament;
+  Energy energy;
 
   /// Mauvaise vue : doit être placé dans la moitié de la salle la plus proche
   /// du tableau (rangs de devant).
@@ -52,7 +52,7 @@ class Student {
     this.lastName = '',
     this.gender = Gender.autre,
     this.level = Level.nonDefini,
-    this.temperament = Temperament.nonDefini,
+    this.energy = Energy.nonDefini,
     this.poorEyesight = false,
     this.notes = '',
   });
@@ -77,7 +77,7 @@ class Student {
         'lastName': lastName,
         'gender': gender.name,
         'level': level.name,
-        'temperament': temperament.name,
+        'energy': energy.name,
         'poorEyesight': poorEyesight,
         'notes': notes,
       };
@@ -94,9 +94,10 @@ class Student {
           (l) => l.name == j['level'],
           orElse: () => Level.nonDefini,
         ),
-        temperament: Temperament.values.firstWhere(
-          (t) => t.name == j['temperament'],
-          orElse: () => Temperament.nonDefini,
+        energy: Energy.values.firstWhere(
+          // Rétrocompat : lit aussi l'ancienne clé « temperament ».
+          (t) => t.name == (j['energy'] ?? j['temperament']),
+          orElse: () => Energy.nonDefini,
         ),
         poorEyesight: (j['poorEyesight'] ?? false) as bool,
         notes: (j['notes'] ?? '') as String,

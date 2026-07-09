@@ -161,10 +161,119 @@ class _RoomTab extends StatelessWidget {
 // Onglet ÉLÈVES
 // ---------------------------------------------------------------------------
 
-class _StudentsTab extends StatelessWidget {
+const double _kRowH = 48;
+const double _kCellW = 48;
+const double _kNameW = 172;
+const double _kGroupH = 26;
+const double _kValueH = 30;
+
+/// Une colonne-valeur de la matrice : libellé court affiché en tête, libellé
+/// complet en info-bulle, lecture et bascule de l'état pour un élève donné.
+class _AttrCol {
+  final String short;
+  final IconData? icon;
+  final String tooltip;
+  final bool Function(Student) isOn;
+  final void Function(Student) toggle;
+  const _AttrCol(this.short, this.tooltip, this.isOn, this.toggle, {this.icon});
+}
+
+/// Un groupe de colonnes : soit des valeurs exclusives (genre, niveau,
+/// énergie), soit une seule colonne booléenne (vue).
+class _AttrGroup {
+  final String label;
+  final List<_AttrCol> cols;
+  const _AttrGroup(this.label, this.cols);
+}
+
+/// Définition des colonnes de la matrice. Dans un groupe exclusif, cocher une
+/// valeur remplace la précédente ; re-cocher la valeur active revient à
+/// « non défini ».
+final List<_AttrGroup> _attrGroups = [
+  _AttrGroup('Genre', [
+    _AttrCol('Gar', 'Garçon', (s) => s.gender == Gender.garcon,
+        (s) => s.gender =
+            s.gender == Gender.garcon ? Gender.autre : Gender.garcon,
+        icon: Icons.male),
+    _AttrCol('Fil', 'Fille', (s) => s.gender == Gender.fille,
+        (s) => s.gender =
+            s.gender == Gender.fille ? Gender.autre : Gender.fille,
+        icon: Icons.female),
+  ]),
+  _AttrGroup('Niveau', [
+    _AttrCol('Fai', 'Faible', (s) => s.level == Level.faible,
+        (s) => s.level =
+            s.level == Level.faible ? Level.nonDefini : Level.faible,
+        icon: Icons.arrow_downward),
+    _AttrCol('Moy', 'Moyen', (s) => s.level == Level.moyen,
+        (s) => s.level =
+            s.level == Level.moyen ? Level.nonDefini : Level.moyen,
+        icon: Icons.remove),
+    _AttrCol('For', 'Fort', (s) => s.level == Level.fort,
+        (s) => s.level = s.level == Level.fort ? Level.nonDefini : Level.fort,
+        icon: Icons.arrow_upward),
+  ]),
+  _AttrGroup('Énergie', [
+    _AttrCol('Cal', 'Calme', (s) => s.energy == Energy.calme,
+        (s) => s.energy = s.energy == Energy.calme
+            ? Energy.nonDefini
+            : Energy.calme,
+        icon: Icons.self_improvement),
+    _AttrCol('Agi', 'Agité', (s) => s.energy == Energy.agite,
+        (s) => s.energy = s.energy == Energy.agite
+            ? Energy.nonDefini
+            : Energy.agite,
+        icon: Icons.bolt),
+  ]),
+  _AttrGroup('Vue', [
+    _AttrCol('Vue', 'Mauvaise vue (à placer devant)', (s) => s.poorEyesight,
+        (s) => s.poorEyesight = !s.poorEyesight,
+        icon: Icons.visibility_off),
+  ]),
+];
+
+class _StudentsTab extends StatefulWidget {
   final AppState state;
   final ClassGroup cls;
   const _StudentsTab({required this.state, required this.cls});
+
+  @override
+  State<_StudentsTab> createState() => _StudentsTabState();
+}
+
+class _StudentsTabState extends State<_StudentsTab> {
+  final ScrollController _vBody = ScrollController();
+  final ScrollController _hHeader = ScrollController();
+  final ScrollController _hBody = ScrollController();
+  bool _syncing = false;
+  bool _sortByName = false;
+
+  AppState get state => widget.state;
+  ClassGroup get cls => widget.cls;
+
+  @override
+  void initState() {
+    super.initState();
+    _hHeader.addListener(() => _sync(_hHeader, _hBody));
+    _hBody.addListener(() => _sync(_hBody, _hHeader));
+  }
+
+  /// Garde l'en-tête et le corps alignés lors du défilement horizontal.
+  void _sync(ScrollController from, ScrollController to) {
+    if (_syncing || !to.hasClients) return;
+    if ((from.offset - to.offset).abs() < 0.5) return;
+    _syncing = true;
+    to.jumpTo(from.offset);
+    _syncing = false;
+  }
+
+  @override
+  void dispose() {
+    _vBody.dispose();
+    _hHeader.dispose();
+    _hBody.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,47 +305,292 @@ class _StudentsTab extends StatelessWidget {
         Expanded(
           child: cls.students.isEmpty
               ? const Center(child: Text('Aucun élève. Ajoutez-en un !'))
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                  itemCount: cls.students.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final s = cls.students[i];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: studentColor(s, cs),
-                        child: Text(s.initials,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(s.fullName),
-                      subtitle: Text('${s.gender.label} · ${s.level.label}'
-                          '${s.temperament != Temperament.nonDefini ? ' · ${s.temperament.label}' : ''}'
-                          '${s.poorEyesight ? ' · Mauvaise vue' : ''}'
-                          '${s.notes.isNotEmpty ? ' · ${s.notes}' : ''}'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () {
-                          cls.purgeStudent(s.id);
-                          cls.students.removeAt(i);
-                          state.touch();
-                        },
-                      ),
-                      onTap: () => _editStudent(context, existing: s),
-                    );
-                  },
-                ),
+              : _buildMatrix(cs),
         ),
       ],
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Matrice élèves × attributs
+  // -------------------------------------------------------------------------
+
+  Widget _buildMatrix(ColorScheme cs) {
+    final students = _orderedStudents();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Text(
+            'Touchez une case pour cocher/décocher. Touchez le nom d\'un élève '
+            'pour le renommer, ajouter une note ou le supprimer. Touchez '
+            'l\'en-tête « Élève » pour trier par nom.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        _buildHeader(cs),
+        const Divider(height: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _vBody,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildNameColumn(cs, students),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: _hBody,
+                    scrollDirection: Axis.horizontal,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < students.length; i++)
+                          _buildAttrRow(cs, students[i], i),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(ColorScheme cs) {
+    final headStyle = Theme.of(context)
+        .textTheme
+        .labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600);
+    return SizedBox(
+      height: _kGroupH + _kValueH,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: _kNameW,
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: cs.outlineVariant)),
+            ),
+            child: Tooltip(
+              message: _sortByName
+                  ? 'Trié par nom (A→Z) — toucher pour revenir à l\'ordre d\'ajout'
+                  : 'Toucher pour trier par nom (A→Z)',
+              child: InkWell(
+                onTap: () => setState(() => _sortByName = !_sortByName),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Élève', style: headStyle),
+                        const SizedBox(width: 4),
+                        Icon(Icons.sort_by_alpha,
+                            size: 16,
+                            color: _sortByName ? cs.primary : cs.outline),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _hHeader,
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: _kGroupH,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _groupHeaderCells(cs, headStyle),
+                    ),
+                  ),
+                  SizedBox(
+                    height: _kValueH,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _valueHeaderCells(cs, headStyle),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _groupHeaderCells(ColorScheme cs, TextStyle? style) {
+    final out = <Widget>[];
+    for (var g = 0; g < _attrGroups.length; g++) {
+      if (g > 0) out.add(_vSep(cs));
+      out.add(SizedBox(
+        width: _attrGroups[g].cols.length * _kCellW,
+        child: Center(
+          child: Text(_attrGroups[g].label,
+              style: style, overflow: TextOverflow.ellipsis),
+        ),
+      ));
+    }
+    return out;
+  }
+
+  List<Widget> _valueHeaderCells(ColorScheme cs, TextStyle? style) {
+    final out = <Widget>[];
+    for (var g = 0; g < _attrGroups.length; g++) {
+      if (g > 0) out.add(_vSep(cs));
+      for (final c in _attrGroups[g].cols) {
+        out.add(SizedBox(
+          width: _kCellW,
+          child: Center(
+            child: Tooltip(
+              message: c.tooltip,
+              child: c.icon != null
+                  ? Icon(c.icon, size: 18)
+                  : Text(c.short,
+                      style: (style ?? const TextStyle()).copyWith(fontSize: 16)),
+            ),
+          ),
+        ));
+      }
+    }
+    return out;
+  }
+
+  List<Student> _orderedStudents() {
+    if (!_sortByName) return cls.students;
+    final sorted = [...cls.students];
+    sorted.sort((a, b) {
+      final byLast =
+          a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
+      return byLast != 0
+          ? byLast
+          : a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase());
+    });
+    return sorted;
+  }
+
+  Widget _buildNameColumn(ColorScheme cs, List<Student> students) {
+    return Container(
+      width: _kNameW,
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: cs.outlineVariant)),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < students.length; i++)
+            _buildNameCell(cs, students[i], i),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameCell(ColorScheme cs, Student s, int i) {
+    return Container(
+      height: _kRowH,
+      color: _rowColor(cs, i),
+      child: InkWell(
+        onTap: () => _editStudent(context, existing: s),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 13,
+                backgroundColor: studentColor(s, cs),
+                child: Text(s.initials,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(s.fullName,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13)),
+              ),
+              if (s.notes.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Tooltip(
+                    message: s.notes,
+                    child: Icon(Icons.sticky_note_2_outlined,
+                        size: 15, color: cs.outline),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
+    final cells = <Widget>[];
+    for (var g = 0; g < _attrGroups.length; g++) {
+      if (g > 0) cells.add(_vSep(cs));
+      for (final c in _attrGroups[g].cols) {
+        cells.add(_checkCell(
+          cs,
+          on: c.isOn(s),
+          onTap: () {
+            c.toggle(s);
+            state.touch();
+          },
+        ));
+      }
+    }
+    return Container(
+      height: _kRowH,
+      color: _rowColor(cs, i),
+      child:
+          Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells),
+    );
+  }
+
+  Widget _checkCell(ColorScheme cs,
+      {required bool on, required VoidCallback onTap}) {
+    return SizedBox(
+      width: _kCellW,
+      child: InkWell(
+        onTap: onTap,
+        child: Center(
+          child: Icon(
+            on ? Icons.check_box : Icons.check_box_outline_blank,
+            color: on ? cs.primary : cs.outlineVariant,
+            size: 22,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _vSep(ColorScheme cs) => Container(width: 1, color: cs.outlineVariant);
+
+  Color? _rowColor(ColorScheme cs, int i) =>
+      i.isEven ? null : cs.surfaceContainerHighest.withValues(alpha: 0.4);
+
+  // -------------------------------------------------------------------------
+  // Ajout / édition / suppression / import
+  // -------------------------------------------------------------------------
 
   Future<void> _editStudent(BuildContext context, {Student? existing}) async {
     final initial = existing ??
         Student(id: newId(), gender: Gender.autre, level: Level.nonDefini);
     final result = await showDialog<Student>(
       context: context,
-      builder: (_) => _StudentFormDialog(initial: initial),
+      builder: (_) => _StudentFormDialog(
+        initial: initial,
+        onDelete: existing == null ? null : () => _deleteStudent(existing),
+      ),
     );
     if (result == null) return;
     if (existing == null) {
@@ -247,10 +601,16 @@ class _StudentsTab extends StatelessWidget {
         ..lastName = result.lastName
         ..gender = result.gender
         ..level = result.level
-        ..temperament = result.temperament
+        ..energy = result.energy
         ..poorEyesight = result.poorEyesight
         ..notes = result.notes;
     }
+    state.touch();
+  }
+
+  void _deleteStudent(Student s) {
+    cls.purgeStudent(s.id);
+    cls.students.remove(s);
     state.touch();
   }
 
@@ -309,7 +669,8 @@ class _StudentsTab extends StatelessWidget {
 
 class _StudentFormDialog extends StatefulWidget {
   final Student initial;
-  const _StudentFormDialog({required this.initial});
+  final VoidCallback? onDelete;
+  const _StudentFormDialog({required this.initial, this.onDelete});
 
   @override
   State<_StudentFormDialog> createState() => _StudentFormDialogState();
@@ -324,7 +685,7 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
       TextEditingController(text: widget.initial.notes);
   late Gender _gender = widget.initial.gender;
   late Level _level = widget.initial.level;
-  late Temperament _temperament = widget.initial.temperament;
+  late Energy _energy = widget.initial.energy;
   late bool _poorEyesight = widget.initial.poorEyesight;
 
   @override
@@ -335,13 +696,47 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
     super.dispose();
   }
 
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Supprimer cet élève ?'),
+        content: Text(
+            '« ${widget.initial.fullName} » sera retiré de la classe, ainsi '
+            'que ses règles et sa place dans le plan.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      Navigator.pop(context); // ferme le formulaire sans enregistrer
+      widget.onDelete!();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isNew = widget.initial.firstName.isEmpty &&
-        widget.initial.lastName.isEmpty &&
-        widget.initial.notes.isEmpty;
+    final isNew = widget.onDelete == null;
     return AlertDialog(
-      title: Text(isNew ? 'Nouvel élève' : "Modifier l'élève"),
+      title: Row(
+        children: [
+          Expanded(child: Text(isNew ? 'Nouvel élève' : "Modifier l'élève")),
+          if (!isNew)
+            IconButton(
+              tooltip: 'Supprimer',
+              icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+              onPressed: _confirmDelete,
+            ),
+        ],
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -376,14 +771,14 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               onChanged: (v) => setState(() => _level = v ?? _level),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<Temperament>(
-              initialValue: _temperament,
-              decoration: const InputDecoration(labelText: 'Tempérament'),
+            DropdownButtonFormField<Energy>(
+              initialValue: _energy,
+              decoration: const InputDecoration(labelText: 'Énergie'),
               items: [
-                for (final t in Temperament.values)
+                for (final t in Energy.values)
                   DropdownMenuItem(value: t, child: Text(t.label)),
               ],
-              onChanged: (v) => setState(() => _temperament = v ?? _temperament),
+              onChanged: (v) => setState(() => _energy = v ?? _energy),
             ),
             const SizedBox(height: 4),
             SwitchListTile(
@@ -417,7 +812,7 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               lastName: _last.text.trim(),
               gender: _gender,
               level: _level,
-              temperament: _temperament,
+              energy: _energy,
               poorEyesight: _poorEyesight,
               notes: _notes.text.trim(),
             ),
