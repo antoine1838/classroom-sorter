@@ -34,7 +34,9 @@ class ClassEditorScreen extends StatelessWidget {
             ),
           ],
           bottom: const TabBar(
-            isScrollable: true,
+            // Non scrollable : les 4 onglets se répartissent sur toute la
+            // largeur de l'écran (adaptatif), sans défilement ni espace vide.
+            isScrollable: false,
             tabs: [
               Tab(icon: Icon(Icons.grid_on), text: 'Salle'),
               Tab(icon: Icon(Icons.people_alt_outlined), text: 'Élèves'),
@@ -162,8 +164,10 @@ class _RoomTab extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 const double _kRowH = 48;
-const double _kCellW = 48;
-const double _kNameW = 172;
+const double _kCellW = 48; // largeur max d'une case-valeur
+const double _kCellMinW = 34; // largeur min avant de rogner la colonne des noms
+const double _kNameW = 172; // largeur max de la colonne des noms
+const double _kNameMinW = 110; // largeur min de la colonne des noms
 const double _kGroupH = 26;
 const double _kValueH = 30;
 
@@ -248,8 +252,31 @@ class _StudentsTabState extends State<_StudentsTab> {
   bool _syncing = false;
   bool _sortByName = false;
 
+  // Largeurs adaptatives de la matrice, recalculées à chaque build selon la
+  // largeur disponible (voir _computeWidths).
+  double _cellW = _kCellW;
+  double _nameW = _kNameW;
+
   AppState get state => widget.state;
   ClassGroup get cls => widget.cls;
+
+  /// Ajuste la largeur des colonnes pour que toute la matrice tienne dans
+  /// [maxWidth] sans défilement horizontal quand c'est possible. On rétrécit
+  /// d'abord les cases-valeurs (jusqu'à [_kCellMinW]), puis, si nécessaire, la
+  /// colonne des noms (jusqu'à [_kNameMinW]). Si même au minimum tout déborde
+  /// (écran très étroit), le défilement horizontal reste disponible en secours.
+  void _computeWidths(double maxWidth) {
+    final cols = _attrGroups.fold<int>(0, (n, g) => n + g.cols.length);
+    final seps = (_attrGroups.length - 1).toDouble(); // séparateurs de 1 px
+    var cellW = (maxWidth - _kNameW - seps) / cols;
+    var nameW = _kNameW;
+    if (cellW < _kCellMinW) {
+      cellW = _kCellMinW;
+      nameW = (maxWidth - (cellW * cols + seps)).clamp(_kNameMinW, _kNameW);
+    }
+    _cellW = cellW.clamp(_kCellMinW, _kCellW);
+    _nameW = nameW;
+  }
 
   @override
   void initState() {
@@ -305,7 +332,12 @@ class _StudentsTabState extends State<_StudentsTab> {
         Expanded(
           child: cls.students.isEmpty
               ? const Center(child: Text('Aucun élève. Ajoutez-en un !'))
-              : _buildMatrix(cs),
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    _computeWidths(constraints.maxWidth);
+                    return _buildMatrix(cs);
+                  },
+                ),
         ),
       ],
     );
@@ -370,7 +402,7 @@ class _StudentsTabState extends State<_StudentsTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            width: _kNameW,
+            width: _nameW,
             decoration: BoxDecoration(
               border: Border(right: BorderSide(color: cs.outlineVariant)),
             ),
@@ -434,7 +466,7 @@ class _StudentsTabState extends State<_StudentsTab> {
     for (var g = 0; g < _attrGroups.length; g++) {
       if (g > 0) out.add(_vSep(cs));
       out.add(SizedBox(
-        width: _attrGroups[g].cols.length * _kCellW,
+        width: _attrGroups[g].cols.length * _cellW,
         child: Center(
           child: Text(_attrGroups[g].label,
               style: style, overflow: TextOverflow.ellipsis),
@@ -450,7 +482,7 @@ class _StudentsTabState extends State<_StudentsTab> {
       if (g > 0) out.add(_vSep(cs));
       for (final c in _attrGroups[g].cols) {
         out.add(SizedBox(
-          width: _kCellW,
+          width: _cellW,
           child: Center(
             child: Tooltip(
               message: c.tooltip,
@@ -481,7 +513,7 @@ class _StudentsTabState extends State<_StudentsTab> {
 
   Widget _buildNameColumn(ColorScheme cs, List<Student> students) {
     return Container(
-      width: _kNameW,
+      width: _nameW,
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: cs.outlineVariant)),
       ),
@@ -559,7 +591,7 @@ class _StudentsTabState extends State<_StudentsTab> {
   Widget _checkCell(ColorScheme cs,
       {required bool on, required VoidCallback onTap}) {
     return SizedBox(
-      width: _kCellW,
+      width: _cellW,
       child: InkWell(
         onTap: onTap,
         child: Center(
