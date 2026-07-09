@@ -103,9 +103,9 @@ void main() {
     final cls = _classWith(
       room: Room(rows: 1, cols: 5),
       students: [
-        Student(id: 'a', firstName: 'A', temperament: Temperament.agite),
-        Student(id: 'b', firstName: 'B', temperament: Temperament.agite),
-        Student(id: 'c', firstName: 'C', temperament: Temperament.calme),
+        Student(id: 'a', firstName: 'A', energy: Energy.agite),
+        Student(id: 'b', firstName: 'B', energy: Energy.agite),
+        Student(id: 'c', firstName: 'C', energy: Energy.calme),
       ],
       rules: [],
       balance: BalanceSettings(separateAgites: true),
