@@ -79,32 +79,37 @@ class _ScrollableGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _FrontBanner(gridWidth(room, editor: _editor)),
-              for (var r = 0; r < room.rows; r++)
-                Padding(
-                  padding:
-                      EdgeInsets.only(bottom: r < room.rows - 1 ? kRowGap : 0),
-                  child: Row(
-                    children: [
-                      for (var c = 0; c < room.cols; c++) ...[
-                        cellBuilder(r, c),
-                        if (c < room.cols - 1) _colGap(context, c),
-                      ],
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
+    final grid = Padding(
+      padding: const EdgeInsets.all(4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _FrontBanner(gridWidth(room, editor: _editor)),
+          for (var r = 0; r < room.rows; r++)
+            Padding(
+              padding:
+                  EdgeInsets.only(bottom: r < room.rows - 1 ? kRowGap : 0),
+              child: Row(
+                children: [
+                  for (var c = 0; c < room.cols; c++) ...[
+                    cellBuilder(r, c),
+                    if (c < room.cols - 1) _colGap(context, c),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    // Réduire toute la salle pour qu'elle tienne d'un coup à l'écran, comme
+    // une carte : sur un téléphone (format vertical) une salle large déborderait
+    // sinon. BoxFit.scaleDown ne fait que rétrécir — une petite salle garde sa
+    // taille naturelle et reste alignée en haut.
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.topCenter,
+        child: grid,
       ),
     );
   }
