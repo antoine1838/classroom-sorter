@@ -1,0 +1,50 @@
+name: Build iOS (non signé)
+
+# iOS ne peut être compilé QUE sur macOS : ce workflow tourne donc sur un runner
+# macOS. Le dépôt étant public, les minutes macOS sont gratuites -> on peut déclencher
+# automatiquement, comme la CI Android.
+#
+# Ce build est NON SIGNÉ (--no-codesign) : il valide que le code iOS compile, mais
+# le .app produit n'est PAS installable sur un vrai iPhone. Pour distribuer (TestFlight
+# / App Store), il faudrait un compte Apple Developer (99 $/an) + certificats de signature.
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:   # bouton "Run workflow" dans l'onglet Actions
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Installer Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      - name: Compiler l'app iOS (non signée)
+        # --no-codesign : pas de signature (aucun certificat / provisioning requis).
+        # Produit build/ios/iphoneos/Runner.app (arm64, device), non installable tel quel.
+        run: flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
+
+      - name: Empaqueter le .app (zip)
+        # ditto = outil macOS qui préserve correctement la structure du bundle .app.
+        run: |
+          LABEL="build-$GITHUB_RUN_NUMBER"
+          cd build/ios/iphoneos
+          ditto -c -k --sequesterRsrc --keepParent Runner.app "plan-de-classe-ios-$LABEL-unsigned.zip"
+          echo "IOS_LABEL=$LABEL" >> "$GITHUB_ENV"
+
+      - name: Publier le .app en artefact
+        uses: actions/upload-artifact@v7
+        with:
+          name: plan-de-classe-ios-${{ env.IOS_LABEL }}-unsigned
+          path: build/ios/iphoneos/plan-de-classe-ios-${{ env.IOS_LABEL }}-unsigned.zip
+          if-no-files-found: error
