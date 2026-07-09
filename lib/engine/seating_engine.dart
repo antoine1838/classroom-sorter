@@ -21,6 +21,9 @@ class PlanResult {
   final List<String> unplacedStudentIds;
   final List<String> violations; // contraintes dures non respectées
   final List<String> warnings; // souples non respectées + infos
+  /// Bilan des objectifs d'équilibre activés : pour chacun, respecté ou non
+  /// et le libellé à afficher.
+  final List<({bool ok, String label})> balance;
   final double score; // coût final (plus bas = meilleur)
 
   PlanResult({
@@ -28,6 +31,7 @@ class PlanResult {
     required this.unplacedStudentIds,
     required this.violations,
     required this.warnings,
+    required this.balance,
     required this.score,
   });
 
@@ -47,11 +51,22 @@ class SeatingEngine {
   /// devant (moitié généreuse).
   late final int _frontHalfRows;
 
-  static const double hardPenalty = 1000.0;
-  static const double softPenalty = 10.0;
-  static const double balancePenalty = 3.0;
-  // Deux élèves agités côte à côte : préférence forte, mais reste souple.
-  static const double agitePenalty = 6.0;
+  // Barème des pénalités. Les contraintes DURES dominent tout : leur coût
+  // (≥ [hardPenalty]) reste très loin au-dessus du cumul maximum possible des
+  // termes d'équilibre (≈ nb de paires de voisins × poids). Les préférences
+  // explicites (règles souples) passent avant les objectifs d'équilibre
+  // génériques, eux-mêmes nettement renforcés pour un vrai brassage.
+  static const double hardPenalty = 100000.0;
+  static const double softPenalty = 40.0;
+  static const double balancePenalty = 12.0; // mixité genre / niveau
+  static const double agitePenalty = 20.0; // deux agités voisins
+
+  // Recuit : la température est DÉCOUPLÉE de [hardPenalty] et calée sur
+  // l'échelle des termes souples ; le refroidissement descend assez bas pour
+  // que ces termes soient réellement optimisés en fin de parcours (sinon un
+  // poids d'équilibre est presque toujours accepté et n'a aucun effet).
+  static const double _initialTemp = 150.0;
+  static const double _coolingRate = 0.995;
 
   SeatingEngine(this.cls, {int? seed}) : _rng = Random(seed) {
     _seats = cls.room.seatKeys;
@@ -120,7 +135,7 @@ class SeatingEngine {
     for (var restart = 0; restart < restarts; restart++) {
       final current = _randomFill(freeStudents, freeSeats);
       double cost = _cost(current, pinned);
-      double temp = hardPenalty; // température initiale
+      double temp = _initialTemp;
 
       for (var it = 0; it < iterations && freeStudents.length >= 2; it++) {
         final a = freeStudents[_rng.nextInt(freeStudents.length)];
@@ -142,7 +157,7 @@ class SeatingEngine {
           current[b] = current[a];
           current[a] = tmp; // annuler l'échange
         }
-        temp *= 0.997; // refroidissement
+        temp *= _coolingRate; // refroidissement
       }
 
       if (cost < bestCost) {
@@ -172,6 +187,7 @@ class SeatingEngine {
       unplacedStudentIds: unplaced,
       violations: report.$1,
       warnings: report.$2,
+      balance: _balanceNotes(seatOf),
       score: bestCost,
     );
   }
@@ -269,6 +285,75 @@ class SeatingEngine {
     }
 
     return cost;
+  }
+
+  /// Bilan des objectifs d'équilibre ACTIVÉS : compte, parmi les paires de
+  /// voisins, celles qui vont à l'encontre de chaque objectif. Renvoie une
+  /// ligne par objectif activé (respecté ou non).
+  List<({bool ok, String label})> _balanceNotes(Map<String, String> seatOf) {
+    final b = cls.balance;
+    if (!b.mixGender && !b.mixLevel && !b.separateAgites) return const [];
+
+    final occ = <String, String>{};
+    seatOf.forEach((sid, seat) => occ[seat] = sid);
+    var sameGender = 0;
+    var sameLevel = 0;
+    var bothAgite = 0;
+    for (final k in _seats) {
+      final sid = occ[k];
+      if (sid == null) continue;
+      final s = _byId[sid]!;
+      for (final nk in _neighbors[k]!) {
+        if (nk.compareTo(k) <= 0) continue; // chaque paire une seule fois
+        final sid2 = occ[nk];
+        if (sid2 == null) continue;
+        final s2 = _byId[sid2]!;
+        if (b.mixGender &&
+            s.gender != Gender.autre &&
+            s2.gender != Gender.autre &&
+            s.gender == s2.gender) {
+          sameGender++;
+        }
+        if (b.mixLevel &&
+            s.level != Level.nonDefini &&
+            s2.level != Level.nonDefini &&
+            s.level == s2.level) {
+          sameLevel++;
+        }
+        if (b.separateAgites &&
+            s.energy == Energy.agite &&
+            s2.energy == Energy.agite) {
+          bothAgite++;
+        }
+      }
+    }
+
+    final notes = <({bool ok, String label})>[];
+    if (b.mixGender) {
+      notes.add((
+        ok: sameGender == 0,
+        label: sameGender == 0
+            ? 'Mixité filles/garçons : aucun voisin de même genre.'
+            : 'Mixité filles/garçons : $sameGender paire(s) de même genre côte à côte.',
+      ));
+    }
+    if (b.mixLevel) {
+      notes.add((
+        ok: sameLevel == 0,
+        label: sameLevel == 0
+            ? 'Mélange des niveaux : aucun voisin de même niveau.'
+            : 'Mélange des niveaux : $sameLevel paire(s) de même niveau côte à côte.',
+      ));
+    }
+    if (b.separateAgites) {
+      notes.add((
+        ok: bothAgite == 0,
+        label: bothAgite == 0
+            ? 'Élèves agités séparés : aucun côte à côte.'
+            : 'Élèves agités : $bothAgite paire(s) d\'agités côte à côte.',
+      ));
+    }
+    return notes;
   }
 
   /// Renvoie (violations dures, avertissements souples).
