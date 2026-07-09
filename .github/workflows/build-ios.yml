@@ -13,6 +13,11 @@ on:
     tags: [ 'v*' ]
   workflow_dispatch:   # bouton "Run workflow" dans l'onglet Actions
 
+# Moindre privilège : le job ne fait que checkout + upload d'artefact -> lecture seule.
+# (L'upload d'artefact ne consomme aucune permission du GITHUB_TOKEN.)
+permissions:
+  contents: read
+
 jobs:
   build-ios:
     runs-on: macos-latest
