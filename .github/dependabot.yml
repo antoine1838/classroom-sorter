@@ -15,12 +15,10 @@ updates:
           - "minor"
           - "patch"
 
-  # Dépendances Gradle du module Android (manifestes sous /android, PAS à la racine)
-  - package-ecosystem: "gradle"
-    directory: "/android"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+  # NB : l'écosystème "gradle" est volontairement EXCLU. Sur un projet Flutter,
+  # les versions AGP / Kotlin / Gradle sont gérées par Flutter et doivent rester
+  # alignées avec la version du SDK -> les bumps isolés de Dependabot cassent le
+  # build sans apport sécurité réel. On laisse Flutter gérer la toolchain Android.
 
   # Actions GitHub utilisées dans .github/workflows/*.yml
   - package-ecosystem: "github-actions"
