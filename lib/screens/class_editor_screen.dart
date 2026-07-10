@@ -1221,7 +1221,7 @@ class _PlanTabState extends State<_PlanTab> {
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   onPressed: _clear,
-                  icon: const Icon(Icons.clear_all),
+                  icon: const Icon(Icons.replay),
                   tooltip: 'Vider le plan',
                 ),
               ],
