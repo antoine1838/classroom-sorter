@@ -240,13 +240,16 @@ class SeatingEngine {
       }
     }
 
-    // Mauvaise vue : doit être dans la moitié avant (près du tableau). Dure.
-    seatOf.forEach((sid, seat) {
-      final s = _byId[sid];
-      if (s == null || !s.poorEyesight) return;
-      final (r, _) = Room.parse(seat);
-      if (r >= _frontHalfRows) cost += hardPenalty;
-    });
+    // Mauvaise vue : préférence souple « moitié avant » (objectif d'équilibre,
+    // même poids que les autres). Ne s'applique que si la bascule est activée.
+    if (cls.balance.frontForPoorEyesight) {
+      seatOf.forEach((sid, seat) {
+        final s = _byId[sid];
+        if (s == null || !s.poorEyesight) return;
+        final (r, _) = Room.parse(seat);
+        if (r >= _frontHalfRows) cost += balancePenalty;
+      });
+    }
 
     // Objectifs d'équilibre : pénaliser les voisins identiques.
     if (cls.balance.mixGender ||
@@ -292,7 +295,12 @@ class SeatingEngine {
   /// ligne par objectif activé (respecté ou non).
   List<({bool ok, String label})> _balanceNotes(Map<String, String> seatOf) {
     final b = cls.balance;
-    if (!b.mixGender && !b.mixLevel && !b.separateAgites) return const [];
+    if (!b.mixGender &&
+        !b.mixLevel &&
+        !b.separateAgites &&
+        !b.frontForPoorEyesight) {
+      return const [];
+    }
 
     final occ = <String, String>{};
     seatOf.forEach((sid, seat) => occ[seat] = sid);
@@ -328,6 +336,20 @@ class SeatingEngine {
       }
     }
 
+    // Mauvaise vue : comptage par rang (indépendant du voisinage).
+    var eyesightTotal = 0;
+    var eyesightBack = 0;
+    if (b.frontForPoorEyesight) {
+      for (final s in cls.students) {
+        if (!s.poorEyesight) continue;
+        eyesightTotal++;
+        final seat = seatOf[s.id];
+        if (seat != null && Room.parse(seat).$1 >= _frontHalfRows) {
+          eyesightBack++;
+        }
+      }
+    }
+
     final notes = <({bool ok, String label})>[];
     if (b.mixGender) {
       notes.add((
@@ -351,6 +373,15 @@ class SeatingEngine {
         label: bothAgite == 0
             ? 'Élèves agités séparés : aucun côte à côte.'
             : 'Élèves agités : $bothAgite paire(s) d\'agités côte à côte.',
+      ));
+    }
+    // Note affichée seulement s'il existe au moins un élève à mauvaise vue.
+    if (b.frontForPoorEyesight && eyesightTotal > 0) {
+      notes.add((
+        ok: eyesightBack == 0,
+        label: eyesightBack == 0
+            ? 'Mauvaise vue : tous dans la moitié avant (près du tableau).'
+            : 'Mauvaise vue : $eyesightBack élève(s) hors moitié avant.',
       ));
     }
     return notes;
@@ -399,17 +430,8 @@ class SeatingEngine {
       }
     }
 
-    // Mauvaise vue : contrainte dure « moitié avant ».
-    for (final s in cls.students) {
-      if (!s.poorEyesight) continue;
-      final seat = seatOf[s.id];
-      if (seat == null) continue; // déjà signalé comme non placé
-      final (r, _) = Room.parse(seat);
-      if (r >= _frontHalfRows) {
-        violations.add(
-            "${s.fullName} (mauvaise vue) n'est pas dans la moitié avant, près du tableau.");
-      }
-    }
+    // Mauvaise vue : plus de violation dure — c'est désormais un objectif
+    // d'équilibre souple, rapporté via _balanceNotes (section « Équilibre »).
 
     if (unplaced.isNotEmpty) {
       warnings.add(

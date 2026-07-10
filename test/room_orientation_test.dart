@@ -33,7 +33,7 @@ void main() {
     cls.assignment[Room.keyOf(2, 0)] = 'back';
 
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, __) {})),
+      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
     ));
     await tester.pumpAndSettle();
 
@@ -71,9 +71,11 @@ void main() {
         Student(id: 'myope', firstName: 'Myope', poorEyesight: true),
         Student(id: 'normal', firstName: 'Normal'),
       ],
+      // Objectif d'équilibre « mauvaise vue -> devant » activé.
+      balance: BalanceSettings(frontForPoorEyesight: true),
     );
 
-    // Le moteur (inchangé) place l'élève à mauvaise vue au rang LOGIQUE 0.
+    // Avec l'objectif activé, le moteur place l'élève à mauvaise vue au rang 0.
     final res = SeatingEngine(cls, seed: 2).generate();
     final seatMyope =
         res.assignment.entries.firstWhere((e) => e.value == 'myope').key;
@@ -83,7 +85,7 @@ void main() {
     cls.assignment.addAll(res.assignment);
 
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, __) {})),
+      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
     ));
     await tester.pumpAndSettle();
 
@@ -140,7 +142,7 @@ void main() {
     cls.assignment.addAll(res.assignment);
 
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, __) {})),
+      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
     ));
     await tester.pumpAndSettle();
 

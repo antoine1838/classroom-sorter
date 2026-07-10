@@ -11,23 +11,28 @@ class BalanceSettings {
   bool mixGender; // alterner filles / garçons dans le voisinage
   bool mixLevel; // alterner les niveaux dans le voisinage
   bool separateAgites; // éviter deux élèves agités côte à côte
+  bool frontForPoorEyesight; // rapprocher du tableau les élèves à mauvaise vue
 
   BalanceSettings({
     this.mixGender = false,
     this.mixLevel = false,
     this.separateAgites = true,
+    this.frontForPoorEyesight = false,
   });
 
   Map<String, dynamic> toJson() => {
         'mixGender': mixGender,
         'mixLevel': mixLevel,
         'separateAgites': separateAgites,
+        'frontForPoorEyesight': frontForPoorEyesight,
       };
 
   factory BalanceSettings.fromJson(Map<String, dynamic> j) => BalanceSettings(
         mixGender: (j['mixGender'] ?? false) as bool,
         mixLevel: (j['mixLevel'] ?? false) as bool,
         separateAgites: (j['separateAgites'] ?? true) as bool,
+        // Repli à false pour les anciennes sauvegardes (attribut jadis « dur »).
+        frontForPoorEyesight: (j['frontForPoorEyesight'] ?? false) as bool,
       );
 }
 

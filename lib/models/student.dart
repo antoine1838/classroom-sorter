@@ -40,8 +40,9 @@ class Student {
   Level level;
   Energy energy;
 
-  /// Mauvaise vue : doit être placé dans la moitié de la salle la plus proche
-  /// du tableau (rangs de devant).
+  /// Mauvaise vue : à rapprocher du tableau (moitié avant) si l'objectif
+  /// d'équilibre « frontForPoorEyesight » est activé. Préférence souple ;
+  /// ce n'est plus une contrainte dure.
   bool poorEyesight;
 
   String notes;

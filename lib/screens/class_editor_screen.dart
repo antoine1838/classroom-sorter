@@ -230,7 +230,8 @@ final List<_AttrGroup> _attrGroups = [
         icon: Icons.bolt),
   ]),
   _AttrGroup('Vue', [
-    _AttrCol('Vue', 'Mauvaise vue (à placer devant)', (s) => s.poorEyesight,
+    _AttrCol('Vue', 'Mauvaise vue (objectif : rapprocher du tableau)',
+        (s) => s.poorEyesight,
         (s) => s.poorEyesight = !s.poorEyesight,
         icon: Icons.visibility_off),
   ]),
@@ -816,7 +817,8 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Mauvaise vue'),
-              subtitle: const Text('À placer près du tableau (moitié avant)'),
+              subtitle:
+                  const Text('À rapprocher du tableau (objectif d\'équilibre)'),
               value: _poorEyesight,
               onChanged: (v) => setState(() => _poorEyesight = v),
             ),
@@ -915,6 +917,16 @@ class _RulesTab extends StatelessWidget {
                 value: cls.balance.separateAgites,
                 onChanged: (v) {
                   cls.balance.separateAgites = v;
+                  state.touch();
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Rapprocher du tableau (mauvaise vue)'),
+                subtitle:
+                    const Text('Placer les élèves à mauvaise vue dans la moitié avant'),
+                value: cls.balance.frontForPoorEyesight,
+                onChanged: (v) {
+                  cls.balance.frontForPoorEyesight = v;
                   state.touch();
                 },
               ),

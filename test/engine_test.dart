@@ -121,7 +121,7 @@ void main() {
         reason: 'les deux agités ne devraient pas être côte à côte');
   });
 
-  test('mauvaise vue : placé dans la moitié avant (près du tableau)', () {
+  test('mauvaise vue (objectif activé) : préféré dans la moitié avant', () {
     final cls = _classWith(
       room: Room(rows: 4, cols: 2), // moitié avant = rangs 0 et 1
       students: [
@@ -131,6 +131,7 @@ void main() {
         Student(id: 'd', firstName: 'D'),
       ],
       rules: [],
+      balance: BalanceSettings(frontForPoorEyesight: true),
     );
 
     final res = SeatingEngine(cls, seed: 2).generate();
@@ -138,8 +139,30 @@ void main() {
     final (rowA, _) = Room.parse(seatA);
 
     expect(rowA < 2, isTrue,
-        reason: 'A (mauvaise vue) doit être dans la moitié avant');
+        reason: 'objectif activé : A préféré dans la moitié avant');
+    // Objectif souple désormais : jamais une violation dure…
     expect(res.violations, isEmpty);
+    // …et la note d'équilibre correspondante est présente et satisfaite.
+    expect(res.balance.any((n) => n.label.contains('Mauvaise vue') && n.ok),
+        isTrue);
+  });
+
+  test('mauvaise vue (objectif désactivé) : aucune contrainte ni note', () {
+    final cls = _classWith(
+      room: Room(rows: 4, cols: 2),
+      students: [
+        Student(id: 'a', firstName: 'A', poorEyesight: true),
+        Student(id: 'b', firstName: 'B'),
+      ],
+      rules: [],
+      // frontForPoorEyesight reste à false (valeur par défaut).
+    );
+
+    final res = SeatingEngine(cls, seed: 2).generate();
+
+    expect(res.violations, isEmpty);
+    expect(res.balance.any((n) => n.label.contains('Mauvaise vue')), isFalse,
+        reason: 'objectif désactivé : aucune note « mauvaise vue »');
   });
 
   test('trop d\'élèves : les surnuméraires sont signalés', () {
