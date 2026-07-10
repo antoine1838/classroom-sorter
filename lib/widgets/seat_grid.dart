@@ -47,14 +47,14 @@ class _FrontBanner extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       width: width < 120 ? 120 : width,
-      margin: const EdgeInsets.only(bottom: kGap + 2),
+      margin: const EdgeInsets.only(top: kGap + 2),
       padding: const EdgeInsets.symmetric(vertical: 5),
       decoration: BoxDecoration(
         color: cs.primaryContainer,
         borderRadius: BorderRadius.circular(6),
       ),
       alignment: Alignment.center,
-      child: Text('⬆  DEVANT (tableau)',
+      child: Text('⬇  DEVANT (tableau)',
           style: Theme.of(context).textTheme.labelMedium),
     );
   }
@@ -84,11 +84,13 @@ class _ScrollableGrid extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FrontBanner(gridWidth(room, editor: _editor)),
-          for (var r = 0; r < room.rows; r++)
+          // Rangs affichés du fond (haut) vers le devant (bas) : le tableau est
+          // en bas, comme le voit le professeur face à sa classe. On conserve
+          // l'index logique r (rang 0 = devant) pour les clés de place et
+          // l'affectation — seul l'ordre d'affichage est inversé.
+          for (var r = room.rows - 1; r >= 0; r--)
             Padding(
-              padding:
-                  EdgeInsets.only(bottom: r < room.rows - 1 ? kRowGap : 0),
+              padding: EdgeInsets.only(bottom: r > 0 ? kRowGap : 0),
               child: Row(
                 children: [
                   for (var c = 0; c < room.cols; c++) ...[
@@ -98,7 +100,9 @@ class _ScrollableGrid extends StatelessWidget {
                 ],
               ),
             ),
+          _FrontBanner(gridWidth(room, editor: _editor)),
         ],
+
       ),
     );
     // Réduire toute la salle pour qu'elle tienne d'un coup à l'écran, comme
