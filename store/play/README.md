@@ -30,3 +30,12 @@ Un champ = un fichier (convention *fastlane*). Langue par défaut : `fr-FR`.
 
 Le contenu des descriptions reflète les fonctionnalités réelles (attributs
 élèves, règles par binôme, objectifs d'équilibre) — voir aussi le README racine.
+
+## Politique de confidentialité
+
+URL (champ obligatoire de la Play Console) :
+**https://antoine1838.github.io/classroom-sorter/**
+
+Source : [`docs/index.html`](../../docs/index.html) à la racine du dépôt, publiée
+via **GitHub Pages** (`main` / `docs`). Contenu : app hors ligne, aucune donnée
+collectée / transmise / partagée, stockage local uniquement.
