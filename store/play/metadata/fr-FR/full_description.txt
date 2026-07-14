@@ -1,0 +1,40 @@
+Plan de classe aide les enseignants à créer rapidement un plan de salle : placez automatiquement vos élèves selon vos propres règles, puis ajustez à la main d'un simple glisser-déposer.
+
+Tout fonctionne HORS-LIGNE, directement sur votre appareil. Aucune donnée n'est envoyée sur Internet : les informations de vos élèves restent chez vous.
+
+CE QUE VOUS POUVEZ FAIRE
+
+Concevoir votre salle
+• Dessinez la disposition des tables sur une grille modifiable.
+• Retirez des cases pour créer les allées et reproduire votre vraie salle.
+• Le premier rang correspond au « devant », côté tableau.
+
+Gérer vos élèves
+• Ajoutez-les un par un ou importez une liste.
+• Pour chaque élève : prénom, nom, genre, niveau (faible / moyen / fort), énergie (calme / agité), mauvaise vue, et des notes libres.
+
+Définir vos règles (par élève ou par binôme)
+• Place imposée : fixez un élève à une place précise.
+• Devant : gardez un élève dans les premiers rangs (vue, audition, mobilité…).
+• Séparer : deux élèves ne seront jamais côte à côte.
+• Rapprocher : deux élèves placés l'un à côté de l'autre.
+• Chaque règle est au choix obligatoire ou simple préférence.
+
+Viser l'équilibre sur toute la classe
+• Mélanger les genres : éviter les voisins de même genre.
+• Mélanger les niveaux : éviter les voisins de même niveau.
+• Séparer les élèves agités : éviter deux élèves agités côte à côte.
+• Mauvaise vue : rapprocher du tableau (moitié avant) les élèves concernés.
+
+Générer et ajuster
+• Le plan est calculé automatiquement pour respecter au mieux vos contraintes.
+• Un rapport indique les règles et objectifs respectés, et ceux qui ne peuvent pas l'être.
+• Réorganisez librement par glisser-déposer.
+• Pas satisfait ? « Régénérer » propose une nouvelle disposition.
+
+RESPECT DE LA VIE PRIVÉE
+• 100 % hors-ligne, données stockées uniquement sur l'appareil.
+• Aucun compte, aucune publicité, aucun pistage.
+• Aucune permission d'accès à Internet.
+
+Idéal pour les enseignants du primaire, du collège et du lycée qui veulent gagner du temps en début d'année ou réorganiser une classe en quelques minutes.

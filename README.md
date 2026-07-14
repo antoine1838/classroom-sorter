@@ -11,14 +11,19 @@ sur Internet — adapté aux données élèves).
 
 - **Salle** : grille de places modifiable ; on peut retirer des cases pour
   dessiner les allées. Le rang 0 est « devant » (tableau).
-- **Élèves** : ajout un par un ou import d'une liste ; genre, niveau, notes.
-- **Règles** :
+- **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
+  (faible/moyen/fort), énergie (calme/agité), mauvaise vue, notes libres.
+- **Règles** (par élève ou par binôme) — chacune *obligatoire* (dure) ou
+  *préférence* (souple) :
   - *Place imposée* — un élève sur une place précise ;
   - *Doit être devant* — dans les N premiers rangs (vue, audition, PMR…) ;
   - *Séparer* — deux élèves jamais côte à côte ;
-  - *Rapprocher* — deux élèves côte à côte ;
-  - Objectifs souples : mixer filles/garçons, mélanger les niveaux.
-  - Chaque règle est *obligatoire* (dure) ou *préférence* (souple).
+  - *Rapprocher* — deux élèves côte à côte.
+- **Objectifs d'équilibre** (souples, appliqués à toute la classe) :
+  - *Mélanger les genres* — éviter les voisins de même genre ;
+  - *Mélanger les niveaux* — éviter les voisins de même niveau ;
+  - *Séparer les élèves agités* — éviter deux agités côte à côte ;
+  - *Mauvaise vue* — rapprocher du tableau (moitié avant) les élèves concernés.
 - **Plan** : génération automatique, rapport des contraintes respectées /
   violées, et **glisser-déposer** pour ajuster à la main. Bouton *Régénérer*
   pour une autre proposition.
@@ -55,6 +60,26 @@ flutter build apk            # APK de production -> build\app\outputs\flutter-ap
 > Hypervisor Platform* n'est pas activée sur cette machine — nécessite l'IT /
 > les droits admin). En attendant : Windows, Edge, ou un téléphone en USB.
 
+## Icônes & ressources de store
+
+Les icônes sont générées depuis `assets/icon/icon.png` (+ `icon_foreground.png`
+pour le calque adaptatif Android) via **flutter_launcher_icons** :
+
+```powershell
+dart run flutter_launcher_icons   # régénère Android + iOS
+```
+
+La configuration (`pubspec.yaml`) ne cible qu'Android et iOS. Les icônes **Web**
+(`web/icons/`, `web/favicon.png`) et **Windows**
+(`windows/runner/resources/app_icon.ico`) sont régénérées séparément.
+
+L'icône représente la salle vue du professeur : les pupitres (élèves face au
+tableau) au-dessus de la barre « tableau », en bas — cohérent avec l'écran Salle.
+
+Les ressources de la fiche **Google Play** (icône 512×512, bandeau 1024×500,
+captures d'écran, descriptions fr-FR) sont regroupées dans **`store/play/`** —
+voir [store/play/README.md](store/play/README.md).
+
 ## Structure du code
 
 ```
@@ -67,7 +92,8 @@ lib/
 ├── app_state.dart État global (ChangeNotifier) + persistance
 └── main.dart
 
-test/              engine_test.dart, widget_test.dart
+test/              engine_test, seating_neighbors_test, room_orientation_test,
+                   layout_responsive_test, widget_test
 ```
 
 ## Idées d'améliorations
