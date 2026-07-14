@@ -10,7 +10,8 @@ sur Internet — adapté aux données élèves).
 ## Fonctionnalités
 
 - **Salle** : grille de places modifiable ; on peut retirer des cases pour
-  dessiner les allées. Le rang 0 est « devant » (tableau).
+  dessiner les allées. Le rang 0 est le « devant » (côté tableau), **affiché en
+  bas** de la grille (vue du professeur).
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
   (faible/moyen/fort), énergie (calme/agité), mauvaise vue, notes libres.
 - **Règles** (par élève ou par binôme) — chacune *obligatoire* (dure) ou
@@ -77,8 +78,12 @@ L'icône représente la salle vue du professeur : les pupitres (élèves face au
 tableau) au-dessus de la barre « tableau », en bas — cohérent avec l'écran Salle.
 
 Les ressources de la fiche **Google Play** (icône 512×512, bandeau 1024×500,
-captures d'écran, descriptions fr-FR) sont regroupées dans **`store/play/`** —
-voir [store/play/README.md](store/play/README.md).
+captures d'écran, descriptions fr-FR, politique de confidentialité) sont
+regroupées dans **`store/play/`** — voir [store/play/README.md](store/play/README.md).
+
+Sur un tag `vX.Y.Z`, le CI ([.github/workflows/build-apk.yml](.github/workflows/build-apk.yml))
+construit l'**APK** (installable directement) et l'**AAB signé** (tous les ABI, à
+téléverser sur Google Play), et les joint à la Release GitHub.
 
 ## Structure du code
 
