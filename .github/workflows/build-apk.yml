@@ -76,9 +76,36 @@ jobs:
           path: ${{ env.APK_PATH }}
           if-no-files-found: error
 
+      # --- App Bundle (.aab) : format requis par Google Play ---
+      # Uniquement sur release (tag) ou lancement manuel, pour ne pas ralentir
+      # chaque push sur main (l'AAB compile TOUS les ABI, donc plus long).
+      - name: Compiler l'AAB release (Play Store)
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        # Pas de --target-platform : Play génère les APK par appareil à partir de
+        # tous les ABI présents dans le bundle (arm64, arm32, x86_64).
+        run: flutter build appbundle --release --build-number=$GITHUB_RUN_NUMBER ${APP_VERSION:+--build-name=$APP_VERSION}
+
+      - name: Renommer l'AAB selon la convention
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        run: |
+          LABEL="${APP_VERSION:-build-$GITHUB_RUN_NUMBER}"
+          mv build/app/outputs/bundle/release/app-release.aab "build/app/outputs/bundle/release/classroom-sorter-$LABEL.aab"
+          echo "AAB_PATH=build/app/outputs/bundle/release/classroom-sorter-$LABEL.aab" >> "$GITHUB_ENV"
+
+      - name: Publier l'AAB en artefact
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: classroom-sorter-${{ env.APK_LABEL }}-aab
+          path: ${{ env.AAB_PATH }}
+          if-no-files-found: error
+
       - name: Publier la Release GitHub (sur tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: ${{ env.APK_PATH }}
+          # APK (installable directement) + AAB (à téléverser sur Play).
+          files: |
+            ${{ env.APK_PATH }}
+            ${{ env.AAB_PATH }}
           generate_release_notes: true
