@@ -165,9 +165,9 @@ class _RoomTab extends StatelessWidget {
 
 const double _kRowH = 48;
 const double _kCellW = 48; // largeur max d'une case-valeur
-const double _kCellMinW = 34; // largeur min avant de rogner la colonne des noms
+const double _kCellMinW = 27; // largeur min avant de rogner la colonne des noms
 const double _kNameW = 172; // largeur max de la colonne des noms
-const double _kNameMinW = 110; // largeur min de la colonne des noms
+const double _kNameMinW = 98; // largeur min (laisse la place à « Élève » + tri)
 const double _kGroupH = 26;
 const double _kValueH = 30;
 
@@ -414,7 +414,7 @@ class _StudentsTabState extends State<_StudentsTab> {
               child: InkWell(
                 onTap: () => setState(() => _sortByName = !_sortByName),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Row(

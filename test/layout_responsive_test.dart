@@ -78,7 +78,7 @@ void main() {
   testWidgets('Élèves : le dernier attribut (« Vue ») est visible sans scroll',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(390, 800);
+    tester.view.physicalSize = const Size(320, 800);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
@@ -91,7 +91,7 @@ void main() {
     final vue = find.byIcon(Icons.visibility_off);
     expect(vue, findsOneWidget);
     final right = _globalEdges(tester.element(vue)).right;
-    expect(right, lessThanOrEqualTo(390 + 0.5));
+    expect(right, lessThanOrEqualTo(320 + 0.5));
   });
 
   testWidgets('Onglets : la barre remplit toute la largeur de l\'écran',
