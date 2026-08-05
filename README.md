@@ -13,7 +13,8 @@ sur Internet — adapté aux données élèves).
   dessiner les allées. Le rang 0 est le « devant » (côté tableau), **affiché en
   bas** de la grille (vue du professeur).
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
-  (faible/moyen/fort), énergie (calme/agité), mauvaise vue, notes libres.
+  (faible/moyen/fort), énergie (calme/agité), taille (petit/moyen/grand),
+  mauvaise vue, notes libres.
 - **Règles** (par élève ou par binôme) — chacune *obligatoire* (dure) ou
   *préférence* (souple) :
   - *Place imposée* — un élève sur une place précise ;
@@ -24,7 +25,9 @@ sur Internet — adapté aux données élèves).
   - *Mélanger les genres* — éviter les voisins de même genre ;
   - *Mélanger les niveaux* — éviter les voisins de même niveau ;
   - *Séparer les élèves agités* — éviter deux agités côte à côte ;
-  - *Mauvaise vue* — rapprocher du tableau (moitié avant) les élèves concernés.
+  - *Mauvaise vue* — rapprocher du tableau (moitié avant) les élèves concernés ;
+  - *Éviter un grand devant un petit* — un élève grand ne bloque pas la vue de
+    celui placé juste derrière.
 - **Plan** : génération automatique, rapport des contraintes respectées /
   violées, et **glisser-déposer** pour ajuster à la main. Bouton *Régénérer*
   pour une autre proposition.

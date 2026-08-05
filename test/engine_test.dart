@@ -165,6 +165,45 @@ void main() {
         reason: 'objectif désactivé : aucune note « mauvaise vue »');
   });
 
+  test('objectif « éviter grand devant petit » : respecté', () {
+    final cls = _classWith(
+      room: Room(rows: 2, cols: 1), // une seule colonne : devant / derrière
+      students: [
+        Student(id: 'a', firstName: 'A', size: StudentSize.grand),
+        Student(id: 'b', firstName: 'B', size: StudentSize.petit),
+      ],
+      rules: [],
+      balance: BalanceSettings(avoidTallInFrontOfShort: true),
+    );
+
+    final res = SeatingEngine(cls, seed: 4).generate();
+    final seatA = res.assignment.entries.firstWhere((e) => e.value == 'a').key;
+    final seatB = res.assignment.entries.firstWhere((e) => e.value == 'b').key;
+    final (rowA, _) = Room.parse(seatA);
+    final (rowB, _) = Room.parse(seatB);
+
+    expect(rowA == 0 && rowB == 1, isFalse,
+        reason: 'A (grand) ne devrait pas être directement devant B (petit)');
+    expect(res.balance.any((n) => n.label.contains('Tailles') && n.ok),
+        isTrue);
+  });
+
+  test('objectif « éviter grand devant petit » désactivé : aucune note', () {
+    final cls = _classWith(
+      room: Room(rows: 2, cols: 1),
+      students: [
+        Student(id: 'a', firstName: 'A', size: StudentSize.grand),
+        Student(id: 'b', firstName: 'B', size: StudentSize.petit),
+      ],
+      rules: [],
+      // avoidTallInFrontOfShort reste à false (valeur par défaut).
+    );
+
+    final res = SeatingEngine(cls, seed: 4).generate();
+
+    expect(res.balance.any((n) => n.label.contains('Tailles')), isFalse);
+  });
+
   test('trop d\'élèves : les surnuméraires sont signalés', () {
     final cls = _classWith(
       room: Room(rows: 1, cols: 2), // 2 places

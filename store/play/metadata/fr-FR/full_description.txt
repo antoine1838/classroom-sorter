@@ -11,7 +11,7 @@ Concevoir votre salle
 
 Gérer vos élèves
 • Ajoutez-les un par un ou importez une liste.
-• Pour chaque élève : prénom, nom, genre, niveau (faible / moyen / fort), énergie (calme / agité), mauvaise vue, et des notes libres.
+• Pour chaque élève : prénom, nom, genre, niveau (faible / moyen / fort), énergie (calme / agité), taille (petit / moyen / grand), mauvaise vue, et des notes libres.
 
 Définir vos règles (par élève ou par binôme)
 • Place imposée : fixez un élève à une place précise.
@@ -25,6 +25,7 @@ Viser l'équilibre sur toute la classe
 • Mélanger les niveaux : éviter les voisins de même niveau.
 • Séparer les élèves agités : éviter deux élèves agités côte à côte.
 • Mauvaise vue : rapprocher du tableau (moitié avant) les élèves concernés.
+• Éviter un grand devant un petit : un élève grand ne bloque pas la vue de celui placé juste derrière.
 
 Générer et ajuster
 • Le plan est calculé automatiquement pour respecter au mieux vos contraintes.

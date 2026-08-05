@@ -58,7 +58,7 @@ class SeatingEngine {
   // génériques, eux-mêmes nettement renforcés pour un vrai brassage.
   static const double hardPenalty = 100000.0;
   static const double softPenalty = 40.0;
-  static const double balancePenalty = 12.0; // mixité genre / niveau
+  static const double balancePenalty = 12.0; // mixité genre / niveau / taille
   static const double agitePenalty = 20.0; // deux agités voisins
 
   // Recuit : la température est DÉCOUPLÉE de [hardPenalty] et calée sur
@@ -287,6 +287,24 @@ class SeatingEngine {
       }
     }
 
+    // Taille : éviter qu'un élève grand se retrouve directement devant un
+    // petit (rang - 1, même colonne), qui lui bloquerait la vue. Relation
+    // dirigée (contrairement aux objectifs ci-dessus) : seule la paire
+    // exacte grand-devant / petit-derrière compte.
+    if (cls.balance.avoidTallInFrontOfShort) {
+      final occ = <String, String>{};
+      seatOf.forEach((sid, seat) => occ[seat] = sid);
+      for (final k in _seats) {
+        final sid = occ[k];
+        if (sid == null || _byId[sid]!.size != StudentSize.grand) continue;
+        final (r, c) = Room.parse(k);
+        final behindSid = occ[Room.keyOf(r + 1, c)];
+        if (behindSid != null && _byId[behindSid]!.size == StudentSize.petit) {
+          cost += balancePenalty;
+        }
+      }
+    }
+
     return cost;
   }
 
@@ -298,7 +316,8 @@ class SeatingEngine {
     if (!b.mixGender &&
         !b.mixLevel &&
         !b.separateAgites &&
-        !b.frontForPoorEyesight) {
+        !b.frontForPoorEyesight &&
+        !b.avoidTallInFrontOfShort) {
       return const [];
     }
 
@@ -350,6 +369,21 @@ class SeatingEngine {
       }
     }
 
+    // Taille : comptage des paires grand-devant / petit-derrière (relation
+    // dirigée, indépendante du voisinage symétrique ci-dessus).
+    var tallFrontOfShort = 0;
+    if (b.avoidTallInFrontOfShort) {
+      for (final k in _seats) {
+        final sid = occ[k];
+        if (sid == null || _byId[sid]!.size != StudentSize.grand) continue;
+        final (r, c) = Room.parse(k);
+        final behindSid = occ[Room.keyOf(r + 1, c)];
+        if (behindSid != null && _byId[behindSid]!.size == StudentSize.petit) {
+          tallFrontOfShort++;
+        }
+      }
+    }
+
     final notes = <({bool ok, String label})>[];
     if (b.mixGender) {
       notes.add((
@@ -382,6 +416,14 @@ class SeatingEngine {
         label: eyesightBack == 0
             ? 'Mauvaise vue : tous dans la moitié avant (près du tableau).'
             : 'Mauvaise vue : $eyesightBack élève(s) hors moitié avant.',
+      ));
+    }
+    if (b.avoidTallInFrontOfShort) {
+      notes.add((
+        ok: tallFrontOfShort == 0,
+        label: tallFrontOfShort == 0
+            ? 'Tailles : aucun grand directement devant un petit.'
+            : 'Tailles : $tallFrontOfShort grand(s) directement devant un petit.',
       ));
     }
     return notes;

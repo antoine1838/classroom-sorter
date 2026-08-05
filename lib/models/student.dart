@@ -7,6 +7,10 @@ enum Level { faible, moyen, fort, nonDefini }
 
 enum Energy { calme, agite, nonDefini }
 
+// Nommé StudentSize (et non « Size ») pour ne pas entrer en conflit avec
+// dart:ui/Flutter Size, importé partout via package:flutter/material.dart.
+enum StudentSize { petit, moyen, grand }
+
 extension GenderLabel on Gender {
   String get label => switch (this) {
         Gender.fille => 'Fille',
@@ -32,6 +36,14 @@ extension EnergyLabel on Energy {
       };
 }
 
+extension StudentSizeLabel on StudentSize {
+  String get label => switch (this) {
+        StudentSize.petit => 'Petit',
+        StudentSize.moyen => 'Moyen',
+        StudentSize.grand => 'Grand',
+      };
+}
+
 class Student {
   final String id;
   String firstName;
@@ -39,6 +51,7 @@ class Student {
   Gender gender;
   Level level;
   Energy energy;
+  StudentSize size;
 
   /// Mauvaise vue : à rapprocher du tableau (moitié avant) si l'objectif
   /// d'équilibre « frontForPoorEyesight » est activé. Préférence souple ;
@@ -54,6 +67,7 @@ class Student {
     this.gender = Gender.autre,
     this.level = Level.nonDefini,
     this.energy = Energy.nonDefini,
+    this.size = StudentSize.moyen,
     this.poorEyesight = false,
     this.notes = '',
   });
@@ -79,6 +93,7 @@ class Student {
         'gender': gender.name,
         'level': level.name,
         'energy': energy.name,
+        'size': size.name,
         'poorEyesight': poorEyesight,
         'notes': notes,
       };
@@ -99,6 +114,11 @@ class Student {
           // Rétrocompat : lit aussi l'ancienne clé « temperament ».
           (t) => t.name == (j['energy'] ?? j['temperament']),
           orElse: () => Energy.nonDefini,
+        ),
+        // Absent des sauvegardes antérieures à ce critère : repli sur Moyen.
+        size: StudentSize.values.firstWhere(
+          (t) => t.name == j['size'],
+          orElse: () => StudentSize.moyen,
         ),
         poorEyesight: (j['poorEyesight'] ?? false) as bool,
         notes: (j['notes'] ?? '') as String,

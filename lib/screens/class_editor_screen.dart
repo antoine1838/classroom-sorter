@@ -165,7 +165,7 @@ class _RoomTab extends StatelessWidget {
 
 const double _kRowH = 48;
 const double _kCellW = 48; // largeur max d'une case-valeur
-const double _kCellMinW = 27; // largeur min avant de rogner la colonne des noms
+const double _kCellMinW = 21; // largeur min avant de rogner la colonne des noms
 const double _kNameW = 172; // largeur max de la colonne des noms
 const double _kNameMinW = 98; // largeur min (laisse la place à « Élève » + tri)
 const double _kGroupH = 26;
@@ -176,10 +176,14 @@ const double _kValueH = 30;
 class _AttrCol {
   final String short;
   final IconData? icon;
+  /// Hauteur d'une barre dessinée à la place d'une icône (ex. Taille) :
+  /// prioritaire sur [icon] quand elle est renseignée.
+  final double? barHeight;
   final String tooltip;
   final bool Function(Student) isOn;
   final void Function(Student) toggle;
-  const _AttrCol(this.short, this.tooltip, this.isOn, this.toggle, {this.icon});
+  const _AttrCol(this.short, this.tooltip, this.isOn, this.toggle,
+      {this.icon, this.barHeight});
 }
 
 /// Un groupe de colonnes : soit des valeurs exclusives (genre, niveau,
@@ -192,7 +196,8 @@ class _AttrGroup {
 
 /// Définition des colonnes de la matrice. Dans un groupe exclusif, cocher une
 /// valeur remplace la précédente ; re-cocher la valeur active revient à
-/// « non défini ».
+/// « non défini » — sauf pour la Taille, qui n'a pas cette valeur : revient
+/// alors à « Moyen » (valeur par défaut, sans colonne dédiée).
 final List<_AttrGroup> _attrGroups = [
   _AttrGroup('Genre', [
     _AttrCol('Gar', 'Garçon', (s) => s.gender == Gender.garcon,
@@ -228,6 +233,18 @@ final List<_AttrGroup> _attrGroups = [
             ? Energy.nonDefini
             : Energy.agite,
         icon: Icons.bolt),
+  ]),
+  _AttrGroup('Taille', [
+    _AttrCol('Pet', 'Petit', (s) => s.size == StudentSize.petit,
+        (s) => s.size = s.size == StudentSize.petit
+            ? StudentSize.moyen
+            : StudentSize.petit,
+        barHeight: 8),
+    _AttrCol('Gra', 'Grand', (s) => s.size == StudentSize.grand,
+        (s) => s.size = s.size == StudentSize.grand
+            ? StudentSize.moyen
+            : StudentSize.grand,
+        barHeight: 20),
   ]),
   _AttrGroup('Vue', [
     _AttrCol('Vue', 'Mauvaise vue (objectif : rapprocher du tableau)',
@@ -487,10 +504,19 @@ class _StudentsTabState extends State<_StudentsTab> {
           child: Center(
             child: Tooltip(
               message: c.tooltip,
-              child: c.icon != null
-                  ? Icon(c.icon, size: 18)
-                  : Text(c.short,
-                      style: (style ?? const TextStyle()).copyWith(fontSize: 16)),
+              child: c.barHeight != null
+                  ? Container(
+                      width: 8,
+                      height: c.barHeight,
+                      decoration: BoxDecoration(
+                        color: cs.onSurfaceVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    )
+                  : c.icon != null
+                      ? Icon(c.icon, size: 18)
+                      : Text(c.short,
+                          style: (style ?? const TextStyle()).copyWith(fontSize: 16)),
             ),
           ),
         ));
@@ -635,6 +661,7 @@ class _StudentsTabState extends State<_StudentsTab> {
         ..gender = result.gender
         ..level = result.level
         ..energy = result.energy
+        ..size = result.size
         ..poorEyesight = result.poorEyesight
         ..notes = result.notes;
     }
@@ -719,6 +746,7 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
   late Gender _gender = widget.initial.gender;
   late Level _level = widget.initial.level;
   late Energy _energy = widget.initial.energy;
+  late StudentSize _size = widget.initial.size;
   late bool _poorEyesight = widget.initial.poorEyesight;
 
   @override
@@ -813,6 +841,16 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               ],
               onChanged: (v) => setState(() => _energy = v ?? _energy),
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<StudentSize>(
+              initialValue: _size,
+              decoration: const InputDecoration(labelText: 'Taille'),
+              items: [
+                for (final t in StudentSize.values)
+                  DropdownMenuItem(value: t, child: Text(t.label)),
+              ],
+              onChanged: (v) => setState(() => _size = v ?? _size),
+            ),
             const SizedBox(height: 4),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -847,6 +885,7 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               gender: _gender,
               level: _level,
               energy: _energy,
+              size: _size,
               poorEyesight: _poorEyesight,
               notes: _notes.text.trim(),
             ),
@@ -927,6 +966,16 @@ class _RulesTab extends StatelessWidget {
                 value: cls.balance.frontForPoorEyesight,
                 onChanged: (v) {
                   cls.balance.frontForPoorEyesight = v;
+                  state.touch();
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Éviter un grand juste devant un petit'),
+                subtitle: const Text(
+                    'Un élève grand ne doit pas bloquer la vue de celui placé juste derrière'),
+                value: cls.balance.avoidTallInFrontOfShort,
+                onChanged: (v) {
+                  cls.balance.avoidTallInFrontOfShort = v;
                   state.touch();
                 },
               ),
