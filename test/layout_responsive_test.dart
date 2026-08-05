@@ -87,8 +87,8 @@ void main() {
     await tester.tap(find.text('Élèves'));
     await tester.pumpAndSettle();
 
-    // La colonne la plus à droite est l'attribut « Vue » (icône œil barré).
-    final vue = find.byIcon(Icons.visibility_off);
+    // La colonne la plus à droite est l'attribut « Vue » (en-tête).
+    final vue = find.text('Vue');
     expect(vue, findsOneWidget);
     final right = _globalEdges(tester.element(vue)).right;
     expect(right, lessThanOrEqualTo(320 + 0.5));

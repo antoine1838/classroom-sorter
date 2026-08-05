@@ -273,8 +273,8 @@ class SeatingEngine {
             cost += balancePenalty;
           }
           if (cls.balance.mixLevel &&
-              s.level != Level.nonDefini &&
-              s2.level != Level.nonDefini &&
+              s.levelSet &&
+              s2.levelSet &&
               s.level == s2.level) {
             cost += balancePenalty;
           }
@@ -342,8 +342,8 @@ class SeatingEngine {
           sameGender++;
         }
         if (b.mixLevel &&
-            s.level != Level.nonDefini &&
-            s2.level != Level.nonDefini &&
+            s.levelSet &&
+            s2.levelSet &&
             s.level == s2.level) {
           sameLevel++;
         }
