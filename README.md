@@ -13,8 +13,10 @@ sur Internet — adapté aux données élèves).
   dessiner les allées. Le rang 0 est le « devant » (côté tableau), **affiché en
   bas** de la grille (vue du professeur).
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
-  (faible/moyen/fort), énergie (calme/agité), taille (petit/moyen/grand),
-  mauvaise vue, notes libres.
+  (faible/moyen/fort), énergie (calme/modéré/agité), taille
+  (petit/moyen/grand), mauvaise vue, notes libres. La grille affiche une
+  colonne par attribut : toucher une case fait défiler ses valeurs
+  (Genre/Niveau/Énergie/Taille/Vue).
 - **Règles** (par élève ou par binôme) — chacune *obligatoire* (dure) ou
   *préférence* (souple) :
   - *Place imposée* — un élève sur une place précise ;
@@ -101,7 +103,7 @@ lib/
 └── main.dart
 
 test/              engine_test, seating_neighbors_test, room_orientation_test,
-                   layout_responsive_test, widget_test
+                   layout_responsive_test, students_grid_cycle_test, widget_test
 ```
 
 ## Idées d'améliorations

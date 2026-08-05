@@ -164,94 +164,114 @@ class _RoomTab extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 const double _kRowH = 48;
-const double _kCellW = 48; // largeur max d'une case-valeur
-const double _kCellMinW = 21; // largeur min avant de rogner la colonne des noms
+const double _kCellW = 64; // largeur max d'une colonne-champ
+const double _kCellMinW = 40; // largeur min avant de rogner la colonne des noms
 const double _kNameW = 172; // largeur max de la colonne des noms
 const double _kNameMinW = 98; // largeur min (laisse la place à « Élève » + tri)
-const double _kGroupH = 26;
-const double _kValueH = 30;
+const double _kHeaderH = 34;
 
-/// Une colonne-valeur de la matrice : libellé court affiché en tête, libellé
-/// complet en info-bulle, lecture et bascule de l'état pour un élève donné.
-class _AttrCol {
-  final String short;
+/// Une valeur possible d'un champ-colonne : rendu (icône ou barre, pour la
+/// Taille) et libellé complet affiché dans l'info-bulle de la cellule.
+class _AttrValue {
+  final String label;
   final IconData? icon;
-  /// Hauteur d'une barre dessinée à la place d'une icône (ex. Taille) :
+  /// Hauteur d'une barre dessinée à la place d'une icône (Taille) :
   /// prioritaire sur [icon] quand elle est renseignée.
   final double? barHeight;
-  final String tooltip;
-  final bool Function(Student) isOn;
-  final void Function(Student) toggle;
-  const _AttrCol(this.short, this.tooltip, this.isOn, this.toggle,
-      {this.icon, this.barHeight});
+  const _AttrValue(this.label, {this.icon, this.barHeight});
 }
 
-/// Un groupe de colonnes : soit des valeurs exclusives (genre, niveau,
-/// énergie), soit une seule colonne booléenne (vue).
-class _AttrGroup {
+/// Un champ de la matrice : une seule colonne. Toucher une cellule fait
+/// passer à la valeur suivante de [values] (boucle) ; [defaultIndex] est la
+/// valeur de repli (affichée en gris, contrairement aux autres en couleur
+/// d'accent) et sert d'état initial pour un nouvel élève.
+class _AttrField {
   final String label;
-  final List<_AttrCol> cols;
-  const _AttrGroup(this.label, this.cols);
+  final List<_AttrValue> values;
+  final int defaultIndex;
+  final int Function(Student) indexOf;
+  final void Function(Student, int) setIndex;
+  const _AttrField(
+      this.label, this.values, this.defaultIndex, this.indexOf, this.setIndex);
 }
 
-/// Définition des colonnes de la matrice. Dans un groupe exclusif, cocher une
-/// valeur remplace la précédente ; re-cocher la valeur active revient à
-/// « non défini » — sauf pour la Taille, qui n'a pas cette valeur : revient
-/// alors à « Moyen » (valeur par défaut, sans colonne dédiée).
-final List<_AttrGroup> _attrGroups = [
-  _AttrGroup('Genre', [
-    _AttrCol('Gar', 'Garçon', (s) => s.gender == Gender.garcon,
-        (s) => s.gender =
-            s.gender == Gender.garcon ? Gender.autre : Gender.garcon,
-        icon: Icons.male),
-    _AttrCol('Fil', 'Fille', (s) => s.gender == Gender.fille,
-        (s) => s.gender =
-            s.gender == Gender.fille ? Gender.autre : Gender.fille,
-        icon: Icons.female),
-  ]),
-  _AttrGroup('Niveau', [
-    _AttrCol('Fai', 'Faible', (s) => s.level == Level.faible,
-        (s) => s.level =
-            s.level == Level.faible ? Level.nonDefini : Level.faible,
-        icon: Icons.arrow_downward),
-    _AttrCol('Moy', 'Moyen', (s) => s.level == Level.moyen,
-        (s) => s.level =
-            s.level == Level.moyen ? Level.nonDefini : Level.moyen,
-        icon: Icons.remove),
-    _AttrCol('For', 'Fort', (s) => s.level == Level.fort,
-        (s) => s.level = s.level == Level.fort ? Level.nonDefini : Level.fort,
-        icon: Icons.arrow_upward),
-  ]),
-  _AttrGroup('Énergie', [
-    _AttrCol('Cal', 'Calme', (s) => s.energy == Energy.calme,
-        (s) => s.energy = s.energy == Energy.calme
-            ? Energy.nonDefini
-            : Energy.calme,
-        icon: Icons.self_improvement),
-    _AttrCol('Agi', 'Agité', (s) => s.energy == Energy.agite,
-        (s) => s.energy = s.energy == Energy.agite
-            ? Energy.nonDefini
-            : Energy.agite,
-        icon: Icons.bolt),
-  ]),
-  _AttrGroup('Taille', [
-    _AttrCol('Pet', 'Petit', (s) => s.size == StudentSize.petit,
-        (s) => s.size = s.size == StudentSize.petit
-            ? StudentSize.moyen
-            : StudentSize.petit,
-        barHeight: 8),
-    _AttrCol('Gra', 'Grand', (s) => s.size == StudentSize.grand,
-        (s) => s.size = s.size == StudentSize.grand
-            ? StudentSize.moyen
-            : StudentSize.grand,
-        barHeight: 20),
-  ]),
-  _AttrGroup('Vue', [
-    _AttrCol('Vue', 'Mauvaise vue (objectif : rapprocher du tableau)',
-        (s) => s.poorEyesight,
-        (s) => s.poorEyesight = !s.poorEyesight,
-        icon: Icons.visibility_off),
-  ]),
+/// Définition des colonnes de la matrice — une par champ (voir [_AttrField]).
+final List<_AttrField> _attrFields = [
+  _AttrField(
+    'Genre',
+    const [
+      _AttrValue('Garçon', icon: Icons.male),
+      _AttrValue('Fille', icon: Icons.female),
+      _AttrValue('Non précisé', icon: Icons.person_outline),
+    ],
+    2,
+    (s) => switch (s.gender) {
+      Gender.garcon => 0,
+      Gender.fille => 1,
+      Gender.autre => 2,
+    },
+    (s, i) => s.gender = const [Gender.garcon, Gender.fille, Gender.autre][i],
+  ),
+  _AttrField(
+    'Niveau',
+    const [
+      _AttrValue('Faible', icon: Icons.arrow_downward),
+      _AttrValue('Moyen', icon: Icons.remove),
+      _AttrValue('Fort', icon: Icons.arrow_upward),
+    ],
+    1,
+    (s) => switch (s.level) {
+      Level.faible => 0,
+      Level.moyen => 1,
+      Level.fort => 2,
+    },
+    (s, i) {
+      s.level = const [Level.faible, Level.moyen, Level.fort][i];
+      s.levelSet = true;
+    },
+  ),
+  _AttrField(
+    'Énergie',
+    const [
+      _AttrValue('Calme', icon: Icons.self_improvement),
+      _AttrValue('Modéré', icon: Icons.horizontal_rule),
+      _AttrValue('Agité', icon: Icons.bolt),
+    ],
+    1,
+    (s) => switch (s.energy) {
+      Energy.calme => 0,
+      Energy.modere => 1,
+      Energy.agite => 2,
+    },
+    (s, i) => s.energy = const [Energy.calme, Energy.modere, Energy.agite][i],
+  ),
+  _AttrField(
+    'Taille',
+    const [
+      _AttrValue('Petit', barHeight: 8),
+      _AttrValue('Moyen', barHeight: 14),
+      _AttrValue('Grand', barHeight: 20),
+    ],
+    1,
+    (s) => switch (s.size) {
+      StudentSize.petit => 0,
+      StudentSize.moyen => 1,
+      StudentSize.grand => 2,
+    },
+    (s, i) => s.size =
+        const [StudentSize.petit, StudentSize.moyen, StudentSize.grand][i],
+  ),
+  _AttrField(
+    'Vue',
+    const [
+      _AttrValue('Bonne vue', icon: Icons.visibility),
+      _AttrValue('Mauvaise vue (objectif : rapprocher du tableau)',
+          icon: Icons.visibility_off),
+    ],
+    0,
+    (s) => s.poorEyesight ? 1 : 0,
+    (s, i) => s.poorEyesight = i == 1,
+  ),
 ];
 
 class _StudentsTab extends StatefulWidget {
@@ -278,22 +298,25 @@ class _StudentsTabState extends State<_StudentsTab> {
   AppState get state => widget.state;
   ClassGroup get cls => widget.cls;
 
-  /// Ajuste la largeur des colonnes pour que toute la matrice tienne dans
-  /// [maxWidth] sans défilement horizontal quand c'est possible. On rétrécit
-  /// d'abord les cases-valeurs (jusqu'à [_kCellMinW]), puis, si nécessaire, la
-  /// colonne des noms (jusqu'à [_kNameMinW]). Si même au minimum tout déborde
-  /// (écran très étroit), le défilement horizontal reste disponible en secours.
+  /// La colonne des noms est prioritaire : elle grandit avec l'écran pour
+  /// rester lisible avec des noms longs (ex. « Pierre-Adrien Lepierre du
+  /// Val »), au lieu d'être plafonnée à une largeur fixe. Les cases-valeurs
+  /// gardent leur taille confortable ([_kCellW]) tant qu'il reste assez de
+  /// place pour le nom ([_kNameMinW]) ; sinon elles rétrécissent (jusqu'à
+  /// [_kCellMinW]) pour lui en laisser. Si même au plancher tout déborde
+  /// (écran très étroit), le défilement horizontal reste disponible en
+  /// secours.
   void _computeWidths(double maxWidth) {
-    final cols = _attrGroups.fold<int>(0, (n, g) => n + g.cols.length);
-    final seps = (_attrGroups.length - 1).toDouble(); // séparateurs de 1 px
-    var cellW = (maxWidth - _kNameW - seps) / cols;
-    var nameW = _kNameW;
-    if (cellW < _kCellMinW) {
-      cellW = _kCellMinW;
-      nameW = (maxWidth - (cellW * cols + seps)).clamp(_kNameMinW, _kNameW);
+    final cols = _attrFields.length;
+    final seps = (cols - 1).toDouble(); // séparateurs de 1 px
+    var cellW = _kCellW;
+    var nameW = maxWidth - (cellW * cols + seps);
+    if (nameW < _kNameMinW) {
+      cellW = ((maxWidth - _kNameMinW - seps) / cols).clamp(_kCellMinW, _kCellW);
+      nameW = maxWidth - (cellW * cols + seps);
     }
-    _cellW = cellW.clamp(_kCellMinW, _kCellW);
-    _nameW = nameW;
+    _cellW = cellW;
+    _nameW = nameW.clamp(_kNameMinW, double.infinity);
   }
 
   @override
@@ -373,9 +396,9 @@ class _StudentsTabState extends State<_StudentsTab> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: Text(
-            'Touchez une case pour cocher/décocher. Touchez le nom d\'un élève '
-            'pour le renommer, ajouter une note ou le supprimer. Touchez '
-            'l\'en-tête « Élève » pour trier par nom.',
+            'Touchez une case pour faire défiler ses valeurs. Touchez le nom '
+            'd\'un élève pour le renommer, ajouter une note ou le supprimer. '
+            'Touchez l\'en-tête « Élève » pour trier par nom.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -415,7 +438,7 @@ class _StudentsTabState extends State<_StudentsTab> {
         .labelSmall
         ?.copyWith(fontWeight: FontWeight.w600);
     return SizedBox(
-      height: _kGroupH + _kValueH,
+      height: _kHeaderH,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -453,24 +476,9 @@ class _StudentsTabState extends State<_StudentsTab> {
             child: SingleChildScrollView(
               controller: _hHeader,
               scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: _kGroupH,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _groupHeaderCells(cs, headStyle),
-                    ),
-                  ),
-                  SizedBox(
-                    height: _kValueH,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _valueHeaderCells(cs, headStyle),
-                    ),
-                  ),
-                ],
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _headerCells(cs, headStyle),
               ),
             ),
           ),
@@ -479,48 +487,20 @@ class _StudentsTabState extends State<_StudentsTab> {
     );
   }
 
-  List<Widget> _groupHeaderCells(ColorScheme cs, TextStyle? style) {
+  List<Widget> _headerCells(ColorScheme cs, TextStyle? style) {
     final out = <Widget>[];
-    for (var g = 0; g < _attrGroups.length; g++) {
+    for (var g = 0; g < _attrFields.length; g++) {
       if (g > 0) out.add(_vSep(cs));
+      final field = _attrFields[g];
       out.add(SizedBox(
-        width: _attrGroups[g].cols.length * _cellW,
-        child: Center(
-          child: Text(_attrGroups[g].label,
-              style: style, overflow: TextOverflow.ellipsis),
+        width: _cellW,
+        child: Tooltip(
+          message: field.values.map((v) => v.label).join(' → '),
+          child: Center(
+            child: Text(field.label, style: style, overflow: TextOverflow.ellipsis),
+          ),
         ),
       ));
-    }
-    return out;
-  }
-
-  List<Widget> _valueHeaderCells(ColorScheme cs, TextStyle? style) {
-    final out = <Widget>[];
-    for (var g = 0; g < _attrGroups.length; g++) {
-      if (g > 0) out.add(_vSep(cs));
-      for (final c in _attrGroups[g].cols) {
-        out.add(SizedBox(
-          width: _cellW,
-          child: Center(
-            child: Tooltip(
-              message: c.tooltip,
-              child: c.barHeight != null
-                  ? Container(
-                      width: 8,
-                      height: c.barHeight,
-                      decoration: BoxDecoration(
-                        color: cs.onSurfaceVariant,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    )
-                  : c.icon != null
-                      ? Icon(c.icon, size: 18)
-                      : Text(c.short,
-                          style: (style ?? const TextStyle()).copyWith(fontSize: 16)),
-            ),
-          ),
-        ));
-      }
     }
     return out;
   }
@@ -594,18 +574,9 @@ class _StudentsTabState extends State<_StudentsTab> {
 
   Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
     final cells = <Widget>[];
-    for (var g = 0; g < _attrGroups.length; g++) {
+    for (var g = 0; g < _attrFields.length; g++) {
       if (g > 0) cells.add(_vSep(cs));
-      for (final c in _attrGroups[g].cols) {
-        cells.add(_checkCell(
-          cs,
-          on: c.isOn(s),
-          onTap: () {
-            c.toggle(s);
-            state.touch();
-          },
-        ));
-      }
+      cells.add(_cycleCell(cs, _attrFields[g], s));
     }
     return Container(
       height: _kRowH,
@@ -615,17 +586,34 @@ class _StudentsTabState extends State<_StudentsTab> {
     );
   }
 
-  Widget _checkCell(ColorScheme cs,
-      {required bool on, required VoidCallback onTap}) {
+  /// Cellule d'un champ : affiche la valeur courante, tap = valeur suivante
+  /// (boucle). Couleur d'accent sauf sur la valeur par défaut du champ, en
+  /// gris pour rester lisible parmi les valeurs réellement choisies.
+  Widget _cycleCell(ColorScheme cs, _AttrField field, Student s) {
+    final idx = field.indexOf(s);
+    final value = field.values[idx];
+    final color = idx == field.defaultIndex ? cs.outlineVariant : cs.primary;
     return SizedBox(
+      key: ValueKey('attrCell_${field.label}_${s.id}'),
       width: _cellW,
-      child: InkWell(
-        onTap: onTap,
-        child: Center(
-          child: Icon(
-            on ? Icons.check_box : Icons.check_box_outline_blank,
-            color: on ? cs.primary : cs.outlineVariant,
-            size: 22,
+      child: Tooltip(
+        message: value.label,
+        child: InkWell(
+          onTap: () {
+            field.setIndex(s, (idx + 1) % field.values.length);
+            state.touch();
+          },
+          child: Center(
+            child: value.barHeight != null
+                ? Container(
+                    width: 8,
+                    height: value.barHeight,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  )
+                : Icon(value.icon, color: color, size: 22),
           ),
         ),
       ),
@@ -642,8 +630,7 @@ class _StudentsTabState extends State<_StudentsTab> {
   // -------------------------------------------------------------------------
 
   Future<void> _editStudent(BuildContext context, {Student? existing}) async {
-    final initial = existing ??
-        Student(id: newId(), gender: Gender.autre, level: Level.nonDefini);
+    final initial = existing ?? Student(id: newId());
     final result = await showDialog<Student>(
       context: context,
       builder: (_) => _StudentFormDialog(
@@ -660,6 +647,7 @@ class _StudentsTabState extends State<_StudentsTab> {
         ..lastName = result.lastName
         ..gender = result.gender
         ..level = result.level
+        ..levelSet = result.levelSet
         ..energy = result.energy
         ..size = result.size
         ..poorEyesight = result.poorEyesight
@@ -884,6 +872,9 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               lastName: _last.text.trim(),
               gender: _gender,
               level: _level,
+              // Le formulaire propose toujours un choix concret (plus de
+              // « non défini » dans Level) : l'enregistrer vaut confirmation.
+              levelSet: true,
               energy: _energy,
               size: _size,
               poorEyesight: _poorEyesight,

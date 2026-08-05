@@ -11,7 +11,7 @@ Concevoir votre salle
 
 Gérer vos élèves
 • Ajoutez-les un par un ou importez une liste.
-• Pour chaque élève : prénom, nom, genre, niveau (faible / moyen / fort), énergie (calme / agité), taille (petit / moyen / grand), mauvaise vue, et des notes libres.
+• Pour chaque élève : prénom, nom, genre, niveau (faible / moyen / fort), énergie (calme / modéré / agité), taille (petit / moyen / grand), mauvaise vue, et des notes libres.
 
 Définir vos règles (par élève ou par binôme)
 • Place imposée : fixez un élève à une place précise.

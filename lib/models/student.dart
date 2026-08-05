@@ -3,9 +3,9 @@ library;
 
 enum Gender { fille, garcon, autre }
 
-enum Level { faible, moyen, fort, nonDefini }
+enum Level { faible, moyen, fort }
 
-enum Energy { calme, agite, nonDefini }
+enum Energy { calme, modere, agite }
 
 // Nommé StudentSize (et non « Size ») pour ne pas entrer en conflit avec
 // dart:ui/Flutter Size, importé partout via package:flutter/material.dart.
@@ -24,15 +24,14 @@ extension LevelLabel on Level {
         Level.faible => 'Faible',
         Level.moyen => 'Moyen',
         Level.fort => 'Fort',
-        Level.nonDefini => 'Non défini',
       };
 }
 
 extension EnergyLabel on Energy {
   String get label => switch (this) {
         Energy.calme => 'Calme',
+        Energy.modere => 'Modéré',
         Energy.agite => 'Agité',
-        Energy.nonDefini => 'Non défini',
       };
 }
 
@@ -50,6 +49,13 @@ class Student {
   String lastName;
   Gender gender;
   Level level;
+
+  /// Distingue un niveau jamais touché (reste au défaut « Moyen ») d'un
+  /// niveau explicitement choisi. Sert uniquement au moteur d'affectation :
+  /// tant que ce n'est pas renseigné, l'élève est exempté des règles
+  /// d'équilibrage par niveau (voir seating_engine.dart). Invisible dans la
+  /// grille : le premier tap sur la cellule Niveau le passe à true.
+  bool levelSet;
   Energy energy;
   StudentSize size;
 
@@ -65,8 +71,9 @@ class Student {
     this.firstName = '',
     this.lastName = '',
     this.gender = Gender.autre,
-    this.level = Level.nonDefini,
-    this.energy = Energy.nonDefini,
+    this.level = Level.moyen,
+    this.levelSet = false,
+    this.energy = Energy.modere,
     this.size = StudentSize.moyen,
     this.poorEyesight = false,
     this.notes = '',
@@ -92,6 +99,7 @@ class Student {
         'lastName': lastName,
         'gender': gender.name,
         'level': level.name,
+        'levelSet': levelSet,
         'energy': energy.name,
         'size': size.name,
         'poorEyesight': poorEyesight,
@@ -108,12 +116,18 @@ class Student {
         ),
         level: Level.values.firstWhere(
           (l) => l.name == j['level'],
-          orElse: () => Level.nonDefini,
+          orElse: () => Level.moyen,
         ),
+        // Rétrocompat : les sauvegardes d'avant ce critère (ou avec l'ancienne
+        // valeur « nonDefini ») n'ont pas cette clé — on déduit alors le statut
+        // « jamais touché » du fait que la chaîne stockée ne corresponde à
+        // aucune valeur réelle actuelle.
+        levelSet: (j['levelSet'] as bool?) ??
+            Level.values.any((l) => l.name == j['level']),
         energy: Energy.values.firstWhere(
           // Rétrocompat : lit aussi l'ancienne clé « temperament ».
           (t) => t.name == (j['energy'] ?? j['temperament']),
-          orElse: () => Energy.nonDefini,
+          orElse: () => Energy.modere,
         ),
         // Absent des sauvegardes antérieures à ce critère : repli sur Moyen.
         size: StudentSize.values.firstWhere(
