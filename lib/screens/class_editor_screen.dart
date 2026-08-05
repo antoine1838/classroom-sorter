@@ -164,9 +164,8 @@ class _RoomTab extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 const double _kRowH = 48;
-const double _kCellW = 64; // largeur max d'une colonne-champ
-const double _kCellMinW = 40; // largeur min avant de rogner la colonne des noms
-const double _kNameW = 172; // largeur max de la colonne des noms
+const double _kCellW = 40; // largeur fixe d'une colonne-champ (une icône)
+const double _kNameW = 172; // largeur de départ de la colonne des noms (avant 1er calcul)
 const double _kNameMinW = 98; // largeur min (laisse la place à « Élève » + tri)
 const double _kHeaderH = 34;
 
@@ -298,23 +297,17 @@ class _StudentsTabState extends State<_StudentsTab> {
   AppState get state => widget.state;
   ClassGroup get cls => widget.cls;
 
-  /// La colonne des noms est prioritaire : elle grandit avec l'écran pour
-  /// rester lisible avec des noms longs (ex. « Pierre-Adrien Lepierre du
-  /// Val »), au lieu d'être plafonnée à une largeur fixe. Les cases-valeurs
-  /// gardent leur taille confortable ([_kCellW]) tant qu'il reste assez de
-  /// place pour le nom ([_kNameMinW]) ; sinon elles rétrécissent (jusqu'à
-  /// [_kCellMinW]) pour lui en laisser. Si même au plancher tout déborde
-  /// (écran très étroit), le défilement horizontal reste disponible en
-  /// secours.
+  /// Les cases-valeurs gardent une largeur fixe et modeste ([_kCellW]) — une
+  /// seule icône n'a pas besoin de plus, et ne pas les faire varier laisse
+  /// tout l'espace en jeu à la colonne des noms, qui grandit avec l'écran
+  /// pour rester lisible avec des noms longs (ex. « Pierre-Adrien Lepierre
+  /// du Val »). Si l'écran est si étroit que le nom descendrait sous
+  /// [_kNameMinW], le défilement horizontal prend le relais.
   void _computeWidths(double maxWidth) {
     final cols = _attrFields.length;
     final seps = (cols - 1).toDouble(); // séparateurs de 1 px
-    var cellW = _kCellW;
-    var nameW = maxWidth - (cellW * cols + seps);
-    if (nameW < _kNameMinW) {
-      cellW = ((maxWidth - _kNameMinW - seps) / cols).clamp(_kCellMinW, _kCellW);
-      nameW = maxWidth - (cellW * cols + seps);
-    }
+    final cellW = _kCellW;
+    final nameW = maxWidth - (cellW * cols + seps);
     _cellW = cellW;
     _nameW = nameW.clamp(_kNameMinW, double.infinity);
   }
@@ -489,6 +482,11 @@ class _StudentsTabState extends State<_StudentsTab> {
 
   List<Widget> _headerCells(ColorScheme cs, TextStyle? style) {
     final out = <Widget>[];
+    // Taille fixe (pas FittedBox) : un rétrécissement au cas par cas alignait
+    // mal « Énergie » (accent + jambage du « g ») par rapport aux libellés
+    // sans accent/descendante — une taille uniforme, choisie pour le plus
+    // long des libellés, garde tout le monde sur la même ligne de base.
+    final attrHeadStyle = style?.copyWith(fontSize: 8.5);
     for (var g = 0; g < _attrFields.length; g++) {
       if (g > 0) out.add(_vSep(cs));
       final field = _attrFields[g];
@@ -497,7 +495,15 @@ class _StudentsTabState extends State<_StudentsTab> {
         child: Tooltip(
           message: field.values.map((v) => v.label).join(' → '),
           child: Center(
-            child: Text(field.label, style: style, overflow: TextOverflow.ellipsis),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(
+                field.label,
+                style: attrHeadStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ),
         ),
       ));
