@@ -38,6 +38,29 @@ Color studentColor(Student s, ColorScheme cs) => switch (s.gender) {
       Gender.autre => cs.surfaceContainerHighest,
     };
 
+// Icônes de coin : affichées seulement quand la valeur sort de l'ordinaire
+// (Moyen / Modéré / Bonne vue restent muets) — le genre reste exprimé par la
+// couleur de fond ([studentColor]), pas par un coin.
+const _cornerIconColor = Color(0xFF3A3A3A);
+
+IconData? _levelCornerIcon(Level level) => switch (level) {
+      Level.faible => Icons.arrow_downward,
+      Level.fort => Icons.arrow_upward,
+      Level.moyen => null,
+    };
+
+IconData? _energyCornerIcon(Energy energy) => switch (energy) {
+      Energy.calme => Icons.self_improvement,
+      Energy.agite => Icons.bolt,
+      Energy.modere => null,
+    };
+
+double? _sizeCornerBarHeight(StudentSize size) => switch (size) {
+      StudentSize.petit => 6,
+      StudentSize.grand => 14,
+      StudentSize.moyen => null,
+    };
+
 class _FrontBanner extends StatelessWidget {
   final double width;
   const _FrontBanner(this.width);
@@ -244,34 +267,67 @@ class PlanGrid extends StatelessWidget {
       {bool elevated = false}) {
     final cs = Theme.of(context).colorScheme;
     if (student == null) return _emptySeat(cs, hovering);
-    return Container(
-      width: kCell,
-      height: kCell,
-      decoration: BoxDecoration(
-        color: studentColor(student, cs),
-        border: Border.all(
-          color: hovering ? cs.primary : cs.outline,
-          width: hovering ? 2.4 : 1,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: elevated
-            ? [const BoxShadow(blurRadius: 8, color: Colors.black26)]
-            : null,
-      ),
-      padding: const EdgeInsets.all(3),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(student.initials,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 2),
-          Text(
-            student.firstName.isEmpty ? student.fullName : student.firstName,
-            style: const TextStyle(fontSize: 10),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+    final levelIcon = _levelCornerIcon(student.level);
+    final energyIcon = _energyCornerIcon(student.energy);
+    final sizeBarHeight = _sizeCornerBarHeight(student.size);
+    return Tooltip(
+      message: student.fullName,
+      child: Container(
+        width: kCell,
+        height: kCell,
+        decoration: BoxDecoration(
+          color: studentColor(student, cs),
+          border: Border.all(
+            color: hovering ? cs.primary : cs.outline,
+            width: hovering ? 2.4 : 1,
           ),
-        ],
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: elevated
+              ? [const BoxShadow(blurRadius: 8, color: Colors.black26)]
+              : null,
+        ),
+        padding: const EdgeInsets.all(3),
+        child: Stack(
+          children: [
+            Center(
+              child: Text(student.initials,
+                  style:
+                      const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+            if (levelIcon != null)
+              Positioned(
+                top: 0,
+                left: 0,
+                child: Icon(levelIcon, size: 13, color: _cornerIconColor),
+              ),
+            if (energyIcon != null)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Icon(energyIcon, size: 13, color: _cornerIconColor),
+              ),
+            if (sizeBarHeight != null)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                child: Container(
+                  width: 4,
+                  height: sizeBarHeight,
+                  decoration: BoxDecoration(
+                    color: _cornerIconColor,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ),
+            if (student.poorEyesight)
+              const Positioned(
+                bottom: 0,
+                right: 0,
+                child: Icon(Icons.visibility_off,
+                    size: 13, color: _cornerIconColor),
+              ),
+          ],
+        ),
       ),
     );
   }

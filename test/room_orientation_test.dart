@@ -44,8 +44,8 @@ void main() {
       return box.localToGlobal(box.size.center(Offset.zero)).dy;
     }
 
-    final frontDy = centerDy(find.text('Avant'));
-    final backDy = centerDy(find.text('Arriere'));
+    final frontDy = centerDy(find.byTooltip('Avant Zero'));
+    final backDy = centerDy(find.byTooltip('Arriere Deux'));
     final bannerDy = centerDy(find.textContaining('DEVANT'));
 
     // Le rang de devant (r=0) est plus BAS à l'écran que le rang du fond (r=2)…
@@ -94,8 +94,8 @@ void main() {
       return box.localToGlobal(box.size.center(Offset.zero)).dy;
     }
 
-    final myopeDy = centerDy(find.text('Myope'));
-    final normalDy = centerDy(find.text('Normal'));
+    final myopeDy = centerDy(find.byTooltip('Myope'));
+    final normalDy = centerDy(find.byTooltip('Normal'));
     final bannerDy = centerDy(find.textContaining('DEVANT'));
 
     // Devant en bas : l'élève à mauvaise vue (rang 0) est rendu plus BAS que
@@ -151,8 +151,8 @@ void main() {
       return box.localToGlobal(box.size.center(Offset.zero)).dy;
     }
 
-    final avantDy = centerDy(find.text('Avant'));
-    final fondDy = centerDy(find.text('Fond'));
+    final avantDy = centerDy(find.byTooltip('Avant'));
+    final fondDy = centerDy(find.byTooltip('Fond'));
     final bannerDy = centerDy(find.textContaining('DEVANT'));
 
     // Devant en bas : l'élève « devant » (rang 0) est rendu plus BAS que l'élève
