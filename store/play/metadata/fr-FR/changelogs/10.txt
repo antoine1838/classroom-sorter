@@ -1,0 +1,5 @@
+Nouveautés 1.8.0 :
+• Critère « Taille » (petit/moyen/grand) pour éviter qu'un grand bloque la vue du petit assis derrière.
+• Élèves : 2 affichages au choix (cases à cocher ou compact), plus lisibles sur petit écran.
+• Plan : bouton « Valider » pour vérifier règles et équilibre à tout moment ; les attributs notables de chaque élève s'affichent sur sa case.
+• La fenêtre (PC) retrouve sa taille et sa position au lancement suivant.
