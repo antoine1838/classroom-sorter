@@ -27,9 +27,11 @@ ClassGroup _demoClass({required int rows, required int cols, int nb = 6}) {
   );
 }
 
-Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls) async {
+Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls,
+    {StudentsViewMode mode = StudentsViewMode.compact}) async {
+  final state = AppState()..studentsViewMode = mode;
   await tester.pumpWidget(MaterialApp(
-    home: ClassEditorScreen(state: AppState(), cls: cls),
+    home: ClassEditorScreen(state: state, cls: cls),
   ));
   await tester.pumpAndSettle();
 }
@@ -75,19 +77,43 @@ void main() {
     expect(maxBottom, lessThanOrEqualTo(740 + 0.5));
   });
 
-  testWidgets('Élèves : le dernier attribut (« Vue ») est visible sans scroll',
+  testWidgets(
+      'Élèves (vue Compacte) : le dernier attribut (« Vue ») est visible sans scroll',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(320, 800);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await _pumpEditor(tester, _demoClass(rows: 5, cols: 7));
+    await _pumpEditor(tester, _demoClass(rows: 5, cols: 7),
+        mode: StudentsViewMode.compact);
 
     await tester.tap(find.text('Élèves'));
     await tester.pumpAndSettle();
 
     // La colonne la plus à droite est l'attribut « Vue » (en-tête).
+    final vue = find.text('Vue');
+    expect(vue, findsOneWidget);
+    final right = _globalEdges(tester.element(vue)).right;
+    expect(right, lessThanOrEqualTo(320 + 0.5));
+  });
+
+  testWidgets(
+      'Élèves (vue Complète) : le dernier groupe (« Vue ») est visible sans '
+      'scroll',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(320, 800);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpEditor(tester, _demoClass(rows: 5, cols: 7),
+        mode: StudentsViewMode.complete);
+
+    await tester.tap(find.text('Élèves'));
+    await tester.pumpAndSettle();
+
+    // Le dernier groupe de colonnes est l'attribut « Vue » (en-tête).
     final vue = find.text('Vue');
     expect(vue, findsOneWidget);
     final right = _globalEdges(tester.element(vue)).right;

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/classroom.dart';
 import 'class_editor_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final AppState state;
@@ -14,7 +15,18 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes classes')),
+      appBar: AppBar(
+        title: const Text('Mes classes'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Réglages',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SettingsScreen(state: state),
+            )),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addClass(context),
         icon: const Icon(Icons.add),
