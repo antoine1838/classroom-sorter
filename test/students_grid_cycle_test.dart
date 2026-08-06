@@ -11,8 +11,11 @@ import 'package:plandeclasse/models/student.dart';
 import 'package:plandeclasse/screens/class_editor_screen.dart';
 
 Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls) async {
+  // Cette suite teste spécifiquement la vue Compacte : on la sélectionne
+  // explicitement, indépendamment de la vue par défaut de l'application.
+  final state = AppState()..studentsViewMode = StudentsViewMode.compact;
   await tester.pumpWidget(MaterialApp(
-    home: ClassEditorScreen(state: AppState(), cls: cls),
+    home: ClassEditorScreen(state: state, cls: cls),
   ));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Élèves'));

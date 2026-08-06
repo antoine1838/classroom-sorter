@@ -10,6 +10,7 @@ import '../models/classroom.dart';
 
 class Repository {
   static const _key = 'plandeclasse_classes_v1';
+  static const _viewModeKey = 'plandeclasse_students_view_mode_v1';
 
   Future<List<ClassGroup>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -28,5 +29,17 @@ class Repository {
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(classes.map((c) => c.toJson()).toList());
     await prefs.setString(_key, raw);
+  }
+
+  /// Retourne le nom brut stocké (ex. `'complete'`/`'compact'`), ou `null` si
+  /// jamais réglé. La conversion en [StudentsViewMode] se fait côté AppState.
+  Future<String?> loadStudentsViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_viewModeKey);
+  }
+
+  Future<void> saveStudentsViewMode(String mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_viewModeKey, mode);
   }
 }

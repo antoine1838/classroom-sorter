@@ -18,16 +18,32 @@ String newId() =>
     '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}'
     '${Random().nextInt(1 << 32).toRadixString(36)}';
 
+/// Vue de l'onglet Élèves : [complete] (une colonne par valeur possible, à
+/// cocher) ou [compact] (une colonne par attribut, tap pour cycler).
+enum StudentsViewMode { complete, compact }
+
 class AppState extends ChangeNotifier {
   final Repository _repo = Repository();
 
   List<ClassGroup> classes = [];
   bool loading = true;
+  StudentsViewMode studentsViewMode = StudentsViewMode.complete;
 
   Future<void> init() async {
     classes = await _repo.load();
+    final rawMode = await _repo.loadStudentsViewMode();
+    if (rawMode == StudentsViewMode.compact.name) {
+      studentsViewMode = StudentsViewMode.compact;
+    }
     loading = false;
     notifyListeners();
+  }
+
+  void setStudentsViewMode(StudentsViewMode mode) {
+    if (studentsViewMode == mode) return;
+    studentsViewMode = mode;
+    notifyListeners();
+    _repo.saveStudentsViewMode(mode.name);
   }
 
   Future<void> _persist() => _repo.save(classes);

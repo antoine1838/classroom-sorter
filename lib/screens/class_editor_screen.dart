@@ -270,16 +270,36 @@ final List<_AttrField> _attrFields = [
   ),
 ];
 
-class _StudentsTab extends StatefulWidget {
+/// Bascule entre les deux vues de l'onglet Élèves selon le réglage global
+/// [AppState.studentsViewMode] (choisi via le bouton bascule de chaque vue,
+/// ou depuis l'écran Réglages).
+class _StudentsTab extends StatelessWidget {
   final AppState state;
   final ClassGroup cls;
   const _StudentsTab({required this.state, required this.cls});
 
   @override
-  State<_StudentsTab> createState() => _StudentsTabState();
+  Widget build(BuildContext context) {
+    return switch (state.studentsViewMode) {
+      StudentsViewMode.complete =>
+        _StudentsTabComplete(state: state, cls: cls),
+      StudentsViewMode.compact => _StudentsTabCompact(state: state, cls: cls),
+    };
+  }
 }
 
-class _StudentsTabState extends State<_StudentsTab> {
+/// Vue « Compacte » : une colonne par attribut, tap pour faire défiler ses
+/// valeurs (boucle). Voir aussi [_StudentsTabComplete] pour la vue « Complète ».
+class _StudentsTabCompact extends StatefulWidget {
+  final AppState state;
+  final ClassGroup cls;
+  const _StudentsTabCompact({required this.state, required this.cls});
+
+  @override
+  State<_StudentsTabCompact> createState() => _StudentsTabCompactState();
+}
+
+class _StudentsTabCompactState extends State<_StudentsTabCompact> {
   final ScrollController _vBody = ScrollController();
   final ScrollController _hHeader = ScrollController();
   final ScrollController _hBody = ScrollController();
@@ -356,6 +376,13 @@ class _StudentsTabState extends State<_StudentsTab> {
                   icon: const Icon(Icons.playlist_add),
                   label: const Text('Importer une liste'),
                 ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                onPressed: () =>
+                    state.setStudentsViewMode(StudentsViewMode.complete),
+                icon: const Icon(Icons.table_rows_outlined),
+                tooltip: 'Passer à la vue complète',
               ),
             ],
           ),
@@ -617,6 +644,510 @@ class _StudentsTabState extends State<_StudentsTab> {
                     ),
                   )
                 : Icon(value.icon, color: color, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _vSep(ColorScheme cs) => Container(width: 1, color: cs.outlineVariant);
+
+  Color? _rowColor(ColorScheme cs, int i) =>
+      i.isEven ? null : cs.surfaceContainerHighest.withValues(alpha: 0.4);
+
+  // -------------------------------------------------------------------------
+  // Ajout / édition / suppression / import
+  // -------------------------------------------------------------------------
+
+  Future<void> _editStudent(BuildContext context, {Student? existing}) async {
+    final initial = existing ?? Student(id: newId());
+    final result = await showDialog<Student>(
+      context: context,
+      builder: (_) => _StudentFormDialog(
+        initial: initial,
+        onDelete: existing == null ? null : () => _deleteStudent(existing),
+      ),
+    );
+    if (result == null) return;
+    if (existing == null) {
+      cls.students.add(result);
+    } else {
+      existing
+        ..firstName = result.firstName
+        ..lastName = result.lastName
+        ..gender = result.gender
+        ..level = result.level
+        ..energy = result.energy
+        ..size = result.size
+        ..poorEyesight = result.poorEyesight
+        ..notes = result.notes;
+    }
+    state.touch();
+  }
+
+  void _deleteStudent(Student s) {
+    cls.purgeStudent(s.id);
+    cls.students.remove(s);
+    state.touch();
+  }
+
+  Future<void> _importList(BuildContext context) async {
+    final ctrl = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Importer des élèves'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Un élève par ligne, format « Prénom Nom ».'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Camille Durand\nSami Ben Ali\n…',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, ctrl.text),
+              child: const Text('Importer')),
+        ],
+      ),
+    );
+    if (text == null) return;
+    var count = 0;
+    for (final line in text.split('\n')) {
+      final t = line.trim();
+      if (t.isEmpty) continue;
+      final parts = t.split(RegExp(r'\s+'));
+      final first = parts.first;
+      final last = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+      cls.students.add(Student(id: newId(), firstName: first, lastName: last));
+      count++;
+    }
+    if (count > 0) state.touch();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count élève(s) importé(s).')),
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Onglet ÉLÈVES — vue « Complète »
+// ---------------------------------------------------------------------------
+
+const double _kCompleteCellW = 32; // largeur max d'une case-valeur
+const double _kCompleteCellMinW = 21; // largeur min avant de rogner les noms
+const double _kGroupH = 26;
+const double _kValueH = 30;
+
+/// Vue « Complète » : une colonne par valeur possible (à cocher), regroupées
+/// par attribut — sauf la valeur par défaut du champ
+/// ([_AttrField.defaultIndex]), qui n'a pas de colonne dédiée : elle est
+/// représentée par « rien n'est cochée ». Cocher une valeur décoche l'ancienne
+/// (dans le même groupe) ; recocher la valeur active revient à la valeur par
+/// défaut. Mêmes définitions de champs que la vue « Compacte » (voir
+/// [_attrFields]), pour qu'un futur ajout d'attribut mette à jour les deux
+/// vues d'un coup.
+class _StudentsTabComplete extends StatefulWidget {
+  final AppState state;
+  final ClassGroup cls;
+  const _StudentsTabComplete({required this.state, required this.cls});
+
+  @override
+  State<_StudentsTabComplete> createState() => _StudentsTabCompleteState();
+}
+
+class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
+  final ScrollController _vBody = ScrollController();
+  final ScrollController _hHeader = ScrollController();
+  final ScrollController _hBody = ScrollController();
+  bool _syncing = false;
+  bool _sortByName = false;
+
+  // Largeurs adaptatives de la matrice, recalculées à chaque build selon la
+  // largeur disponible (voir _computeWidths).
+  double _cellW = _kCompleteCellW;
+  double _nameW = _kNameW;
+
+  AppState get state => widget.state;
+  ClassGroup get cls => widget.cls;
+
+  /// Les cases-valeurs gardent leur largeur confortable ([_kCompleteCellW])
+  /// tant que la place ne manque pas ; sinon elles se compriment jusqu'à
+  /// [_kCompleteCellMinW] pour protéger la largeur minimale du nom
+  /// ([_kNameMinW]). Dans tous les cas, la colonne des noms récupère tout
+  /// l'espace restant (comme la vue Compacte) : elle ne reste jamais figée à
+  /// une largeur fixe pendant qu'un vide s'affiche après la dernière colonne.
+  void _computeWidths(double maxWidth) {
+    // -1 par champ : la valeur par défaut (neutre) n'a pas de colonne dédiée,
+    // elle est représentée par « rien n'est cochée » (voir _valueHeaderCells).
+    final cols = _attrFields.fold<int>(0, (n, f) => n + f.values.length - 1);
+    final seps = (_attrFields.length - 1).toDouble(); // séparateurs de 1 px
+    var cellW = _kCompleteCellW;
+    if (maxWidth - (cellW * cols + seps) < _kNameMinW) {
+      cellW = ((maxWidth - _kNameMinW - seps) / cols)
+          .clamp(_kCompleteCellMinW, _kCompleteCellW);
+    }
+    _cellW = cellW;
+    _nameW = (maxWidth - (cellW * cols + seps)).clamp(_kNameMinW, double.infinity);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _hHeader.addListener(() => _sync(_hHeader, _hBody));
+    _hBody.addListener(() => _sync(_hBody, _hHeader));
+  }
+
+  /// Garde l'en-tête et le corps alignés lors du défilement horizontal.
+  void _sync(ScrollController from, ScrollController to) {
+    if (_syncing || !to.hasClients) return;
+    if ((from.offset - to.offset).abs() < 0.5) return;
+    _syncing = true;
+    to.jumpTo(from.offset);
+    _syncing = false;
+  }
+
+  @override
+  void dispose() {
+    _vBody.dispose();
+    _hHeader.dispose();
+    _hBody.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _editStudent(context),
+                  icon: const Icon(Icons.person_add_alt),
+                  label: const Text('Ajouter'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () => _importList(context),
+                  icon: const Icon(Icons.playlist_add),
+                  label: const Text('Importer une liste'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                onPressed: () =>
+                    state.setStudentsViewMode(StudentsViewMode.compact),
+                icon: const Icon(Icons.view_week_outlined),
+                tooltip: 'Passer à la vue compacte',
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: cls.students.isEmpty
+              ? const Center(child: Text('Aucun élève. Ajoutez-en un !'))
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    _computeWidths(constraints.maxWidth);
+                    return _buildMatrix(cs);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Matrice élèves × attributs
+  // -------------------------------------------------------------------------
+
+  Widget _buildMatrix(ColorScheme cs) {
+    final students = _orderedStudents();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Text(
+            'Touchez une case pour cocher/décocher. Touchez le nom d\'un élève '
+            'pour le renommer, ajouter une note ou le supprimer. Touchez '
+            'l\'en-tête « Élève » pour trier par nom.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        _buildHeader(cs),
+        const Divider(height: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _vBody,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildNameColumn(cs, students),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: _hBody,
+                    scrollDirection: Axis.horizontal,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < students.length; i++)
+                          _buildAttrRow(cs, students[i], i),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(ColorScheme cs) {
+    final headStyle = Theme.of(context)
+        .textTheme
+        .labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600);
+    return SizedBox(
+      height: _kGroupH + _kValueH,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: _nameW,
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: cs.outlineVariant)),
+            ),
+            child: Tooltip(
+              message: _sortByName
+                  ? 'Trié par nom (A→Z) — toucher pour revenir à l\'ordre d\'ajout'
+                  : 'Toucher pour trier par nom (A→Z)',
+              child: InkWell(
+                onTap: () => setState(() => _sortByName = !_sortByName),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Élève', style: headStyle),
+                        const SizedBox(width: 4),
+                        Icon(Icons.sort_by_alpha,
+                            size: 16,
+                            color: _sortByName ? cs.primary : cs.outline),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _hHeader,
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: _kGroupH,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _groupHeaderCells(cs, headStyle),
+                    ),
+                  ),
+                  SizedBox(
+                    height: _kValueH,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _valueHeaderCells(cs, headStyle),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _groupHeaderCells(ColorScheme cs, TextStyle? style) {
+    final out = <Widget>[];
+    for (var g = 0; g < _attrFields.length; g++) {
+      if (g > 0) out.add(_vSep(cs));
+      // -1 : pas de colonne pour la valeur par défaut du champ.
+      out.add(SizedBox(
+        width: (_attrFields[g].values.length - 1) * _cellW,
+        child: Center(
+          child: Text(_attrFields[g].label,
+              style: style, overflow: TextOverflow.ellipsis),
+        ),
+      ));
+    }
+    return out;
+  }
+
+  List<Widget> _valueHeaderCells(ColorScheme cs, TextStyle? style) {
+    final out = <Widget>[];
+    for (var g = 0; g < _attrFields.length; g++) {
+      if (g > 0) out.add(_vSep(cs));
+      final field = _attrFields[g];
+      for (var k = 0; k < field.values.length; k++) {
+        if (k == field.defaultIndex) continue;
+        final v = field.values[k];
+        out.add(SizedBox(
+          width: _cellW,
+          child: Center(
+            child: Tooltip(
+              message: v.label,
+              child: v.barHeight != null
+                  ? Container(
+                      width: 8,
+                      height: v.barHeight,
+                      decoration: BoxDecoration(
+                        color: cs.onSurfaceVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    )
+                  : Icon(v.icon, size: 18),
+            ),
+          ),
+        ));
+      }
+    }
+    return out;
+  }
+
+  List<Student> _orderedStudents() {
+    if (!_sortByName) return cls.students;
+    final sorted = [...cls.students];
+    sorted.sort((a, b) {
+      final byLast =
+          a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
+      return byLast != 0
+          ? byLast
+          : a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase());
+    });
+    return sorted;
+  }
+
+  Widget _buildNameColumn(ColorScheme cs, List<Student> students) {
+    return Container(
+      width: _nameW,
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: cs.outlineVariant)),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < students.length; i++)
+            _buildNameCell(cs, students[i], i),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameCell(ColorScheme cs, Student s, int i) {
+    return Container(
+      height: _kRowH,
+      color: _rowColor(cs, i),
+      child: InkWell(
+        onTap: () => _editStudent(context, existing: s),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 13,
+                backgroundColor: studentColor(s, cs),
+                child: Text(s.initials,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(s.fullName,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13)),
+              ),
+              if (s.notes.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Tooltip(
+                    message: s.notes,
+                    child: Icon(Icons.sticky_note_2_outlined,
+                        size: 15, color: cs.outline),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
+    final cells = <Widget>[];
+    for (var g = 0; g < _attrFields.length; g++) {
+      if (g > 0) cells.add(_vSep(cs));
+      final field = _attrFields[g];
+      final active = field.indexOf(s);
+      for (var k = 0; k < field.values.length; k++) {
+        if (k == field.defaultIndex) continue;
+        cells.add(_checkCell(
+          cs,
+          key: ValueKey('completeCell_${field.label}_${field.values[k].label}_${s.id}'),
+          on: active == k,
+          onTap: () {
+            field.setIndex(s, active == k ? field.defaultIndex : k);
+            state.touch();
+          },
+        ));
+      }
+    }
+    return Container(
+      height: _kRowH,
+      color: _rowColor(cs, i),
+      child:
+          Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells),
+    );
+  }
+
+  Widget _checkCell(ColorScheme cs,
+      {required Key key, required bool on, required VoidCallback onTap}) {
+    return SizedBox(
+      key: key,
+      width: _cellW,
+      child: InkWell(
+        onTap: onTap,
+        child: Center(
+          child: Icon(
+            on ? Icons.check_box : Icons.check_box_outline_blank,
+            color: on ? cs.primary : cs.outlineVariant,
+            size: 22,
           ),
         ),
       ),
