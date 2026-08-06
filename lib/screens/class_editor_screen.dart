@@ -224,10 +224,7 @@ final List<_AttrField> _attrFields = [
       Level.moyen => 1,
       Level.fort => 2,
     },
-    (s, i) {
-      s.level = const [Level.faible, Level.moyen, Level.fort][i];
-      s.levelSet = true;
-    },
+    (s, i) => s.level = const [Level.faible, Level.moyen, Level.fort][i],
   ),
   _AttrField(
     'Énergie',
@@ -653,7 +650,6 @@ class _StudentsTabState extends State<_StudentsTab> {
         ..lastName = result.lastName
         ..gender = result.gender
         ..level = result.level
-        ..levelSet = result.levelSet
         ..energy = result.energy
         ..size = result.size
         ..poorEyesight = result.poorEyesight
@@ -878,9 +874,6 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               lastName: _last.text.trim(),
               gender: _gender,
               level: _level,
-              // Le formulaire propose toujours un choix concret (plus de
-              // « non défini » dans Level) : l'enregistrer vaut confirmation.
-              levelSet: true,
               energy: _energy,
               size: _size,
               poorEyesight: _poorEyesight,
@@ -940,7 +933,8 @@ class _RulesTab extends StatelessWidget {
               ),
               SwitchListTile(
                 title: const Text('Mélanger les niveaux'),
-                subtitle: const Text('Éviter les voisins de même niveau'),
+                subtitle:
+                    const Text('Ne pas créer 2 voisins Faibles ni 2 voisins Forts'),
                 value: cls.balance.mixLevel,
                 onChanged: (v) {
                   cls.balance.mixLevel = v;
@@ -949,7 +943,7 @@ class _RulesTab extends StatelessWidget {
               ),
               SwitchListTile(
                 title: const Text('Séparer les élèves agités'),
-                subtitle: const Text('Éviter deux élèves agités côte à côte'),
+                subtitle: const Text('Éviter les voisins agités'),
                 value: cls.balance.separateAgites,
                 onChanged: (v) {
                   cls.balance.separateAgites = v;

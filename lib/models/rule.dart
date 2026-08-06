@@ -2,8 +2,8 @@
 ///
 /// - [fixedSeat]    : un élève doit occuper une place précise.
 /// - [frontZone]    : un élève doit être dans les premiers rangs.
-/// - [separate]     : deux élèves ne doivent PAS être côte à côte.
-/// - [keepTogether] : deux élèves doivent être côte à côte.
+/// - [separate]     : deux élèves ne doivent PAS être voisins.
+/// - [keepTogether] : deux élèves doivent être voisins.
 ///
 /// Chaque règle est « dure » (obligatoire) ou « souple » (préférence).
 library;
@@ -22,8 +22,8 @@ extension RuleTypeInfo on RuleType {
         RuleType.fixedSeat => 'Assigner un élève à une place précise',
         RuleType.frontZone =>
           'Placer un élève dans les premiers rangs (vue, audition, PMR…)',
-        RuleType.separate => "Empêcher deux élèves d'être côte à côte",
-        RuleType.keepTogether => "Garder deux élèves l'un à côté de l'autre",
+        RuleType.separate => "Empêcher deux élèves d'être voisins",
+        RuleType.keepTogether => 'Garder deux élèves voisins',
       };
 
   /// Nombre d'élèves concernés (1 ou 2).

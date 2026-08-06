@@ -10,7 +10,7 @@ import 'student.dart';
 class BalanceSettings {
   bool mixGender; // alterner filles / garçons dans le voisinage
   bool mixLevel; // alterner les niveaux dans le voisinage
-  bool separateAgites; // éviter deux élèves agités côte à côte
+  bool separateAgites; // éviter deux élèves agités voisins
   bool frontForPoorEyesight; // rapprocher du tableau les élèves à mauvaise vue
   bool avoidTallInFrontOfShort; // éviter un grand juste devant un petit
 

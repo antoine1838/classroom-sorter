@@ -21,12 +21,12 @@ sur Internet — adapté aux données élèves).
   *préférence* (souple) :
   - *Place imposée* — un élève sur une place précise ;
   - *Doit être devant* — dans les N premiers rangs (vue, audition, PMR…) ;
-  - *Séparer* — deux élèves jamais côte à côte ;
-  - *Rapprocher* — deux élèves côte à côte.
+  - *Séparer* — deux élèves jamais voisins ;
+  - *Rapprocher* — deux élèves voisins.
 - **Objectifs d'équilibre** (souples, appliqués à toute la classe) :
   - *Mélanger les genres* — éviter les voisins de même genre ;
-  - *Mélanger les niveaux* — éviter les voisins de même niveau ;
-  - *Séparer les élèves agités* — éviter deux agités côte à côte ;
+  - *Mélanger les niveaux* — ne pas créer 2 voisins Faibles ni 2 voisins Forts ;
+  - *Séparer les élèves agités* — éviter les voisins agités ;
   - *Mauvaise vue* — rapprocher du tableau (moitié avant) les élèves concernés ;
   - *Éviter un grand devant un petit* — un élève grand ne bloque pas la vue de
     celui placé juste derrière.
