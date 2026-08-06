@@ -192,6 +192,43 @@ class SeatingEngine {
     );
   }
 
+  /// Évalue le placement actuel ([cls.assignment]) sans le modifier : utile
+  /// après un ajustement manuel (glisser-déposer) pour vérifier les règles et
+  /// les objectifs d'équilibre sans relancer une génération.
+  PlanResult evaluate() {
+    final seatOf = <String, String>{};
+    cls.assignment.forEach((seat, sid) => seatOf[sid] = seat);
+
+    final unplaced = [
+      for (final s in cls.students)
+        if (!seatOf.containsKey(s.id)) s.id
+    ];
+
+    final report = _report(seatOf, const [], unplaced);
+    final violations = [...report.$1];
+    final warnings = [...report.$2];
+
+    for (final rule in cls.rules.where((r) => r.type == RuleType.fixedSeat)) {
+      final s = _byId[rule.studentAId];
+      if (s == null || rule.seatRow == null || rule.seatCol == null) continue;
+      if (!cls.room.isSeat(rule.seatRow!, rule.seatCol!)) continue;
+      final expected = Room.keyOf(rule.seatRow!, rule.seatCol!);
+      if (seatOf[s.id] != expected) {
+        final msg = "${s.fullName} n'est pas à la place imposée.";
+        (rule.hard ? violations : warnings).add(msg);
+      }
+    }
+
+    return PlanResult(
+      assignment: Map<String, String>.from(cls.assignment),
+      unplacedStudentIds: unplaced,
+      violations: violations,
+      warnings: warnings,
+      balance: _balanceNotes(seatOf),
+      score: _cost(Map<String, String?>.from(seatOf), const {}),
+    );
+  }
+
   Map<String, String?> _randomFill(List<String> students, List<String> seats) {
     final shuffledSeats = [...seats]..shuffle(_rng);
     final shuffledStudents = [...students]..shuffle(_rng);

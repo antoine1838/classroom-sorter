@@ -1831,10 +1831,9 @@ class _PlanTabState extends State<_PlanTab> {
     setState(() => _result = result);
   }
 
-  void _clear() {
-    cls.assignment.clear();
-    widget.state.touch();
-    setState(() => _result = null);
+  void _validate() {
+    final result = SeatingEngine(cls).evaluate();
+    setState(() => _result = result);
   }
 
   void _swap(String seatA, String seatB) {
@@ -1851,6 +1850,7 @@ class _PlanTabState extends State<_PlanTab> {
       } else {
         cls.assignment[seatB] = a;
       }
+      _result = null;
     });
     widget.state.touch();
   }
@@ -1874,10 +1874,12 @@ class _PlanTabState extends State<_PlanTab> {
               ),
               if (hasPlan) ...[
                 const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: _clear,
-                  icon: const Icon(Icons.replay),
-                  tooltip: 'Vider le plan',
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: _validate,
+                    icon: const Icon(Icons.fact_check),
+                    label: const Text('Valider'),
+                  ),
                 ),
               ],
             ],

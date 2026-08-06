@@ -34,7 +34,8 @@ sur Internet — adapté aux données élèves).
     celui placé juste derrière.
 - **Plan** : génération automatique, rapport des contraintes respectées /
   violées, et **glisser-déposer** pour ajuster à la main. Bouton *Régénérer*
-  pour une autre proposition.
+  pour une autre proposition, bouton *Valider* pour recontrôler règles et
+  équilibre après un ajustement manuel.
 
 ## Comment ça marche (le moteur)
 

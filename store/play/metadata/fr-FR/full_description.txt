@@ -30,7 +30,7 @@ Viser l'équilibre sur toute la classe
 Générer et ajuster
 • Le plan est calculé automatiquement pour respecter au mieux vos contraintes.
 • Un rapport indique les règles et objectifs respectés, et ceux qui ne peuvent pas l'être.
-• Réorganisez librement par glisser-déposer.
+• Réorganisez librement par glisser-déposer, puis « Valider » pour vérifier que règles et équilibre sont toujours respectés.
 • Pas satisfait ? « Régénérer » propose une nouvelle disposition.
 
 RESPECT DE LA VIE PRIVÉE
