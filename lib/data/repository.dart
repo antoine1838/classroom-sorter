@@ -11,6 +11,7 @@ import '../models/classroom.dart';
 class Repository {
   static const _key = 'plandeclasse_classes_v1';
   static const _viewModeKey = 'plandeclasse_students_view_mode_v1';
+  static const _windowBoundsKey = 'plandeclasse_window_bounds_v1';
 
   Future<List<ClassGroup>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -41,5 +42,24 @@ class Repository {
   Future<void> saveStudentsViewMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_viewModeKey, mode);
+  }
+
+  /// Taille/position de la fenêtre desktop (Windows/macOS/Linux), ou `null`
+  /// si jamais sauvegardée. Pas de dépendance à `dart:ui` ici (types bruts),
+  /// c'est à l'appelant (main.dart) de les convertir en Offset/Size.
+  Future<({double x, double y, double width, double height})?>
+      loadWindowBounds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_windowBoundsKey);
+    if (raw == null) return null;
+    final parts = raw.split(',').map(double.tryParse).toList();
+    if (parts.length != 4 || parts.any((p) => p == null)) return null;
+    return (x: parts[0]!, y: parts[1]!, width: parts[2]!, height: parts[3]!);
+  }
+
+  Future<void> saveWindowBounds(
+      double x, double y, double width, double height) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_windowBoundsKey, '$x,$y,$width,$height');
   }
 }
