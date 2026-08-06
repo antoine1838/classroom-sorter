@@ -60,6 +60,9 @@ Depuis un terminal PowerShell, à la racine du projet :
 
 # Sur un téléphone Android branché en USB (mode développeur activé)
 .\run.ps1 <id-du-téléphone>   # voir « flutter devices »
+
+# Sur l'émulateur Android (Pixel_API36)
+.\emulateur.ps1
 ```
 
 Générer un APK installable sur Android :
@@ -68,9 +71,10 @@ Générer un APK installable sur Android :
 flutter build apk            # APK de production -> build\app\outputs\flutter-apk\
 ```
 
-> Émulateur Android : indisponible pour l'instant (la virtualisation *Windows
-> Hypervisor Platform* n'est pas activée sur cette machine — nécessite l'IT /
-> les droits admin). En attendant : Windows, Edge, ou un téléphone en USB.
+> `.\emulateur.ps1` démarre l'émulateur Pixel_API36, attend la fin du
+> démarrage d'Android, puis lance l'app dessus. Nécessite d'avoir activé la
+> virtualisation *Windows Hypervisor Platform* et redémarré Windows une
+> première fois.
 
 ## Icônes & ressources de store
 
