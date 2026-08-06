@@ -14,9 +14,10 @@ class Room {
   /// colonne `c` de la colonne `c+1` (donc `0 <= c <= cols - 2`). Deux places
   /// de part et d'autre d'un couloir ne sont pas voisines.
   ///
-  /// Note : les rangs sont, eux, TOUJOURS séparés par un couloir. On ne
-  /// considère « à côté » que deux places du même rang, sur des colonnes
-  /// adjacentes, sans couloir entre elles (voir [SeatingEngine]).
+  /// Note : ce couloir ne coupe que le voisinage horizontal (gauche/droite).
+  /// Il n'existe pas d'équivalent pour les rangs : deux places de rangs
+  /// contigus, même colonne, sont TOUJOURS voisines (devant/derrière), sans
+  /// possibilité de les séparer par un couloir (voir [SeatingEngine]).
   Set<int> colAisles;
 
   Room({

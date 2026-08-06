@@ -1,6 +1,5 @@
 // Vérifie la nouvelle interaction de la grille Élèves : une colonne par
-// champ, un tap sur la cellule passe à la valeur suivante (boucle), et le
-// premier tap sur Niveau marque bien levelSet (pour le moteur d'affectation).
+// champ, un tap sur la cellule passe à la valeur suivante (boucle).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,18 +39,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    // Niveau : Moyen (défaut) -> Fort -> Faible -> Moyen ; le premier tap
-    // marque levelSet (exemption moteur), qui reste vrai ensuite.
+    // Niveau : Moyen (défaut) -> Fort -> Faible -> Moyen.
     expect(s.level, Level.moyen);
-    expect(s.levelSet, isFalse);
     await tapField('Niveau');
     expect(s.level, Level.fort);
-    expect(s.levelSet, isTrue);
     await tapField('Niveau');
     expect(s.level, Level.faible);
     await tapField('Niveau');
     expect(s.level, Level.moyen);
-    expect(s.levelSet, isTrue);
 
     // Genre : Non précisé (défaut) -> Garçon -> Fille -> Non précisé.
     expect(s.gender, Gender.autre);

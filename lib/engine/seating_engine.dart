@@ -273,8 +273,8 @@ class SeatingEngine {
             cost += balancePenalty;
           }
           if (cls.balance.mixLevel &&
-              s.levelSet &&
-              s2.levelSet &&
+              s.level != Level.moyen &&
+              s2.level != Level.moyen &&
               s.level == s2.level) {
             cost += balancePenalty;
           }
@@ -342,8 +342,8 @@ class SeatingEngine {
           sameGender++;
         }
         if (b.mixLevel &&
-            s.levelSet &&
-            s2.levelSet &&
+            s.level != Level.moyen &&
+            s2.level != Level.moyen &&
             s.level == s2.level) {
           sameLevel++;
         }
@@ -390,23 +390,23 @@ class SeatingEngine {
         ok: sameGender == 0,
         label: sameGender == 0
             ? 'Mixité filles/garçons : aucun voisin de même genre.'
-            : 'Mixité filles/garçons : $sameGender paire(s) de même genre côte à côte.',
+            : 'Mixité filles/garçons : $sameGender paire(s) de même genre voisines.',
       ));
     }
     if (b.mixLevel) {
       notes.add((
         ok: sameLevel == 0,
         label: sameLevel == 0
-            ? 'Mélange des niveaux : aucun voisin de même niveau.'
-            : 'Mélange des niveaux : $sameLevel paire(s) de même niveau côte à côte.',
+            ? 'Mélange des niveaux : aucune paire de Faibles ou de Forts voisine.'
+            : 'Mélange des niveaux : $sameLevel paire(s) de Faibles ou de Forts voisines.',
       ));
     }
     if (b.separateAgites) {
       notes.add((
         ok: bothAgite == 0,
         label: bothAgite == 0
-            ? 'Élèves agités séparés : aucun côte à côte.'
-            : 'Élèves agités : $bothAgite paire(s) d\'agités côte à côte.',
+            ? 'Élèves agités séparés : aucun voisin agité.'
+            : 'Élèves agités : $bothAgite paire(s) d\'agités voisines.',
       ));
     }
     // Note affichée seulement s'il existe au moins un élève à mauvaise vue.
@@ -445,7 +445,7 @@ class SeatingEngine {
         case RuleType.separate:
           if (_adjacent(seatOf[rule.studentAId], seatOf[rule.studentBId])) {
             final msg =
-                '${name(rule.studentAId)} et ${name(rule.studentBId)} sont côte à côte (à séparer).';
+                '${name(rule.studentAId)} et ${name(rule.studentBId)} sont voisins (à séparer).';
             (rule.hard ? violations : warnings).add(msg);
           }
         case RuleType.keepTogether:
@@ -453,7 +453,7 @@ class SeatingEngine {
           final kb = seatOf[rule.studentBId];
           if (ka == null || kb == null || !_adjacent(ka, kb)) {
             final msg =
-                '${name(rule.studentAId)} et ${name(rule.studentBId)} ne sont pas côte à côte.';
+                '${name(rule.studentAId)} et ${name(rule.studentBId)} ne sont pas voisins.';
             (rule.hard ? violations : warnings).add(msg);
           }
         case RuleType.frontZone:

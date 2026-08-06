@@ -204,6 +204,47 @@ void main() {
     expect(res.balance.any((n) => n.label.contains('Tailles')), isFalse);
   });
 
+  test('objectif « mélanger les niveaux » : Moyen est ignoré', () {
+    final cls = _classWith(
+      room: Room(rows: 1, cols: 2), // 2 places : forcément voisines
+      students: [
+        Student(id: 'a', firstName: 'A', level: Level.moyen),
+        Student(id: 'b', firstName: 'B', level: Level.moyen),
+      ],
+      rules: [],
+      balance: BalanceSettings(mixLevel: true),
+    );
+
+    final res = SeatingEngine(cls, seed: 1).generate();
+
+    expect(res.balance.any((n) => n.label.contains('niveaux') && n.ok), isTrue,
+        reason: 'deux Moyen voisins ne doivent pas compter comme même niveau');
+  });
+
+  test(
+      'objectif « mélanger les niveaux » : deux Faible non voisins '
+      '(Fort ignoré comme troisième)', () {
+    final cls = _classWith(
+      room: Room(rows: 1, cols: 5),
+      students: [
+        Student(id: 'a', firstName: 'A', level: Level.faible),
+        Student(id: 'b', firstName: 'B', level: Level.faible),
+        Student(id: 'c', firstName: 'C', level: Level.fort),
+      ],
+      rules: [],
+      balance: BalanceSettings(mixLevel: true),
+    );
+
+    final res = SeatingEngine(cls, seed: 5).generate();
+    final seatA = res.assignment.entries.firstWhere((e) => e.value == 'a').key;
+    final seatB = res.assignment.entries.firstWhere((e) => e.value == 'b').key;
+    final (_, ca) = Room.parse(seatA);
+    final (_, cb) = Room.parse(seatB);
+
+    expect((ca - cb).abs() > 1, isTrue,
+        reason: 'les deux Faible ne devraient pas être côte à côte');
+  });
+
   test('trop d\'élèves : les surnuméraires sont signalés', () {
     final cls = _classWith(
       room: Room(rows: 1, cols: 2), // 2 places
