@@ -14,9 +14,11 @@ sur Internet — adapté aux données élèves).
   bas** de la grille (vue du professeur).
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
   (faible/moyen/fort), énergie (calme/modéré/agité), taille
-  (petit/moyen/grand), mauvaise vue, notes libres. La grille affiche une
-  colonne par attribut : toucher une case fait défiler ses valeurs
-  (Genre/Niveau/Énergie/Taille/Vue).
+  (petit/moyen/grand), mauvaise vue, notes libres. Deux vues au choix (bouton
+  bascule dans l'onglet, ou écran **Réglages** depuis l'accueil) :
+  **Compacte** (une colonne par attribut, toucher une case fait défiler ses
+  valeurs) ou **Complète** (une colonne par valeur possible, à cocher). Les
+  deux s'adaptent aux petits écrans (colonnes et boutons qui se compressent).
 - **Règles** (par élève ou par binôme) — chacune *obligatoire* (dure) ou
   *préférence* (souple) :
   - *Place imposée* — un élève sur une place précise ;
@@ -40,6 +42,9 @@ L'affectation est un problème d'optimisation sous contraintes. Le moteur
 (`lib/engine/seating_engine.dart`) utilise un **recuit simulé** avec
 redémarrages : il minimise un coût où les contraintes dures coûtent très cher
 et les préférences peu, puis renvoie le meilleur plan trouvé.
+
+Sur desktop (Windows/macOS/Linux), la taille et la position de la fenêtre
+sont mémorisées entre deux lancements (`window_manager`, voir `main.dart`).
 
 ## Lancer l'application
 
@@ -97,13 +102,14 @@ lib/
 ├── models/        Student, Room/Seat, Rule, ClassGroup   (+ (dé)sérialisation JSON)
 ├── engine/        seating_engine.dart — moteur d'affectation
 ├── data/          repository.dart — stockage local (shared_preferences)
-├── screens/       home_screen, class_editor_screen (4 onglets)
+├── screens/       home_screen, class_editor_screen (4 onglets), settings_screen
 ├── widgets/       seat_grid.dart — grilles (édition + drag & drop)
 ├── app_state.dart État global (ChangeNotifier) + persistance
-└── main.dart
+└── main.dart      Point d'entrée + fenêtre desktop (taille/position)
 
 test/              engine_test, seating_neighbors_test, room_orientation_test,
-                   layout_responsive_test, students_grid_cycle_test, widget_test
+                   layout_responsive_test, students_grid_cycle_test,
+                   students_table_toggle_test, app_state_test, widget_test
 ```
 
 ## Idées d'améliorations

@@ -163,8 +163,91 @@ class _RoomTab extends StatelessWidget {
 // Onglet ÉLÈVES
 // ---------------------------------------------------------------------------
 
+// Seuils de largeur de la barre Ajouter/Importer (voir _AddImportToolbar).
+// Les métriques réelles de police ne se calculent pas fiablement à la main
+// (ni via flutter_test, qui utilise une police de test non représentative) :
+// ces valeurs viennent d'essais visuels dans l'app Windows en rétrécissant la
+// fenêtre jusqu'au point de casse de « Importer une liste », puis de
+// « Import », avec une marge de sécurité.
+const double _kToolbarFullLabelMinW = 420; // sous ce seuil : libellés courts
+const double _kToolbarShortLabelMinW = 290; // sous ce seuil : icônes seules
+
+/// Barre Ajouter/Importer + bascule de vue, partagée par les deux vues
+/// Élèves. Les deux boutons principaux réduisent leur libellé (« Ajouter » →
+/// « Ajout », puis icône seule + tooltip) quand la largeur disponible ne
+/// suffit plus, pour ne jamais casser le texte en plein mot.
+class _AddImportToolbar extends StatelessWidget {
+  final VoidCallback onAdd;
+  final VoidCallback onImport;
+  final Widget viewToggle;
+  const _AddImportToolbar({
+    required this.onAdd,
+    required this.onImport,
+    required this.viewToggle,
+  });
+
+  static const _addTooltip = 'Ajouter un élève';
+  static const _importTooltip = "Importer une liste d'élèves";
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final w = constraints.maxWidth;
+      if (w < _kToolbarShortLabelMinW) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton.filled(
+              onPressed: onAdd,
+              icon: const Icon(Icons.person_add_alt),
+              tooltip: _addTooltip,
+            ),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              onPressed: onImport,
+              icon: const Icon(Icons.playlist_add),
+              tooltip: _importTooltip,
+            ),
+            const SizedBox(width: 8),
+            viewToggle,
+          ],
+        );
+      }
+      final short = w < _kToolbarFullLabelMinW;
+      Widget addBtn = FilledButton.icon(
+        onPressed: onAdd,
+        icon: const Icon(Icons.person_add_alt),
+        label: Text(short ? 'Ajout' : 'Ajouter'),
+      );
+      Widget importBtn = FilledButton.tonalIcon(
+        onPressed: onImport,
+        icon: const Icon(Icons.playlist_add),
+        label: Text(short ? 'Import' : 'Importer une liste'),
+      );
+      if (short) {
+        addBtn = Tooltip(message: _addTooltip, child: addBtn);
+        importBtn = Tooltip(message: _importTooltip, child: importBtn);
+      }
+      return Row(
+        children: [
+          Expanded(child: addBtn),
+          const SizedBox(width: 8),
+          Expanded(child: importBtn),
+          const SizedBox(width: 8),
+          viewToggle,
+        ],
+      );
+    });
+  }
+}
+
 const double _kRowH = 48;
-const double _kCellW = 40; // largeur fixe d'une colonne-champ (une icône)
+const double _kCellW = 40; // largeur max d'une colonne-champ (une icône)
+const double _kCellMinW = 24; // largeur min avant de rogner les noms
+// Largeur de la barre de boutons sous laquelle les colonnes commencent à se
+// comprimer (voir _computeWidths) — alignée sur le seuil « libellés courts »
+// de _AddImportToolbar pour que tout se resserre au même moment.
+const double _kColShrinkStartW = _kToolbarFullLabelMinW;
 const double _kNameW = 172; // largeur de départ de la colonne des noms (avant 1er calcul)
 const double _kNameMinW = 98; // largeur min (laisse la place à « Élève » + tri)
 const double _kHeaderH = 34;
@@ -307,26 +390,60 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
   bool _sortByName = false;
 
   // Largeurs adaptatives de la matrice, recalculées à chaque build selon la
-  // largeur disponible (voir _computeWidths).
-  double _cellW = _kCellW;
+  // largeur disponible (voir _computeWidths). Une largeur par colonne (pas
+  // une seule partagée) : voir la doc de _computeWidths.
+  List<double> _colWidths = List.filled(_attrFields.length, _kCellW);
   double _nameW = _kNameW;
 
   AppState get state => widget.state;
   ClassGroup get cls => widget.cls;
 
-  /// Les cases-valeurs gardent une largeur fixe et modeste ([_kCellW]) — une
-  /// seule icône n'a pas besoin de plus, et ne pas les faire varier laisse
-  /// tout l'espace en jeu à la colonne des noms, qui grandit avec l'écran
-  /// pour rester lisible avec des noms longs (ex. « Pierre-Adrien Lepierre
-  /// du Val »). Si l'écran est si étroit que le nom descendrait sous
-  /// [_kNameMinW], le défilement horizontal prend le relais.
-  void _computeWidths(double maxWidth) {
+  /// Largeur minimale d'une colonne : juste assez pour son libellé complet
+  /// (+ la marge horizontale de _headerCells), sans jamais descendre sous
+  /// [_kCellMinW] ni dépasser [_kCellW]. Mesurée via TextPainter (fiable ici
+  /// car on est dans l'app réelle, pas dans flutter_test qui substitue une
+  /// police de test non représentative).
+  double _minColWidth(String label, TextStyle? style) {
+    final tp = TextPainter(
+      text: TextSpan(text: label, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    return (tp.width + 4).clamp(_kCellMinW, _kCellW);
+  }
+
+  /// Sous [_kColShrinkStartW] (aligné sur le seuil « libellés courts » de la
+  /// barre Ajouter/Importer, pour que tout se resserre ensemble dès le
+  /// palier moyen), les colonnes se compriment depuis leur largeur
+  /// confortable ([_kCellW]) vers leur propre minimum ([_minColWidth]) — pas
+  /// toutes du même facteur : une colonne à libellé court (« Vue ») a plus
+  /// de marge qu'une à libellé long (« Niveau », « Énergie »), donc elle
+  /// absorbe davantage la compression. Le nom récupère tout l'espace
+  /// restant, comme avant.
+  void _computeWidths(BuildContext context, double maxWidth) {
     final cols = _attrFields.length;
     final seps = (cols - 1).toDouble(); // séparateurs de 1 px
-    final cellW = _kCellW;
-    final nameW = maxWidth - (cellW * cols + seps);
-    _cellW = cellW;
-    _nameW = nameW.clamp(_kNameMinW, double.infinity);
+    final headStyle = Theme.of(context)
+        .textTheme
+        .labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600, fontSize: 8.5);
+    final minWidths = [
+      for (final f in _attrFields) _minColWidth(f.label, headStyle)
+    ];
+    if (maxWidth >= _kColShrinkStartW) {
+      _colWidths = List.filled(cols, _kCellW);
+    } else {
+      final totalMin = minWidths.fold<double>(0, (a, b) => a + b);
+      final totalSlack = cols * _kCellW - totalMin;
+      final floorWidth = totalMin + _kNameMinW + seps;
+      final s = totalSlack <= 0
+          ? 0.0
+          : ((maxWidth - floorWidth) / (_kColShrinkStartW - floorWidth))
+              .clamp(0.0, 1.0);
+      _colWidths = [for (final m in minWidths) m + (_kCellW - m) * s];
+    }
+    final colsTotal = _colWidths.fold<double>(0, (a, b) => a + b);
+    _nameW =
+        (maxWidth - (colsTotal + seps)).clamp(_kNameMinW, double.infinity);
   }
 
   @override
@@ -360,31 +477,15 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _editStudent(context),
-                  icon: const Icon(Icons.person_add_alt),
-                  label: const Text('Ajouter'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  onPressed: () => _importList(context),
-                  icon: const Icon(Icons.playlist_add),
-                  label: const Text('Importer une liste'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.outlined(
-                onPressed: () =>
-                    state.setStudentsViewMode(StudentsViewMode.complete),
-                icon: const Icon(Icons.table_rows_outlined),
-                tooltip: 'Passer à la vue complète',
-              ),
-            ],
+          child: _AddImportToolbar(
+            onAdd: () => _editStudent(context),
+            onImport: () => _importList(context),
+            viewToggle: IconButton.outlined(
+              onPressed: () =>
+                  state.setStudentsViewMode(StudentsViewMode.complete),
+              icon: const Icon(Icons.table_rows_outlined),
+              tooltip: 'Passer à la vue complète',
+            ),
           ),
         ),
         Expanded(
@@ -392,7 +493,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
               ? const Center(child: Text('Aucun élève. Ajoutez-en un !'))
               : LayoutBuilder(
                   builder: (context, constraints) {
-                    _computeWidths(constraints.maxWidth);
+                    _computeWidths(context, constraints.maxWidth);
                     return _buildMatrix(cs);
                   },
                 ),
@@ -510,12 +611,15 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
     // mal « Énergie » (accent + jambage du « g ») par rapport aux libellés
     // sans accent/descendante — une taille uniforme, choisie pour le plus
     // long des libellés, garde tout le monde sur la même ligne de base.
+    // Plus petite que la vue Complète : essayé à la même taille, mais
+    // « Énergie » dépasse alors la largeur max d'une colonne ([_kCellW]) —
+    // le clamp de _minColWidth la tronquait quand même (voir _computeWidths).
     final attrHeadStyle = style?.copyWith(fontSize: 8.5);
     for (var g = 0; g < _attrFields.length; g++) {
       if (g > 0) out.add(_vSep(cs));
       final field = _attrFields[g];
       out.add(SizedBox(
-        width: _cellW,
+        width: _colWidths[g],
         child: Tooltip(
           message: field.values.map((v) => v.label).join(' → '),
           child: Center(
@@ -573,14 +677,6 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 13,
-                backgroundColor: studentColor(s, cs),
-                child: Text(s.initials,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 8),
               Expanded(
                 child: Text(s.fullName,
                     overflow: TextOverflow.ellipsis,
@@ -606,7 +702,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
     final cells = <Widget>[];
     for (var g = 0; g < _attrFields.length; g++) {
       if (g > 0) cells.add(_vSep(cs));
-      cells.add(_cycleCell(cs, _attrFields[g], s));
+      cells.add(_cycleCell(cs, _attrFields[g], s, _colWidths[g]));
     }
     return Container(
       height: _kRowH,
@@ -619,13 +715,13 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
   /// Cellule d'un champ : affiche la valeur courante, tap = valeur suivante
   /// (boucle). Couleur d'accent sauf sur la valeur par défaut du champ, en
   /// gris pour rester lisible parmi les valeurs réellement choisies.
-  Widget _cycleCell(ColorScheme cs, _AttrField field, Student s) {
+  Widget _cycleCell(ColorScheme cs, _AttrField field, Student s, double width) {
     final idx = field.indexOf(s);
     final value = field.values[idx];
     final color = idx == field.defaultIndex ? cs.outlineVariant : cs.primary;
     return SizedBox(
       key: ValueKey('attrCell_${field.label}_${s.id}'),
-      width: _cellW,
+      width: width,
       child: Tooltip(
         message: value.label,
         child: InkWell(
@@ -836,31 +932,15 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _editStudent(context),
-                  icon: const Icon(Icons.person_add_alt),
-                  label: const Text('Ajouter'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  onPressed: () => _importList(context),
-                  icon: const Icon(Icons.playlist_add),
-                  label: const Text('Importer une liste'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.outlined(
-                onPressed: () =>
-                    state.setStudentsViewMode(StudentsViewMode.compact),
-                icon: const Icon(Icons.view_week_outlined),
-                tooltip: 'Passer à la vue compacte',
-              ),
-            ],
+          child: _AddImportToolbar(
+            onAdd: () => _editStudent(context),
+            onImport: () => _importList(context),
+            viewToggle: IconButton.outlined(
+              onPressed: () =>
+                  state.setStudentsViewMode(StudentsViewMode.compact),
+              icon: const Icon(Icons.view_week_outlined),
+              tooltip: 'Passer à la vue compacte',
+            ),
           ),
         ),
         Expanded(
@@ -1080,14 +1160,6 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 13,
-                backgroundColor: studentColor(s, cs),
-                child: Text(s.initials,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 8),
               Expanded(
                 child: Text(s.fullName,
                     overflow: TextOverflow.ellipsis,
