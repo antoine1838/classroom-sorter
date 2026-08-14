@@ -798,6 +798,10 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Un élève par ligne, format « Prénom Nom ».'),
+            Text(
+              'Prénom composé ? Reliez-le par un tiret (ex. Paul-Henri Dupond).',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: ctrl,
@@ -1279,6 +1283,10 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Un élève par ligne, format « Prénom Nom ».'),
+            Text(
+              'Prénom composé ? Reliez-le par un tiret (ex. Paul-Henri Dupond).',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: ctrl,

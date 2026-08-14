@@ -34,6 +34,20 @@ if (Test-Path $avdIni) {
     }
 }
 
+# Verrou orphelin : si l'émulateur a été tué/a planté sans se terminer
+# proprement (ex. fenêtre fermée en fanfare), multiinstance.lock reste en
+# place et le prochain lancement échoue en croyant qu'une instance tourne
+# déjà. On ne le supprime que si aucun processus qemu/emulator ne tourne
+# réellement, pour ne jamais toucher une vraie instance active.
+$lockFile = "$env:USERPROFILE\.android\avd\Pixel_API36.avd\multiinstance.lock"
+if (Test-Path $lockFile) {
+    $running = Get-Process -Name "qemu-system*", "emulator*" -ErrorAction SilentlyContinue
+    if (-not $running) {
+        Write-Host "Nettoyage du verrou orphelin (emulateur precedent mal ferme)..." -ForegroundColor Yellow
+        Remove-Item $lockFile -Force
+    }
+}
+
 Write-Host "Démarrage de l'émulateur Pixel_API36..." -ForegroundColor Cyan
 Start-Process -FilePath "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList '-avd', 'Pixel_API36'
 
