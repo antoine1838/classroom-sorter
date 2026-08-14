@@ -36,6 +36,10 @@ sur Internet — adapté aux données élèves).
   violées, et **glisser-déposer** pour ajuster à la main. Bouton *Régénérer*
   pour une autre proposition, bouton *Valider* pour recontrôler règles et
   équilibre après un ajustement manuel.
+- **Classe de démo** : bouton (accueil, écran vide ou icône dans l'AppBar)
+  pour ajouter en un clic une classe fictive « 6ème B » déjà remplie (20
+  élèves, salle, règles, plan) — pratique pour découvrir l'appli sans tout
+  ressaisir, ou pour reproduire les captures d'écran du Play Store.
 
 ## Comment ça marche (le moteur)
 
@@ -112,9 +116,13 @@ lib/
 ├── app_state.dart État global (ChangeNotifier) + persistance
 └── main.dart      Point d'entrée + fenêtre desktop (taille/position)
 
+assets/demo/       demo_class_6emeb.json — classe de démo embarquée (voir
+                   test/fixtures/README.md pour la fixture de référence)
+
 test/              engine_test, seating_neighbors_test, room_orientation_test,
                    layout_responsive_test, students_grid_cycle_test,
-                   students_table_toggle_test, app_state_test, widget_test
+                   students_table_toggle_test, app_state_test, demo_class_test,
+                   widget_test
 ```
 
 ## Idées d'améliorations

@@ -21,6 +21,11 @@ classe de démo (noms fictifs). L'onglet Élèves a deux captures, une par vue :
 Compacte (colonne par attribut, tap pour cycler) et Complète (colonne par
 valeur, cases à cocher).
 
+Depuis l'ajout du bouton **« Classe de démo »** sur l'accueil (icône baguette
+magique dans l'AppBar), plus besoin d'injecter la classe à la main dans les
+prefs Windows pour préparer ces captures : un clic dans l'appli suffit à
+obtenir la même « 6ème B » à 20 élèves (voir `test/fixtures/README.md`).
+
 ## Textes — `metadata/<locale>/`
 
 Un champ = un fichier (convention *fastlane*). Langue par défaut : `fr-FR`.

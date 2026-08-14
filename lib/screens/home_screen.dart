@@ -19,6 +19,11 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Mes classes'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.auto_awesome_outlined),
+            tooltip: 'Ajouter la classe de démo (6ème B)',
+            onPressed: () => _addDemoClass(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Réglages',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
@@ -39,7 +44,10 @@ class HomeScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (state.classes.isEmpty) {
-            return _EmptyState(onAdd: () => _addClass(context));
+            return _EmptyState(
+              onAdd: () => _addClass(context),
+              onAddDemo: () => _addDemoClass(context),
+            );
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
@@ -84,6 +92,11 @@ class HomeScreen extends StatelessWidget {
     );
     if (name == null) return;
     final c = state.addClass(name);
+    if (context.mounted) _open(context, c);
+  }
+
+  Future<void> _addDemoClass(BuildContext context) async {
+    final c = await state.addDemoClass();
     if (context.mounted) _open(context, c);
   }
 
@@ -140,7 +153,8 @@ Future<String?> _promptText(
 
 class _EmptyState extends StatelessWidget {
   final VoidCallback onAdd;
-  const _EmptyState({required this.onAdd});
+  final VoidCallback onAddDemo;
+  const _EmptyState({required this.onAdd, required this.onAddDemo});
 
   @override
   Widget build(BuildContext context) {
@@ -163,10 +177,24 @@ class _EmptyState extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: const Text('Créer ma première classe'),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onAdd,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Créer ma première classe'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: onAddDemo,
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    label: const Text('Classe de démo'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

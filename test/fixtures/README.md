@@ -19,9 +19,19 @@ Store dans `store/play/screenshots/` : mêmes critères tirés indépendamment
 doit être devant, séparer, rapprocher) et un plan déjà généré qui les
 respecte toutes. Sert de référence si les captures doivent être reprises.
 
+Ce fichier est dupliqué tel quel en asset embarqué
+(`assets/demo/demo_class_6emeb.json`) : c'est celui que charge
+`AppState.addDemoClass()` pour le bouton **« Classe de démo »** de l'accueil
+(icône baguette magique dans l'AppBar, ou bouton dans l'écran vide) — voir le
+README racine. Si le contenu de la classe de démo doit changer, mettre à jour
+les **deux** copies (celle-ci reste la référence documentée ici, l'autre est
+celle réellement livrée dans l'appli).
+
 ## Recharger une fixture dans les prefs Windows en local
 
-(voir aussi la recette dans la mémoire de session `windows-prefs-storage`) :
+Utile pour `demo_class_varied_35.json` (pas de bouton dédié dans l'appli,
+contrairement à `demo_class_6emeb.json` — voir ci-dessus). Voir aussi la
+recette dans la mémoire de session `windows-prefs-storage` :
 
 1. Arrêter l'application (`Get-Process plandeclasse | Stop-Process -Force`).
 2. Lire `%APPDATA%\Antoine1838\Plan de classe\shared_preferences.json`,

@@ -6,12 +6,18 @@
 /// sauvegarder.
 library;
 
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 import 'data/repository.dart';
 import 'models/classroom.dart';
+
+/// Classe d'exemple prête à l'emploi, pour découvrir l'appli ou refaire des
+/// captures d'écran sans ressaisir des données à la main.
+const String demoClassAsset = 'assets/demo/demo_class_6emeb.json';
 
 /// Identifiant unique simple (horodatage + aléatoire), sans dépendance externe.
 String newId() =>
@@ -53,6 +59,18 @@ class AppState extends ChangeNotifier {
       id: newId(),
       name: name.trim().isEmpty ? 'Nouvelle classe' : name.trim(),
     );
+    classes.add(c);
+    touch();
+    return c;
+  }
+
+  /// Ajoute la classe de démo (6ème B, 20 élèves déjà remplis) depuis
+  /// [demoClassAsset], avec un nouvel id pour ne jamais entrer en conflit
+  /// avec une classe déjà ajoutée.
+  Future<ClassGroup> addDemoClass() async {
+    final raw = await rootBundle.loadString(demoClassAsset);
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    final c = ClassGroup.fromJson({...json, 'id': newId()});
     classes.add(c);
     touch();
     return c;
