@@ -803,6 +803,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
               controller: ctrl,
               autofocus: true,
               maxLines: 8,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Camille Durand\nSami Ben Ali\n…',
@@ -1283,6 +1284,7 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
               controller: ctrl,
               autofocus: true,
               maxLines: 8,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Camille Durand\nSami Ben Ali\n…',
@@ -1398,10 +1400,12 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
             TextField(
               controller: _first,
               autofocus: true,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(labelText: 'Prénom'),
             ),
             TextField(
               controller: _last,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(labelText: 'Nom'),
             ),
             const SizedBox(height: 12),
