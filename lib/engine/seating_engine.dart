@@ -94,41 +94,90 @@ class SeatingEngine {
   /// Génère un plan. [seed] non fourni => résultat différent à chaque appel.
   PlanResult generate({int restarts = 40, int iterations = 1000}) {
     // 1) Places imposées (contrainte dure gérée par « épinglage »).
+    final pinning = _pinFixedSeats();
+
+    // 2) Élèves et places libres.
+    final freeStudents = [
+      for (final s in cls.students)
+        if (!pinning.pinned.containsKey(s.id)) s.id
+    ];
+    final freeSeats = [
+      for (final k in _seats)
+        if (!pinning.takenSeats.contains(k)) k
+    ];
+
+    // 3) Recherche par recuit simulé avec redémarrages.
+    final search =
+        _anneal(freeStudents, freeSeats, pinning.pinned, restarts, iterations);
+
+    // 4) Construire le plan final.
+    final seatOf = <String, String>{...pinning.pinned};
+    search.best.forEach((sid, seat) {
+      if (seat != null) seatOf[sid] = seat;
+    });
+    final assignment = <String, String>{};
+    seatOf.forEach((sid, seat) => assignment[seat] = sid);
+
+    final unplaced = [
+      for (final s in cls.students)
+        if (!seatOf.containsKey(s.id)) s.id
+    ];
+
+    // 5) Rapport lisible.
+    final report = _report(seatOf, pinning.issues, unplaced);
+
+    return PlanResult(
+      assignment: assignment,
+      unplacedStudentIds: unplaced,
+      violations: report.$1,
+      warnings: report.$2,
+      balance: _balanceNotes(seatOf),
+      score: search.bestCost,
+    );
+  }
+
+  /// Résout les règles [RuleType.fixedSeat] par épinglage : renvoie les
+  /// places imposées, l'ensemble des places ainsi prises, et les conflits
+  /// détectés (place inexistante, déjà prise, ou élève avec plusieurs places
+  /// imposées — seule la première est gardée).
+  ({Map<String, String> pinned, Set<String> takenSeats, List<String> issues})
+      _pinFixedSeats() {
     final pinned = <String, String>{}; // studentId -> seatKey
     final takenSeats = <String>{};
-    final fixedIssues = <String>[];
+    final issues = <String>[];
 
     for (final rule in cls.rules.where((r) => r.type == RuleType.fixedSeat)) {
       final s = _byId[rule.studentAId];
       if (s == null || rule.seatRow == null || rule.seatCol == null) continue;
       final k = Room.keyOf(rule.seatRow!, rule.seatCol!);
       if (!cls.room.isSeat(rule.seatRow!, rule.seatCol!)) {
-        fixedIssues.add("${s.fullName} : la place imposée n'existe pas.");
+        issues.add("${s.fullName} : la place imposée n'existe pas.");
         continue;
       }
       if (takenSeats.contains(k)) {
-        fixedIssues.add('${s.fullName} : place imposée déjà occupée.');
+        issues.add('${s.fullName} : place imposée déjà occupée.');
         continue;
       }
       if (pinned.containsKey(s.id)) {
-        fixedIssues.add('${s.fullName} : plusieurs places imposées, la 1re est gardée.');
+        issues.add('${s.fullName} : plusieurs places imposées, la 1re est gardée.');
         continue;
       }
       pinned[s.id] = k;
       takenSeats.add(k);
     }
 
-    // 2) Élèves et places libres.
-    final freeStudents = [
-      for (final s in cls.students)
-        if (!pinned.containsKey(s.id)) s.id
-    ];
-    final freeSeats = [
-      for (final k in _seats)
-        if (!takenSeats.contains(k)) k
-    ];
+    return (pinned: pinned, takenSeats: takenSeats, issues: issues);
+  }
 
-    // 3) Recherche par recuit simulé avec redémarrages.
+  /// Recuit simulé avec redémarrages : renvoie le meilleur placement trouvé
+  /// (élève -> place libre, ou null si non placé) et son coût.
+  ({Map<String, String?> best, double bestCost}) _anneal(
+    List<String> freeStudents,
+    List<String> freeSeats,
+    Map<String, String> pinned,
+    int restarts,
+    int iterations,
+  ) {
     Map<String, String?> best = {};
     double bestCost = double.infinity;
 
@@ -166,30 +215,7 @@ class SeatingEngine {
       }
     }
 
-    // 4) Construire le plan final.
-    final seatOf = <String, String>{...pinned};
-    best.forEach((sid, seat) {
-      if (seat != null) seatOf[sid] = seat;
-    });
-    final assignment = <String, String>{};
-    seatOf.forEach((sid, seat) => assignment[seat] = sid);
-
-    final unplaced = [
-      for (final s in cls.students)
-        if (!seatOf.containsKey(s.id)) s.id
-    ];
-
-    // 5) Rapport lisible.
-    final report = _report(seatOf, fixedIssues, unplaced);
-
-    return PlanResult(
-      assignment: assignment,
-      unplacedStudentIds: unplaced,
-      violations: report.$1,
-      warnings: report.$2,
-      balance: _balanceNotes(seatOf),
-      score: bestCost,
-    );
+    return (best: best, bestCost: bestCost);
   }
 
   /// Évalue le placement actuel ([cls.assignment]) sans le modifier : utile
@@ -251,8 +277,36 @@ class SeatingEngine {
       if (seat != null) seatOf[sid] = seat;
     });
 
-    double cost = 0;
+    double cost = _ruleCost(seatOf);
 
+    // Mauvaise vue : préférence souple « moitié avant » (objectif d'équilibre,
+    // même poids que les autres). Ne s'applique que si la bascule est activée.
+    if (cls.balance.frontForPoorEyesight) {
+      cost += _poorEyesightBackCount(seatOf) * balancePenalty;
+    }
+
+    // Objectifs d'équilibre : pénaliser les voisins identiques.
+    if (cls.balance.mixGender ||
+        cls.balance.mixLevel ||
+        cls.balance.separateAgites) {
+      cost += _neighborBalanceCost(seatOf);
+    }
+
+    // Taille : éviter qu'un élève grand se retrouve directement devant un
+    // petit (rang - 1, même colonne), qui lui bloquerait la vue. Relation
+    // dirigée (contrairement aux objectifs ci-dessus) : seule la paire
+    // exacte grand-devant / petit-derrière compte.
+    if (cls.balance.avoidTallInFrontOfShort) {
+      cost += _tallInFrontOfShortCount(seatOf) * balancePenalty;
+    }
+
+    return cost;
+  }
+
+  /// Coût des règles explicites (séparer / rapprocher / devant), pondéré par
+  /// [hardPenalty] ou [softPenalty] selon [Rule.hard].
+  double _ruleCost(Map<String, String> seatOf) {
+    double cost = 0;
     for (final rule in cls.rules) {
       final p = rule.hard ? hardPenalty : softPenalty;
       switch (rule.type) {
@@ -276,73 +330,83 @@ class SeatingEngine {
           break; // géré par épinglage
       }
     }
-
-    // Mauvaise vue : préférence souple « moitié avant » (objectif d'équilibre,
-    // même poids que les autres). Ne s'applique que si la bascule est activée.
-    if (cls.balance.frontForPoorEyesight) {
-      seatOf.forEach((sid, seat) {
-        final s = _byId[sid];
-        if (s == null || !s.poorEyesight) return;
-        final (r, _) = Room.parse(seat);
-        if (r >= _frontHalfRows) cost += balancePenalty;
-      });
-    }
-
-    // Objectifs d'équilibre : pénaliser les voisins identiques.
-    if (cls.balance.mixGender ||
-        cls.balance.mixLevel ||
-        cls.balance.separateAgites) {
-      final occ = <String, String>{}; // seat -> studentId
-      seatOf.forEach((sid, seat) => occ[seat] = sid);
-      for (final k in _seats) {
-        final sid = occ[k];
-        if (sid == null) continue;
-        final s = _byId[sid]!;
-        for (final nk in _neighbors[k]!) {
-          if (nk.compareTo(k) <= 0) continue; // compter chaque paire une fois
-          final sid2 = occ[nk];
-          if (sid2 == null) continue;
-          final s2 = _byId[sid2]!;
-          if (cls.balance.mixGender &&
-              s.gender != Gender.autre &&
-              s2.gender != Gender.autre &&
-              s.gender == s2.gender) {
-            cost += balancePenalty;
-          }
-          if (cls.balance.mixLevel &&
-              s.level != Level.moyen &&
-              s2.level != Level.moyen &&
-              s.level == s2.level) {
-            cost += balancePenalty;
-          }
-          if (cls.balance.separateAgites &&
-              s.energy == Energy.agite &&
-              s2.energy == Energy.agite) {
-            cost += agitePenalty;
-          }
-        }
-      }
-    }
-
-    // Taille : éviter qu'un élève grand se retrouve directement devant un
-    // petit (rang - 1, même colonne), qui lui bloquerait la vue. Relation
-    // dirigée (contrairement aux objectifs ci-dessus) : seule la paire
-    // exacte grand-devant / petit-derrière compte.
-    if (cls.balance.avoidTallInFrontOfShort) {
-      final occ = <String, String>{};
-      seatOf.forEach((sid, seat) => occ[seat] = sid);
-      for (final k in _seats) {
-        final sid = occ[k];
-        if (sid == null || _byId[sid]!.size != StudentSize.grand) continue;
-        final (r, c) = Room.parse(k);
-        final behindSid = occ[Room.keyOf(r + 1, c)];
-        if (behindSid != null && _byId[behindSid]!.size == StudentSize.petit) {
-          cost += balancePenalty;
-        }
-      }
-    }
-
     return cost;
+  }
+
+  /// Nombre d'élèves à mauvaise vue placés hors de la moitié avant.
+  int _poorEyesightBackCount(Map<String, String> seatOf) {
+    var count = 0;
+    for (final s in cls.students) {
+      if (!s.poorEyesight) continue;
+      final seat = seatOf[s.id];
+      if (seat != null && Room.parse(seat).$1 >= _frontHalfRows) count++;
+    }
+    return count;
+  }
+
+  /// Parcourt chaque paire de places voisines occupées une seule fois (jamais
+  /// deux fois, jamais en diagonale) et appelle [visit] avec les deux élèves
+  /// concernés.
+  void _forEachNeighborPair(
+    Map<String, String> seatOf,
+    void Function(Student a, Student b) visit,
+  ) {
+    final occ = <String, String>{}; // seat -> studentId
+    seatOf.forEach((sid, seat) => occ[seat] = sid);
+    for (final k in _seats) {
+      final sid = occ[k];
+      if (sid == null) continue;
+      final s = _byId[sid]!;
+      for (final nk in _neighbors[k]!) {
+        if (nk.compareTo(k) <= 0) continue; // compter chaque paire une fois
+        final sid2 = occ[nk];
+        if (sid2 == null) continue;
+        visit(s, _byId[sid2]!);
+      }
+    }
+  }
+
+  /// Coût des objectifs de mixité entre voisins (genre / niveau / agités).
+  double _neighborBalanceCost(Map<String, String> seatOf) {
+    double cost = 0;
+    _forEachNeighborPair(seatOf, (s, s2) {
+      if (cls.balance.mixGender &&
+          s.gender != Gender.autre &&
+          s2.gender != Gender.autre &&
+          s.gender == s2.gender) {
+        cost += balancePenalty;
+      }
+      if (cls.balance.mixLevel &&
+          s.level != Level.moyen &&
+          s2.level != Level.moyen &&
+          s.level == s2.level) {
+        cost += balancePenalty;
+      }
+      if (cls.balance.separateAgites &&
+          s.energy == Energy.agite &&
+          s2.energy == Energy.agite) {
+        cost += agitePenalty;
+      }
+    });
+    return cost;
+  }
+
+  /// Nombre de paires grand-devant / petit-derrière (relation dirigée,
+  /// indépendante du voisinage symétrique ci-dessus).
+  int _tallInFrontOfShortCount(Map<String, String> seatOf) {
+    final occ = <String, String>{};
+    seatOf.forEach((sid, seat) => occ[seat] = sid);
+    var count = 0;
+    for (final k in _seats) {
+      final sid = occ[k];
+      if (sid == null || _byId[sid]!.size != StudentSize.grand) continue;
+      final (r, c) = Room.parse(k);
+      final behindSid = occ[Room.keyOf(r + 1, c)];
+      if (behindSid != null && _byId[behindSid]!.size == StudentSize.petit) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /// Bilan des objectifs d'équilibre ACTIVÉS : compte, parmi les paires de
@@ -358,69 +422,63 @@ class SeatingEngine {
       return const [];
     }
 
-    final occ = <String, String>{};
-    seatOf.forEach((sid, seat) => occ[seat] = sid);
     var sameGender = 0;
     var sameLevel = 0;
     var bothAgite = 0;
-    for (final k in _seats) {
-      final sid = occ[k];
-      if (sid == null) continue;
-      final s = _byId[sid]!;
-      for (final nk in _neighbors[k]!) {
-        if (nk.compareTo(k) <= 0) continue; // chaque paire une seule fois
-        final sid2 = occ[nk];
-        if (sid2 == null) continue;
-        final s2 = _byId[sid2]!;
-        if (b.mixGender &&
-            s.gender != Gender.autre &&
-            s2.gender != Gender.autre &&
-            s.gender == s2.gender) {
-          sameGender++;
-        }
-        if (b.mixLevel &&
-            s.level != Level.moyen &&
-            s2.level != Level.moyen &&
-            s.level == s2.level) {
-          sameLevel++;
-        }
-        if (b.separateAgites &&
-            s.energy == Energy.agite &&
-            s2.energy == Energy.agite) {
-          bothAgite++;
-        }
+    _forEachNeighborPair(seatOf, (s, s2) {
+      if (b.mixGender &&
+          s.gender != Gender.autre &&
+          s2.gender != Gender.autre &&
+          s.gender == s2.gender) {
+        sameGender++;
       }
-    }
+      if (b.mixLevel &&
+          s.level != Level.moyen &&
+          s2.level != Level.moyen &&
+          s.level == s2.level) {
+        sameLevel++;
+      }
+      if (b.separateAgites &&
+          s.energy == Energy.agite &&
+          s2.energy == Energy.agite) {
+        bothAgite++;
+      }
+    });
 
     // Mauvaise vue : comptage par rang (indépendant du voisinage).
-    var eyesightTotal = 0;
-    var eyesightBack = 0;
-    if (b.frontForPoorEyesight) {
-      for (final s in cls.students) {
-        if (!s.poorEyesight) continue;
-        eyesightTotal++;
-        final seat = seatOf[s.id];
-        if (seat != null && Room.parse(seat).$1 >= _frontHalfRows) {
-          eyesightBack++;
-        }
-      }
-    }
+    final eyesightTotal = b.frontForPoorEyesight
+        ? cls.students.where((s) => s.poorEyesight).length
+        : 0;
+    final eyesightBack =
+        b.frontForPoorEyesight ? _poorEyesightBackCount(seatOf) : 0;
 
     // Taille : comptage des paires grand-devant / petit-derrière (relation
     // dirigée, indépendante du voisinage symétrique ci-dessus).
-    var tallFrontOfShort = 0;
-    if (b.avoidTallInFrontOfShort) {
-      for (final k in _seats) {
-        final sid = occ[k];
-        if (sid == null || _byId[sid]!.size != StudentSize.grand) continue;
-        final (r, c) = Room.parse(k);
-        final behindSid = occ[Room.keyOf(r + 1, c)];
-        if (behindSid != null && _byId[behindSid]!.size == StudentSize.petit) {
-          tallFrontOfShort++;
-        }
-      }
-    }
+    final tallFrontOfShort =
+        b.avoidTallInFrontOfShort ? _tallInFrontOfShortCount(seatOf) : 0;
 
+    return _buildBalanceLines(
+      b,
+      sameGender: sameGender,
+      sameLevel: sameLevel,
+      bothAgite: bothAgite,
+      eyesightTotal: eyesightTotal,
+      eyesightBack: eyesightBack,
+      tallFrontOfShort: tallFrontOfShort,
+    );
+  }
+
+  /// Construit les lignes de bilan d'équilibre à partir des compteurs déjà
+  /// calculés (une ligne par objectif activé).
+  List<({bool ok, String label})> _buildBalanceLines(
+    BalanceSettings b, {
+    required int sameGender,
+    required int sameLevel,
+    required int bothAgite,
+    required int eyesightTotal,
+    required int eyesightBack,
+    required int tallFrontOfShort,
+  }) {
     final notes = <({bool ok, String label})>[];
     if (b.mixGender) {
       notes.add((
@@ -478,34 +536,14 @@ class SeatingEngine {
     String name(String? id) => _byId[id]?.fullName ?? 'Élève';
 
     for (final rule in cls.rules) {
-      switch (rule.type) {
-        case RuleType.separate:
-          if (_adjacent(seatOf[rule.studentAId], seatOf[rule.studentBId])) {
-            final msg =
-                '${name(rule.studentAId)} et ${name(rule.studentBId)} sont voisins (à séparer).';
-            (rule.hard ? violations : warnings).add(msg);
-          }
-        case RuleType.keepTogether:
-          final ka = seatOf[rule.studentAId];
-          final kb = seatOf[rule.studentBId];
-          if (ka == null || kb == null || !_adjacent(ka, kb)) {
-            final msg =
-                '${name(rule.studentAId)} et ${name(rule.studentBId)} ne sont pas voisins.';
-            (rule.hard ? violations : warnings).add(msg);
-          }
-        case RuleType.frontZone:
-          final ka = seatOf[rule.studentAId];
-          var ok = false;
-          if (ka != null) {
-            final (r, _) = Room.parse(ka);
-            ok = r < rule.frontRows;
-          }
-          if (!ok) {
-            final msg = "${name(rule.studentAId)} n'est pas dans les premiers rangs.";
-            (rule.hard ? violations : warnings).add(msg);
-          }
-        case RuleType.fixedSeat:
-          break;
+      final msg = switch (rule.type) {
+        RuleType.separate => _separateViolation(rule, seatOf, name),
+        RuleType.keepTogether => _keepTogetherViolation(rule, seatOf, name),
+        RuleType.frontZone => _frontZoneViolation(rule, seatOf, name),
+        RuleType.fixedSeat => null,
+      };
+      if (msg != null) {
+        (rule.hard ? violations : warnings).add(msg);
       }
     }
 
@@ -518,5 +556,28 @@ class SeatingEngine {
     }
 
     return (violations, warnings);
+  }
+
+  String? _separateViolation(
+      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    if (!_adjacent(seatOf[rule.studentAId], seatOf[rule.studentBId])) {
+      return null;
+    }
+    return '${name(rule.studentAId)} et ${name(rule.studentBId)} sont voisins (à séparer).';
+  }
+
+  String? _keepTogetherViolation(
+      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    final ka = seatOf[rule.studentAId];
+    final kb = seatOf[rule.studentBId];
+    if (ka != null && kb != null && _adjacent(ka, kb)) return null;
+    return '${name(rule.studentAId)} et ${name(rule.studentBId)} ne sont pas voisins.';
+  }
+
+  String? _frontZoneViolation(
+      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    final ka = seatOf[rule.studentAId];
+    if (ka != null && Room.parse(ka).$1 < rule.frontRows) return null;
+    return "${name(rule.studentAId)} n'est pas dans les premiers rangs.";
   }
 }

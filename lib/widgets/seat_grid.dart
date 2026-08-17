@@ -21,7 +21,7 @@ const double kRowGap = 14; // espace entre rangs (toujours un couloir)
 /// en affichage, il ne s'élargit qu'aux vrais couloirs.
 double _colGapWidth(Room room, int c, {required bool editor}) {
   final aisle = room.hasColAisleAfter(c);
-  return editor ? kAisle : (aisle ? kAisle : kGap);
+  return (editor || aisle) ? kAisle : kGap;
 }
 
 double gridWidth(Room room, {bool editor = false}) {
