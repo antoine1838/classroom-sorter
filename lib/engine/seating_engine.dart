@@ -183,32 +183,7 @@ class SeatingEngine {
 
     for (var restart = 0; restart < restarts; restart++) {
       final current = _randomFill(freeStudents, freeSeats);
-      double cost = _cost(current, pinned);
-      double temp = _initialTemp;
-
-      for (var it = 0; it < iterations && freeStudents.length >= 2; it++) {
-        final a = freeStudents[_rng.nextInt(freeStudents.length)];
-        final b = freeStudents[_rng.nextInt(freeStudents.length)];
-        if (a == b) continue;
-
-        // Échange des places de a et b (l'une peut être nulle).
-        final tmp = current[a];
-        current[a] = current[b];
-        current[b] = tmp;
-
-        final newCost = _cost(current, pinned);
-        final delta = newCost - cost;
-        final accept =
-            delta <= 0 || _rng.nextDouble() < exp(-delta / (temp <= 0 ? 1e-4 : temp));
-        if (accept) {
-          cost = newCost;
-        } else {
-          current[b] = current[a];
-          current[a] = tmp; // annuler l'échange
-        }
-        temp *= _coolingRate; // refroidissement
-      }
-
+      final cost = _annealRun(current, freeStudents, pinned, iterations);
       if (cost < bestCost) {
         bestCost = cost;
         best = Map<String, String?>.from(current);
@@ -216,6 +191,45 @@ class SeatingEngine {
     }
 
     return (best: best, bestCost: bestCost);
+  }
+
+  /// Une passe de recuit simulé (un « restart ») : échange des places au
+  /// hasard, accepte si ça améliore le coût ou, avec une probabilité
+  /// décroissante (température), si ça le dégrade. Modifie [current] en
+  /// place ; renvoie le coût final atteint.
+  double _annealRun(
+    Map<String, String?> current,
+    List<String> freeStudents,
+    Map<String, String> pinned,
+    int iterations,
+  ) {
+    double cost = _cost(current, pinned);
+    double temp = _initialTemp;
+
+    for (var it = 0; it < iterations && freeStudents.length >= 2; it++) {
+      final a = freeStudents[_rng.nextInt(freeStudents.length)];
+      final b = freeStudents[_rng.nextInt(freeStudents.length)];
+      if (a == b) continue;
+
+      // Échange des places de a et b (l'une peut être nulle).
+      final tmp = current[a];
+      current[a] = current[b];
+      current[b] = tmp;
+
+      final newCost = _cost(current, pinned);
+      final delta = newCost - cost;
+      final accept =
+          delta <= 0 || _rng.nextDouble() < exp(-delta / (temp <= 0 ? 1e-4 : temp));
+      if (accept) {
+        cost = newCost;
+      } else {
+        current[b] = current[a];
+        current[a] = tmp; // annuler l'échange
+      }
+      temp *= _coolingRate; // refroidissement
+    }
+
+    return cost;
   }
 
   /// Évalue le placement actuel ([cls.assignment]) sans le modifier : utile
@@ -309,28 +323,30 @@ class SeatingEngine {
     double cost = 0;
     for (final rule in cls.rules) {
       final p = rule.hard ? hardPenalty : softPenalty;
-      switch (rule.type) {
-        case RuleType.separate:
-          if (_adjacent(seatOf[rule.studentAId], seatOf[rule.studentBId])) {
-            cost += p;
-          }
-        case RuleType.keepTogether:
-          final ka = seatOf[rule.studentAId];
-          final kb = seatOf[rule.studentBId];
-          if (ka == null || kb == null || !_adjacent(ka, kb)) cost += p;
-        case RuleType.frontZone:
-          final ka = seatOf[rule.studentAId];
-          if (ka == null) {
-            cost += p;
-          } else {
-            final (r, _) = Room.parse(ka);
-            if (r >= rule.frontRows) cost += p;
-          }
-        case RuleType.fixedSeat:
-          break; // géré par épinglage
-      }
+      cost += switch (rule.type) {
+        RuleType.separate => _separateCost(rule, seatOf, p),
+        RuleType.keepTogether => _keepTogetherCost(rule, seatOf, p),
+        RuleType.frontZone => _frontZoneCost(rule, seatOf, p),
+        RuleType.fixedSeat => 0, // géré par épinglage
+      };
     }
     return cost;
+  }
+
+  double _separateCost(Rule rule, Map<String, String> seatOf, double p) =>
+      _adjacent(seatOf[rule.studentAId], seatOf[rule.studentBId]) ? p : 0;
+
+  double _keepTogetherCost(Rule rule, Map<String, String> seatOf, double p) {
+    final ka = seatOf[rule.studentAId];
+    final kb = seatOf[rule.studentBId];
+    return (ka == null || kb == null || !_adjacent(ka, kb)) ? p : 0;
+  }
+
+  double _frontZoneCost(Rule rule, Map<String, String> seatOf, double p) {
+    final ka = seatOf[rule.studentAId];
+    if (ka == null) return p;
+    final (r, _) = Room.parse(ka);
+    return r >= rule.frontRows ? p : 0;
   }
 
   /// Nombre d'élèves à mauvaise vue placés hors de la moitié avant.
@@ -480,48 +496,33 @@ class SeatingEngine {
     required int tallFrontOfShort,
   }) {
     final notes = <({bool ok, String label})>[];
-    if (b.mixGender) {
-      notes.add((
-        ok: sameGender == 0,
-        label: sameGender == 0
-            ? 'Mixité filles/garçons : aucun voisin de même genre.'
-            : 'Mixité filles/garçons : $sameGender paire(s) de même genre voisines.',
-      ));
-    }
-    if (b.mixLevel) {
-      notes.add((
-        ok: sameLevel == 0,
-        label: sameLevel == 0
-            ? 'Mélange des niveaux : aucune paire de Faibles ou de Forts voisine.'
-            : 'Mélange des niveaux : $sameLevel paire(s) de Faibles ou de Forts voisines.',
-      ));
-    }
-    if (b.separateAgites) {
-      notes.add((
-        ok: bothAgite == 0,
-        label: bothAgite == 0
-            ? 'Élèves agités séparés : aucun voisin agité.'
-            : 'Élèves agités : $bothAgite paire(s) d\'agités voisines.',
-      ));
-    }
+    _addBalanceNote(notes, b.mixGender, sameGender == 0,
+        'Mixité filles/garçons : aucun voisin de même genre.',
+        'Mixité filles/garçons : $sameGender paire(s) de même genre voisines.');
+    _addBalanceNote(notes, b.mixLevel, sameLevel == 0,
+        'Mélange des niveaux : aucune paire de Faibles ou de Forts voisine.',
+        'Mélange des niveaux : $sameLevel paire(s) de Faibles ou de Forts voisines.');
+    _addBalanceNote(notes, b.separateAgites, bothAgite == 0,
+        'Élèves agités séparés : aucun voisin agité.',
+        'Élèves agités : $bothAgite paire(s) d\'agités voisines.');
     // Note affichée seulement s'il existe au moins un élève à mauvaise vue.
-    if (b.frontForPoorEyesight && eyesightTotal > 0) {
-      notes.add((
-        ok: eyesightBack == 0,
-        label: eyesightBack == 0
-            ? 'Mauvaise vue : tous dans la moitié avant (près du tableau).'
-            : 'Mauvaise vue : $eyesightBack élève(s) hors moitié avant.',
-      ));
-    }
-    if (b.avoidTallInFrontOfShort) {
-      notes.add((
-        ok: tallFrontOfShort == 0,
-        label: tallFrontOfShort == 0
-            ? 'Tailles : aucun grand directement devant un petit.'
-            : 'Tailles : $tallFrontOfShort grand(s) directement devant un petit.',
-      ));
-    }
+    _addBalanceNote(
+        notes,
+        b.frontForPoorEyesight && eyesightTotal > 0,
+        eyesightBack == 0,
+        'Mauvaise vue : tous dans la moitié avant (près du tableau).',
+        'Mauvaise vue : $eyesightBack élève(s) hors moitié avant.');
+    _addBalanceNote(notes, b.avoidTallInFrontOfShort, tallFrontOfShort == 0,
+        'Tailles : aucun grand directement devant un petit.',
+        'Tailles : $tallFrontOfShort grand(s) directement devant un petit.');
     return notes;
+  }
+
+  /// Ajoute une ligne de bilan si l'objectif [active] est activé.
+  void _addBalanceNote(List<({bool ok, String label})> notes, bool active,
+      bool ok, String okLabel, String violatedLabel) {
+    if (!active) return;
+    notes.add((ok: ok, label: ok ? okLabel : violatedLabel));
   }
 
   /// Renvoie (violations dures, avertissements souples).
