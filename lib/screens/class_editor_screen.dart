@@ -1291,14 +1291,17 @@ class _RulesTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: [
+        Text('Objectifs d\'équilibre',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 2),
+        Text('Appliqués à toute la classe (préférences).',
+            style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
         Card(
           child: Column(
             children: [
-              const ListTile(
-                title: Text('Objectifs d\'équilibre'),
-                subtitle: Text('Appliqués à toute la classe (préférences).'),
-              ),
               SwitchListTile(
+                secondary: const Icon(Icons.diversity_3),
                 title: const Text('Mixer filles / garçons'),
                 subtitle: const Text('Éviter les voisins de même genre'),
                 value: cls.balance.mixGender,
@@ -1308,6 +1311,7 @@ class _RulesTab extends StatelessWidget {
                 },
               ),
               SwitchListTile(
+                secondary: const Icon(Icons.swap_vert),
                 title: const Text('Mélanger les niveaux'),
                 subtitle:
                     const Text('Ne pas créer 2 voisins Faibles ni 2 voisins Forts'),
@@ -1318,6 +1322,7 @@ class _RulesTab extends StatelessWidget {
                 },
               ),
               SwitchListTile(
+                secondary: const Icon(Icons.bolt),
                 title: const Text('Séparer les élèves agités'),
                 subtitle: const Text('Éviter les voisins agités'),
                 value: cls.balance.separateAgites,
@@ -1327,7 +1332,8 @@ class _RulesTab extends StatelessWidget {
                 },
               ),
               SwitchListTile(
-                title: const Text('Rapprocher du tableau (mauvaise vue)'),
+                secondary: const Icon(Icons.visibility_off),
+                title: const Text('Rapprocher du tableau'),
                 subtitle:
                     const Text('Placer les élèves à mauvaise vue dans la moitié avant'),
                 value: cls.balance.frontForPoorEyesight,
@@ -1337,6 +1343,7 @@ class _RulesTab extends StatelessWidget {
                 },
               ),
               SwitchListTile(
+                secondary: const Icon(Icons.height),
                 title: const Text('Éviter un grand juste devant un petit'),
                 subtitle: const Text(
                     'Un élève grand ne doit pas bloquer la vue de celui placé juste derrière'),

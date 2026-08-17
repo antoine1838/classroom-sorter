@@ -132,8 +132,8 @@ assets/demo/       demo_class_6emeb.json — classe de démo embarquée (voir
 
 test/              engine_test, seating_neighbors_test, room_orientation_test,
                    layout_responsive_test, students_grid_cycle_test,
-                   students_table_toggle_test, app_state_test, demo_class_test,
-                   widget_test
+                   students_table_toggle_test, balance_objectives_test,
+                   app_state_test, demo_class_test, widget_test
 ```
 
 ## Idées d'améliorations
