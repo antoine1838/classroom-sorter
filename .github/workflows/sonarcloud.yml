@@ -6,6 +6,11 @@ on:
   pull_request:
     types: [ opened, synchronize, reopened ]
 
+# Moindre privilège : le job ne fait que checkout + lancer les tests + envoyer
+# l'analyse à SonarCloud (authentifiée par SONAR_TOKEN, pas par GITHUB_TOKEN).
+permissions:
+  contents: read
+
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
