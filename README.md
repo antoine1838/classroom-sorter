@@ -104,6 +104,17 @@ Sur un tag `vX.Y.Z`, le CI ([.github/workflows/build-apk.yml](.github/workflows/
 construit l'**APK** (installable directement) et l'**AAB signé** (tous les ABI, à
 téléverser sur Google Play), et les joint à la Release GitHub.
 
+## Qualité
+
+Sur chaque push sur `main` et chaque pull request, le CI
+([.github/workflows/sonarcloud.yml](.github/workflows/sonarcloud.yml)) lance les
+tests avec couverture puis envoie une analyse statique à
+[SonarCloud](https://sonarcloud.io/project/overview?id=antoine1838_classroom-sorter)
+(bugs, code smells, duplication, couverture). Config dans
+[sonar-project.properties](sonar-project.properties). Le CodeQL par défaut de
+GitHub ne couvre que les fichiers Actions/C++ (Dart non supporté) — SonarCloud
+comble ce trou côté Dart.
+
 ## Structure du code
 
 ```
