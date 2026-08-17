@@ -382,69 +382,26 @@ class _StudentsTabCompact extends StatefulWidget {
   State<_StudentsTabCompact> createState() => _StudentsTabCompactState();
 }
 
-class _StudentsTabCompactState extends State<_StudentsTabCompact> {
+/// Comportement commun aux deux vues de l'onglet Élèves (Compacte et
+/// Complète) : défilement horizontal synchronisé, tri par nom, colonne des
+/// noms, ajout/édition/suppression/import. Chaque vue ne fournit que ce qui
+/// diffère réellement : le calcul des largeurs de colonnes et la
+/// construction de l'en-tête / des cellules de valeur.
+mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
   final ScrollController _vBody = ScrollController();
   final ScrollController _hHeader = ScrollController();
   final ScrollController _hBody = ScrollController();
   bool _syncing = false;
   bool _sortByName = false;
-
-  // Largeurs adaptatives de la matrice, recalculées à chaque build selon la
-  // largeur disponible (voir _computeWidths). Une largeur par colonne (pas
-  // une seule partagée) : voir la doc de _computeWidths.
-  List<double> _colWidths = List.filled(_attrFields.length, _kCellW);
   double _nameW = _kNameW;
 
-  AppState get state => widget.state;
-  ClassGroup get cls => widget.cls;
-
-  /// Largeur minimale d'une colonne : juste assez pour son libellé complet
-  /// (+ la marge horizontale de _headerCells), sans jamais descendre sous
-  /// [_kCellMinW] ni dépasser [_kCellW]. Mesurée via TextPainter (fiable ici
-  /// car on est dans l'app réelle, pas dans flutter_test qui substitue une
-  /// police de test non représentative).
-  double _minColWidth(String label, TextStyle? style) {
-    final tp = TextPainter(
-      text: TextSpan(text: label, style: style),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    return (tp.width + 4).clamp(_kCellMinW, _kCellW);
-  }
-
-  /// Sous [_kColShrinkStartW] (aligné sur le seuil « libellés courts » de la
-  /// barre Ajouter/Importer, pour que tout se resserre ensemble dès le
-  /// palier moyen), les colonnes se compriment depuis leur largeur
-  /// confortable ([_kCellW]) vers leur propre minimum ([_minColWidth]) — pas
-  /// toutes du même facteur : une colonne à libellé court (« Vue ») a plus
-  /// de marge qu'une à libellé long (« Niveau », « Énergie »), donc elle
-  /// absorbe davantage la compression. Le nom récupère tout l'espace
-  /// restant, comme avant.
-  void _computeWidths(BuildContext context, double maxWidth) {
-    final cols = _attrFields.length;
-    final seps = (cols - 1).toDouble(); // séparateurs de 1 px
-    final headStyle = Theme.of(context)
-        .textTheme
-        .labelSmall
-        ?.copyWith(fontWeight: FontWeight.w600, fontSize: 8.5);
-    final minWidths = [
-      for (final f in _attrFields) _minColWidth(f.label, headStyle)
-    ];
-    if (maxWidth >= _kColShrinkStartW) {
-      _colWidths = List.filled(cols, _kCellW);
-    } else {
-      final totalMin = minWidths.fold<double>(0, (a, b) => a + b);
-      final totalSlack = cols * _kCellW - totalMin;
-      final floorWidth = totalMin + _kNameMinW + seps;
-      final s = totalSlack <= 0
-          ? 0.0
-          : ((maxWidth - floorWidth) / (_kColShrinkStartW - floorWidth))
-              .clamp(0.0, 1.0);
-      _colWidths = [for (final m in minWidths) m + (_kCellW - m) * s];
-    }
-    final colsTotal = _colWidths.fold<double>(0, (a, b) => a + b);
-    _nameW =
-        (maxWidth - (colsTotal + seps)).clamp(_kNameMinW, double.infinity);
-  }
+  AppState get state;
+  ClassGroup get cls;
+  String get _instructions;
+  Widget get _viewToggle;
+  void _computeWidths(double maxWidth);
+  Widget _buildHeader(ColorScheme cs);
+  Widget _buildAttrRow(ColorScheme cs, Student s, int i);
 
   @override
   void initState() {
@@ -480,12 +437,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
           child: _AddImportToolbar(
             onAdd: () => _editStudent(context),
             onImport: () => _importList(context),
-            viewToggle: IconButton.outlined(
-              onPressed: () =>
-                  state.setStudentsViewMode(StudentsViewMode.complete),
-              icon: const Icon(Icons.table_rows_outlined),
-              tooltip: 'Passer à la vue complète',
-            ),
+            viewToggle: _viewToggle,
           ),
         ),
         Expanded(
@@ -493,7 +445,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
               ? const Center(child: Text('Aucun élève. Ajoutez-en un !'))
               : LayoutBuilder(
                   builder: (context, constraints) {
-                    _computeWidths(context, constraints.maxWidth);
+                    _computeWidths(constraints.maxWidth);
                     return _buildMatrix(cs);
                   },
                 ),
@@ -501,10 +453,6 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
       ],
     );
   }
-
-  // -------------------------------------------------------------------------
-  // Matrice élèves × attributs
-  // -------------------------------------------------------------------------
 
   Widget _buildMatrix(ColorScheme cs) {
     final students = _orderedStudents();
@@ -514,9 +462,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: Text(
-            'Touchez une case pour faire défiler ses valeurs. Touchez le nom '
-            'd\'un élève pour le renommer, ajouter une note ou le supprimer. '
-            'Touchez l\'en-tête « Élève » pour trier par nom.',
+            _instructions,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -550,95 +496,6 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
     );
   }
 
-  Widget _buildHeader(ColorScheme cs) {
-    final headStyle = Theme.of(context)
-        .textTheme
-        .labelSmall
-        ?.copyWith(fontWeight: FontWeight.w600);
-    return SizedBox(
-      height: _kHeaderH,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            width: _nameW,
-            decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: cs.outlineVariant)),
-            ),
-            child: Tooltip(
-              message: _sortByName
-                  ? 'Trié par nom (A→Z) — toucher pour revenir à l\'ordre d\'ajout'
-                  : 'Toucher pour trier par nom (A→Z)',
-              child: InkWell(
-                onTap: () => setState(() => _sortByName = !_sortByName),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Élève', style: headStyle),
-                        const SizedBox(width: 4),
-                        Icon(Icons.sort_by_alpha,
-                            size: 16,
-                            color: _sortByName ? cs.primary : cs.outline),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _hHeader,
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: _headerCells(cs, headStyle),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _headerCells(ColorScheme cs, TextStyle? style) {
-    final out = <Widget>[];
-    // Taille fixe (pas FittedBox) : un rétrécissement au cas par cas alignait
-    // mal « Énergie » (accent + jambage du « g ») par rapport aux libellés
-    // sans accent/descendante — une taille uniforme, choisie pour le plus
-    // long des libellés, garde tout le monde sur la même ligne de base.
-    // Plus petite que la vue Complète : essayé à la même taille, mais
-    // « Énergie » dépasse alors la largeur max d'une colonne ([_kCellW]) —
-    // le clamp de _minColWidth la tronquait quand même (voir _computeWidths).
-    final attrHeadStyle = style?.copyWith(fontSize: 8.5);
-    for (var g = 0; g < _attrFields.length; g++) {
-      if (g > 0) out.add(_vSep(cs));
-      final field = _attrFields[g];
-      out.add(SizedBox(
-        width: _colWidths[g],
-        child: Tooltip(
-          message: field.values.map((v) => v.label).join(' → '),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Text(
-                field.label,
-                style: attrHeadStyle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        ),
-      ));
-    }
-    return out;
-  }
-
   List<Student> _orderedStudents() {
     if (!_sortByName) return cls.students;
     final sorted = [...cls.students];
@@ -650,6 +507,42 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
           : a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase());
     });
     return sorted;
+  }
+
+  /// Cellule d'en-tête de la colonne des noms : nom de tri + icône. Partagée
+  /// par les deux vues, qui l'insèrent chacune dans leur propre en-tête
+  /// (largeur de ligne différente selon le nombre de rangées d'en-tête).
+  Widget _buildNameHeaderCell(ColorScheme cs, TextStyle? style) {
+    return Container(
+      width: _nameW,
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: cs.outlineVariant)),
+      ),
+      child: Tooltip(
+        message: _sortByName
+            ? 'Trié par nom (A→Z) — toucher pour revenir à l\'ordre d\'ajout'
+            : 'Toucher pour trier par nom (A→Z)',
+        child: InkWell(
+          onTap: () => setState(() => _sortByName = !_sortByName),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Élève', style: style),
+                  const SizedBox(width: 4),
+                  Icon(Icons.sort_by_alpha,
+                      size: 16,
+                      color: _sortByName ? cs.primary : cs.outline),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildNameColumn(ColorScheme cs, List<Student> students) {
@@ -692,54 +585,6 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
                   ),
                 ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
-    final cells = <Widget>[];
-    for (var g = 0; g < _attrFields.length; g++) {
-      if (g > 0) cells.add(_vSep(cs));
-      cells.add(_cycleCell(cs, _attrFields[g], s, _colWidths[g]));
-    }
-    return Container(
-      height: _kRowH,
-      color: _rowColor(cs, i),
-      child:
-          Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells),
-    );
-  }
-
-  /// Cellule d'un champ : affiche la valeur courante, tap = valeur suivante
-  /// (boucle). Couleur d'accent sauf sur la valeur par défaut du champ, en
-  /// gris pour rester lisible parmi les valeurs réellement choisies.
-  Widget _cycleCell(ColorScheme cs, _AttrField field, Student s, double width) {
-    final idx = field.indexOf(s);
-    final value = field.values[idx];
-    final color = idx == field.defaultIndex ? cs.outlineVariant : cs.primary;
-    return SizedBox(
-      key: ValueKey('attrCell_${field.label}_${s.id}'),
-      width: width,
-      child: Tooltip(
-        message: value.label,
-        child: InkWell(
-          onTap: () {
-            field.setIndex(s, (idx + 1) % field.values.length);
-            state.touch();
-          },
-          child: Center(
-            child: value.barHeight != null
-                ? Container(
-                    width: 8,
-                    height: value.barHeight,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  )
-                : Icon(value.icon, color: color, size: 22),
           ),
         ),
       ),
@@ -845,6 +690,196 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact> {
   }
 }
 
+class _StudentsTabCompactState extends State<_StudentsTabCompact>
+    with _StudentsMatrixMixin<_StudentsTabCompact> {
+  // Largeurs adaptatives de la matrice, recalculées à chaque build selon la
+  // largeur disponible (voir _computeWidths). Une largeur par colonne (pas
+  // une seule partagée) : voir la doc de _computeWidths.
+  List<double> _colWidths = List.filled(_attrFields.length, _kCellW);
+
+  @override
+  AppState get state => widget.state;
+  @override
+  ClassGroup get cls => widget.cls;
+
+  @override
+  String get _instructions =>
+      'Touchez une case pour faire défiler ses valeurs. Touchez le nom '
+      'd\'un élève pour le renommer, ajouter une note ou le supprimer. '
+      'Touchez l\'en-tête « Élève » pour trier par nom.';
+
+  @override
+  Widget get _viewToggle => IconButton.outlined(
+        onPressed: () =>
+            state.setStudentsViewMode(StudentsViewMode.complete),
+        icon: const Icon(Icons.table_rows_outlined),
+        tooltip: 'Passer à la vue complète',
+      );
+
+  /// Largeur minimale d'une colonne : juste assez pour son libellé complet
+  /// (+ la marge horizontale de _headerCells), sans jamais descendre sous
+  /// [_kCellMinW] ni dépasser [_kCellW]. Mesurée via TextPainter (fiable ici
+  /// car on est dans l'app réelle, pas dans flutter_test qui substitue une
+  /// police de test non représentative).
+  double _minColWidth(String label, TextStyle? style) {
+    final tp = TextPainter(
+      text: TextSpan(text: label, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    return (tp.width + 4).clamp(_kCellMinW, _kCellW);
+  }
+
+  /// Sous [_kColShrinkStartW] (aligné sur le seuil « libellés courts » de la
+  /// barre Ajouter/Importer, pour que tout se resserre ensemble dès le
+  /// palier moyen), les colonnes se compriment depuis leur largeur
+  /// confortable ([_kCellW]) vers leur propre minimum ([_minColWidth]) — pas
+  /// toutes du même facteur : une colonne à libellé court (« Vue ») a plus
+  /// de marge qu'une à libellé long (« Niveau », « Énergie »), donc elle
+  /// absorbe davantage la compression. Le nom récupère tout l'espace
+  /// restant, comme avant.
+  @override
+  void _computeWidths(double maxWidth) {
+    final cols = _attrFields.length;
+    final seps = (cols - 1).toDouble(); // séparateurs de 1 px
+    final headStyle = Theme.of(context)
+        .textTheme
+        .labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600, fontSize: 8.5);
+    final minWidths = [
+      for (final f in _attrFields) _minColWidth(f.label, headStyle)
+    ];
+    if (maxWidth >= _kColShrinkStartW) {
+      _colWidths = List.filled(cols, _kCellW);
+    } else {
+      final totalMin = minWidths.fold<double>(0, (a, b) => a + b);
+      final totalSlack = cols * _kCellW - totalMin;
+      final floorWidth = totalMin + _kNameMinW + seps;
+      final s = totalSlack <= 0
+          ? 0.0
+          : ((maxWidth - floorWidth) / (_kColShrinkStartW - floorWidth))
+              .clamp(0.0, 1.0);
+      _colWidths = [for (final m in minWidths) m + (_kCellW - m) * s];
+    }
+    final colsTotal = _colWidths.fold<double>(0, (a, b) => a + b);
+    _nameW =
+        (maxWidth - (colsTotal + seps)).clamp(_kNameMinW, double.infinity);
+  }
+
+  // -------------------------------------------------------------------------
+  // Matrice élèves × attributs
+  // -------------------------------------------------------------------------
+
+  @override
+  Widget _buildHeader(ColorScheme cs) {
+    final headStyle = Theme.of(context)
+        .textTheme
+        .labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600);
+    return SizedBox(
+      height: _kHeaderH,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildNameHeaderCell(cs, headStyle),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _hHeader,
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _headerCells(cs, headStyle),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _headerCells(ColorScheme cs, TextStyle? style) {
+    final out = <Widget>[];
+    // Taille fixe (pas FittedBox) : un rétrécissement au cas par cas alignait
+    // mal « Énergie » (accent + jambage du « g ») par rapport aux libellés
+    // sans accent/descendante — une taille uniforme, choisie pour le plus
+    // long des libellés, garde tout le monde sur la même ligne de base.
+    // Plus petite que la vue Complète : essayé à la même taille, mais
+    // « Énergie » dépasse alors la largeur max d'une colonne ([_kCellW]) —
+    // le clamp de _minColWidth la tronquait quand même (voir _computeWidths).
+    final attrHeadStyle = style?.copyWith(fontSize: 8.5);
+    for (var g = 0; g < _attrFields.length; g++) {
+      if (g > 0) out.add(_vSep(cs));
+      final field = _attrFields[g];
+      out.add(SizedBox(
+        width: _colWidths[g],
+        child: Tooltip(
+          message: field.values.map((v) => v.label).join(' → '),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(
+                field.label,
+                style: attrHeadStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ),
+      ));
+    }
+    return out;
+  }
+
+  @override
+  Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
+    final cells = <Widget>[];
+    for (var g = 0; g < _attrFields.length; g++) {
+      if (g > 0) cells.add(_vSep(cs));
+      cells.add(_cycleCell(cs, _attrFields[g], s, _colWidths[g]));
+    }
+    return Container(
+      height: _kRowH,
+      color: _rowColor(cs, i),
+      child:
+          Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells),
+    );
+  }
+
+  /// Cellule d'un champ : affiche la valeur courante, tap = valeur suivante
+  /// (boucle). Couleur d'accent sauf sur la valeur par défaut du champ, en
+  /// gris pour rester lisible parmi les valeurs réellement choisies.
+  Widget _cycleCell(ColorScheme cs, _AttrField field, Student s, double width) {
+    final idx = field.indexOf(s);
+    final value = field.values[idx];
+    final color = idx == field.defaultIndex ? cs.outlineVariant : cs.primary;
+    return SizedBox(
+      key: ValueKey('attrCell_${field.label}_${s.id}'),
+      width: width,
+      child: Tooltip(
+        message: value.label,
+        child: InkWell(
+          onTap: () {
+            field.setIndex(s, (idx + 1) % field.values.length);
+            state.touch();
+          },
+          child: Center(
+            child: value.barHeight != null
+                ? Container(
+                    width: 8,
+                    height: value.barHeight,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  )
+                : Icon(value.icon, color: color, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Onglet ÉLÈVES — vue « Complète »
 // ---------------------------------------------------------------------------
@@ -871,20 +906,29 @@ class _StudentsTabComplete extends StatefulWidget {
   State<_StudentsTabComplete> createState() => _StudentsTabCompleteState();
 }
 
-class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
-  final ScrollController _vBody = ScrollController();
-  final ScrollController _hHeader = ScrollController();
-  final ScrollController _hBody = ScrollController();
-  bool _syncing = false;
-  bool _sortByName = false;
-
-  // Largeurs adaptatives de la matrice, recalculées à chaque build selon la
+class _StudentsTabCompleteState extends State<_StudentsTabComplete>
+    with _StudentsMatrixMixin<_StudentsTabComplete> {
+  // Largeur adaptative des cases-valeurs, recalculée à chaque build selon la
   // largeur disponible (voir _computeWidths).
   double _cellW = _kCompleteCellW;
-  double _nameW = _kNameW;
 
+  @override
   AppState get state => widget.state;
+  @override
   ClassGroup get cls => widget.cls;
+
+  @override
+  String get _instructions =>
+      'Touchez une case pour cocher/décocher. Touchez le nom d\'un élève '
+      'pour le renommer, ajouter une note ou le supprimer. Touchez '
+      'l\'en-tête « Élève » pour trier par nom.';
+
+  @override
+  Widget get _viewToggle => IconButton.outlined(
+        onPressed: () => state.setStudentsViewMode(StudentsViewMode.compact),
+        icon: const Icon(Icons.view_week_outlined),
+        tooltip: 'Passer à la vue compacte',
+      );
 
   /// Les cases-valeurs gardent leur largeur confortable ([_kCompleteCellW])
   /// tant que la place ne manque pas ; sinon elles se compriment jusqu'à
@@ -892,6 +936,7 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
   /// ([_kNameMinW]). Dans tous les cas, la colonne des noms récupère tout
   /// l'espace restant (comme la vue Compacte) : elle ne reste jamais figée à
   /// une largeur fixe pendant qu'un vide s'affiche après la dernière colonne.
+  @override
   void _computeWidths(double maxWidth) {
     // -1 par champ : la valeur par défaut (neutre) n'a pas de colonne dédiée,
     // elle est représentée par « rien n'est cochée » (voir _valueHeaderCells).
@@ -906,110 +951,11 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
     _nameW = (maxWidth - (cellW * cols + seps)).clamp(_kNameMinW, double.infinity);
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _hHeader.addListener(() => _sync(_hHeader, _hBody));
-    _hBody.addListener(() => _sync(_hBody, _hHeader));
-  }
-
-  /// Garde l'en-tête et le corps alignés lors du défilement horizontal.
-  void _sync(ScrollController from, ScrollController to) {
-    if (_syncing || !to.hasClients) return;
-    if ((from.offset - to.offset).abs() < 0.5) return;
-    _syncing = true;
-    to.jumpTo(from.offset);
-    _syncing = false;
-  }
-
-  @override
-  void dispose() {
-    _vBody.dispose();
-    _hHeader.dispose();
-    _hBody.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: _AddImportToolbar(
-            onAdd: () => _editStudent(context),
-            onImport: () => _importList(context),
-            viewToggle: IconButton.outlined(
-              onPressed: () =>
-                  state.setStudentsViewMode(StudentsViewMode.compact),
-              icon: const Icon(Icons.view_week_outlined),
-              tooltip: 'Passer à la vue compacte',
-            ),
-          ),
-        ),
-        Expanded(
-          child: cls.students.isEmpty
-              ? const Center(child: Text('Aucun élève. Ajoutez-en un !'))
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    _computeWidths(constraints.maxWidth);
-                    return _buildMatrix(cs);
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
   // -------------------------------------------------------------------------
   // Matrice élèves × attributs
   // -------------------------------------------------------------------------
 
-  Widget _buildMatrix(ColorScheme cs) {
-    final students = _orderedStudents();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          child: Text(
-            'Touchez une case pour cocher/décocher. Touchez le nom d\'un élève '
-            'pour le renommer, ajouter une note ou le supprimer. Touchez '
-            'l\'en-tête « Élève » pour trier par nom.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        _buildHeader(cs),
-        const Divider(height: 1),
-        Expanded(
-          child: SingleChildScrollView(
-            controller: _vBody,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildNameColumn(cs, students),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: _hBody,
-                    scrollDirection: Axis.horizontal,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (var i = 0; i < students.length; i++)
-                          _buildAttrRow(cs, students[i], i),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
+  @override
   Widget _buildHeader(ColorScheme cs) {
     final headStyle = Theme.of(context)
         .textTheme
@@ -1020,36 +966,7 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: _nameW,
-            decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: cs.outlineVariant)),
-            ),
-            child: Tooltip(
-              message: _sortByName
-                  ? 'Trié par nom (A→Z) — toucher pour revenir à l\'ordre d\'ajout'
-                  : 'Toucher pour trier par nom (A→Z)',
-              child: InkWell(
-                onTap: () => setState(() => _sortByName = !_sortByName),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Élève', style: headStyle),
-                        const SizedBox(width: 4),
-                        Icon(Icons.sort_by_alpha,
-                            size: 16,
-                            color: _sortByName ? cs.primary : cs.outline),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _buildNameHeaderCell(cs, headStyle),
           Expanded(
             child: SingleChildScrollView(
               controller: _hHeader,
@@ -1127,65 +1044,7 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
     return out;
   }
 
-  List<Student> _orderedStudents() {
-    if (!_sortByName) return cls.students;
-    final sorted = [...cls.students];
-    sorted.sort((a, b) {
-      final byLast =
-          a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
-      return byLast != 0
-          ? byLast
-          : a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase());
-    });
-    return sorted;
-  }
-
-  Widget _buildNameColumn(ColorScheme cs, List<Student> students) {
-    return Container(
-      width: _nameW,
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: cs.outlineVariant)),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < students.length; i++)
-            _buildNameCell(cs, students[i], i),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNameCell(ColorScheme cs, Student s, int i) {
-    return Container(
-      height: _kRowH,
-      color: _rowColor(cs, i),
-      child: InkWell(
-        onTap: () => _editStudent(context, existing: s),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(s.fullName,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13)),
-              ),
-              if (s.notes.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Tooltip(
-                    message: s.notes,
-                    child: Icon(Icons.sticky_note_2_outlined,
-                        size: 15, color: cs.outline),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
+  @override
   Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
     final cells = <Widget>[];
     for (var g = 0; g < _attrFields.length; g++) {
@@ -1229,104 +1088,6 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete> {
         ),
       ),
     );
-  }
-
-  Widget _vSep(ColorScheme cs) => Container(width: 1, color: cs.outlineVariant);
-
-  Color? _rowColor(ColorScheme cs, int i) =>
-      i.isEven ? null : cs.surfaceContainerHighest.withValues(alpha: 0.4);
-
-  // -------------------------------------------------------------------------
-  // Ajout / édition / suppression / import
-  // -------------------------------------------------------------------------
-
-  Future<void> _editStudent(BuildContext context, {Student? existing}) async {
-    final initial = existing ?? Student(id: newId());
-    final result = await showDialog<Student>(
-      context: context,
-      builder: (_) => _StudentFormDialog(
-        initial: initial,
-        onDelete: existing == null ? null : () => _deleteStudent(existing),
-      ),
-    );
-    if (result == null) return;
-    if (existing == null) {
-      cls.students.add(result);
-    } else {
-      existing
-        ..firstName = result.firstName
-        ..lastName = result.lastName
-        ..gender = result.gender
-        ..level = result.level
-        ..energy = result.energy
-        ..size = result.size
-        ..poorEyesight = result.poorEyesight
-        ..notes = result.notes;
-    }
-    state.touch();
-  }
-
-  void _deleteStudent(Student s) {
-    cls.purgeStudent(s.id);
-    cls.students.remove(s);
-    state.touch();
-  }
-
-  Future<void> _importList(BuildContext context) async {
-    final ctrl = TextEditingController();
-    final text = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Importer des élèves'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Un élève par ligne, format « Prénom Nom ».'),
-            Text(
-              'Prénom composé ? Reliez-le par un tiret (ex. Paul-Henri Dupond).',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              maxLines: 8,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Camille Durand\nSami Ben Ali\n…',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, ctrl.text),
-              child: const Text('Importer')),
-        ],
-      ),
-    );
-    if (text == null) return;
-    var count = 0;
-    for (final line in text.split('\n')) {
-      final t = line.trim();
-      if (t.isEmpty) continue;
-      final parts = t.split(RegExp(r'\s+'));
-      final first = parts.first;
-      final last = parts.length > 1 ? parts.sublist(1).join(' ') : '';
-      cls.students.add(Student(id: newId(), firstName: first, lastName: last));
-      count++;
-    }
-    if (count > 0) state.touch();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$count élève(s) importé(s).')),
-      );
-    }
   }
 }
 
