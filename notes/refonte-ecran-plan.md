@@ -90,7 +90,8 @@ Deux conclusions qui pilotent tout le reste :
 ## Ordre de travail
 
 1. ~~**Moteur** : faire remonter les identifiants fautifs.~~ **Fait** — voir ci-dessous.
-2. **Prototype de gestes** sur une branche `experiment/` : c'est la seule vraie incertitude du chantier.
+2. **Prototype de gestes** sur une branche `experiment/` : mécanisme trouvé et couvert par des tests
+   multi-pointeurs ; reste la validation sur appareil. Voir ci-dessous.
 3. **Paysage** (#12) : rail, chrome masqué, cases rectangulaires.
 
 ### Étape 1 — ce qui a été construit
@@ -119,6 +120,44 @@ allocation dans le chemin chaud. Mesuré sur la fixture 35 élèves, tous object
 Couverture : `test/plan_issues_test.dart`, 15 tests. Ils passent par `evaluate()` avec une affectation
 fabriquée à la main plutôt que par `generate()`, parce que le recuit cherche justement à éviter les
 violations et qu'il faudrait sinon dépendre d'une graine.
+
+### Étape 2 — l'arbitrage des gestes
+
+`lib/widgets/plan_viewport.dart`. Trois pièces, et **les trois sont nécessaires** :
+
+1. `MultiPointerScaleRecognizer` — un `ScaleGestureRecognizer` qui n'abandonne l'arène que lorsqu'un
+   doigt **unique** a franchi `kTouchSlop`. Abandonner dès le premier mouvement rendrait le zoom
+   impossible, parce que le second doigt d'un pincement arrive toujours après.
+2. `PointerTracker` — un simple compteur de doigts, alimenté par un `Listener` placé **au-dessus** du
+   reconnaisseur pour qu'il voie tous les pointeurs quel que soit le verdict de l'arène.
+3. `SeatDraggable` — un `Draggable` dont le reconnaisseur refuse de saisir un élève dès qu'il y a deux
+   doigts.
+
+**Ce que le prototype a démontré, et qui n'était pas prévu :** jauger le zoom seul ne suffit pas. Avec
+le `Draggable` standard, un pincement posé sur une place déclenche **deux** glissers — un par doigt —
+et le zoom n'a jamais lieu, parce que `Draggable` s'appuie sur un reconnaisseur *multi*-drag qui gagne
+l'arène pointeur par pointeur. Comme la quasi-totalité de la surface du plan est faite de places, ce
+cas serait arrivé constamment. D'où `SeatDraggable` : l'arbitrage doit se faire **des deux côtés**.
+C'est une contrainte pour l'étape 3 — les places du plan ne peuvent pas utiliser `Draggable` tel quel.
+
+Couverture : `test/plan_viewport_gestures_test.dart`, 7 tests multi-pointeurs. Ils vérifient qu'un
+doigt atteint le `Draggable`, que deux doigts zooment, qu'un pincement **démarré sur une place** ne
+déplace aucun élève, qu'un second doigt arrivant en retard zoome quand même, que le zoom reste borné
+entre la vue d'ensemble et ×3, que « recentrer » revient à la vue d'ensemble, et que le
+glisser-déposer survit à un zoom.
+
+**Ce que ces tests ne prouvent pas**, et qui reste à valider sur l'appareil : la jitter des doigts, le
+décalage réel entre la pose des deux doigts, le rejet de paume, et le seuil de déplacement du système.
+Le banc d'essai `lib/prototypes/plan_gestures_prototype.dart` est fait pour ça — il compte à l'écran
+les élèves déplacés et les zooms, sur une grille 8×5 réduite comme dans l'app :
+
+```
+flutter run -t lib/prototypes/plan_gestures_prototype.dart
+```
+
+Critère d'acceptation : sur une vingtaine d'essais, un glissement à un doigt ne zoome jamais et un
+pincement à deux doigts ne déplace jamais un élève — en insistant sur le pincement démarré pile sur
+une place.
 
 ## Tests à faire
 
