@@ -123,3 +123,11 @@ class Student {
         notes: (j['notes'] ?? '') as String,
       );
 }
+
+/// Trie par nom de famille puis prénom, insensible à la casse.
+int compareStudentsByName(Student a, Student b) {
+  final byLast = a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
+  return byLast != 0
+      ? byLast
+      : a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase());
+}

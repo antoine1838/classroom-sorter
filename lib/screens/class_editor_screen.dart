@@ -498,15 +498,7 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
 
   List<Student> _orderedStudents() {
     if (!_sortByName) return cls.students;
-    final sorted = [...cls.students];
-    sorted.sort((a, b) {
-      final byLast =
-          a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
-      return byLast != 0
-          ? byLast
-          : a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase());
-    });
-    return sorted;
+    return [...cls.students]..sort(compareStudentsByName);
   }
 
   /// Cellule d'en-tête de la colonne des noms : nom de tri + icône. Partagée
@@ -1431,17 +1423,20 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
   int _frontRows = 1;
   bool _hard = true;
 
+  List<Student> _sortedStudents() =>
+      [...widget.cls.students]..sort(compareStudentsByName);
+
   @override
   void initState() {
     super.initState();
-    final students = widget.cls.students;
+    final students = _sortedStudents();
     _studentA = students.isNotEmpty ? students.first.id : null;
     _studentB = students.length > 1 ? students[1].id : null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final students = widget.cls.students;
+    final students = _sortedStudents();
     final room = widget.cls.room;
 
     List<DropdownMenuItem<String>> studentItems() => [
