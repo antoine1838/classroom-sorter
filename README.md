@@ -121,6 +121,7 @@ comble ce trou côté Dart.
 lib/
 ├── models/        Student, Room/Seat, Rule, ClassGroup   (+ (dé)sérialisation JSON)
 ├── engine/        seating_engine.dart — moteur d'affectation
+│               plan_issue.dart — problèmes rapportés + élèves concernés
 ├── data/          repository.dart — stockage local (shared_preferences)
 ├── screens/       home_screen, class_editor_screen (4 onglets), settings_screen
 ├── widgets/       seat_grid.dart — grilles (édition + drag & drop)

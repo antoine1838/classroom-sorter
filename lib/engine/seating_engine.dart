@@ -14,28 +14,96 @@ import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/rule.dart';
 import '../models/student.dart';
+import 'plan_issue.dart';
+
+/// Une violation détectée : le libellé lisible et les élèves qu'elle concerne.
+typedef _Violation = ({String label, List<String> studentIds});
+
+/// Infractions à un objectif d'équilibre : combien, et par qui.
+typedef _Tally = ({int count, Set<String> ids});
 
 class PlanResult {
   /// Place "r,c" -> id de l'élève.
   final Map<String, String> assignment;
   final List<String> unplacedStudentIds;
-  final List<String> violations; // contraintes dures non respectées
-  final List<String> warnings; // souples non respectées + infos
-  /// Bilan des objectifs d'équilibre activés : pour chacun, respecté ou non
-  /// et le libellé à afficher.
-  final List<({bool ok, String label})> balance;
+
+  /// Problèmes issus des règles (dures et souples), chacun rattaché aux élèves
+  /// concernés.
+  final List<PlanIssue> issues;
+
+  /// Bilan des objectifs d'équilibre activés : pour chacun, respecté ou non,
+  /// le libellé à afficher et les élèves concernés.
+  final List<BalanceNote> balance;
   final double score; // coût final (plus bas = meilleur)
+
+  /// Élève -> problèmes le concernant, règles et équilibre confondus.
+  final Map<String, List<PlanIssue>> _byStudent;
 
   PlanResult({
     required this.assignment,
     required this.unplacedStudentIds,
-    required this.violations,
-    required this.warnings,
+    required this.issues,
     required this.balance,
     required this.score,
-  });
+  }) : _byStudent = _indexByStudent(issues, balance);
 
-  bool get hasHardViolations => violations.isNotEmpty;
+  /// Libellés des contraintes dures non respectées.
+  List<String> get violations =>
+      [for (final i in issues) if (i.isHard) i.label];
+
+  /// Libellés des contraintes souples non respectées, et informations.
+  List<String> get warnings =>
+      [for (final i in issues) if (!i.isHard) i.label];
+
+  bool get hasHardViolations => issues.any((i) => i.isHard);
+
+  /// Gravité à marquer sur la place de [studentId] : dure si au moins une
+  /// contrainte dure le concerne, souple s'il n'y a que du souple, null s'il
+  /// n'est concerné par rien.
+  IssueSeverity? severityFor(String studentId) {
+    final list = _byStudent[studentId];
+    if (list == null || list.isEmpty) return null;
+    return list.any((i) => i.isHard) ? IssueSeverity.hard : IssueSeverity.soft;
+  }
+
+  /// Problèmes concernant [studentId], les contraintes dures d'abord.
+  List<PlanIssue> issuesFor(String studentId) {
+    final list = _byStudent[studentId];
+    if (list == null) return const [];
+    return [...list.where((i) => i.isHard), ...list.where((i) => !i.isHard)];
+  }
+
+  /// Motifs à afficher au tap sur une place, les plus graves d'abord.
+  List<String> reasonsFor(String studentId) =>
+      [for (final i in issuesFor(studentId)) i.label];
+
+  /// Élèves concernés par au moins un problème.
+  Set<String> get flaggedStudentIds => _byStudent.keys.toSet();
+
+  /// Indexe les problèmes par élève. Un objectif d'équilibre non atteint marque
+  /// ses élèves au même titre qu'une contrainte souple.
+  static Map<String, List<PlanIssue>> _indexByStudent(
+      List<PlanIssue> issues, List<BalanceNote> balance) {
+    final map = <String, List<PlanIssue>>{};
+    void add(PlanIssue issue) {
+      for (final id in issue.studentIds) {
+        (map[id] ??= <PlanIssue>[]).add(issue);
+      }
+    }
+
+    for (final i in issues) {
+      add(i);
+    }
+    for (final n in balance) {
+      if (n.ok || n.studentIds.isEmpty) continue;
+      add(PlanIssue(
+        severity: IssueSeverity.soft,
+        label: n.label,
+        studentIds: n.studentIds,
+      ));
+    }
+    return map;
+  }
 }
 
 class SeatingEngine {
@@ -124,13 +192,10 @@ class SeatingEngine {
     ];
 
     // 5) Rapport lisible.
-    final report = _report(seatOf, pinning.issues, unplaced);
-
     return PlanResult(
       assignment: assignment,
       unplacedStudentIds: unplaced,
-      violations: report.$1,
-      warnings: report.$2,
+      issues: _report(seatOf, pinning.issues, unplaced),
       balance: _balanceNotes(seatOf),
       score: search.bestCost,
     );
@@ -140,26 +205,35 @@ class SeatingEngine {
   /// places imposées, l'ensemble des places ainsi prises, et les conflits
   /// détectés (place inexistante, déjà prise, ou élève avec plusieurs places
   /// imposées — seule la première est gardée).
-  ({Map<String, String> pinned, Set<String> takenSeats, List<String> issues})
+  ({Map<String, String> pinned, Set<String> takenSeats, List<PlanIssue> issues})
       _pinFixedSeats() {
     final pinned = <String, String>{}; // studentId -> seatKey
     final takenSeats = <String>{};
-    final issues = <String>[];
+    final issues = <PlanIssue>[];
+
+    // Un conflit de place imposée est toujours une violation dure : la règle
+    // ne peut pas être honorée du tout.
+    void conflict(Student s, String label) => issues.add(PlanIssue(
+          severity: IssueSeverity.hard,
+          label: label,
+          studentIds: [s.id],
+        ));
 
     for (final rule in cls.rules.where((r) => r.type == RuleType.fixedSeat)) {
       final s = _byId[rule.studentAId];
       if (s == null || rule.seatRow == null || rule.seatCol == null) continue;
       final k = Room.keyOf(rule.seatRow!, rule.seatCol!);
       if (!cls.room.isSeat(rule.seatRow!, rule.seatCol!)) {
-        issues.add("${s.fullName} : la place imposée n'existe pas.");
+        conflict(s, "${s.fullName} : la place imposée n'existe pas.");
         continue;
       }
       if (takenSeats.contains(k)) {
-        issues.add('${s.fullName} : place imposée déjà occupée.');
+        conflict(s, '${s.fullName} : place imposée déjà occupée.');
         continue;
       }
       if (pinned.containsKey(s.id)) {
-        issues.add('${s.fullName} : plusieurs places imposées, la 1re est gardée.');
+        conflict(
+            s, '${s.fullName} : plusieurs places imposées, la 1re est gardée.');
         continue;
       }
       pinned[s.id] = k;
@@ -244,9 +318,7 @@ class SeatingEngine {
         if (!seatOf.containsKey(s.id)) s.id
     ];
 
-    final report = _report(seatOf, const [], unplaced);
-    final violations = [...report.$1];
-    final warnings = [...report.$2];
+    final issues = [..._report(seatOf, const [], unplaced)];
 
     for (final rule in cls.rules.where((r) => r.type == RuleType.fixedSeat)) {
       final s = _byId[rule.studentAId];
@@ -254,16 +326,18 @@ class SeatingEngine {
       if (!cls.room.isSeat(rule.seatRow!, rule.seatCol!)) continue;
       final expected = Room.keyOf(rule.seatRow!, rule.seatCol!);
       if (seatOf[s.id] != expected) {
-        final msg = "${s.fullName} n'est pas à la place imposée.";
-        (rule.hard ? violations : warnings).add(msg);
+        issues.add(PlanIssue(
+          severity: rule.hard ? IssueSeverity.hard : IssueSeverity.soft,
+          label: "${s.fullName} n'est pas à la place imposée.",
+          studentIds: [s.id],
+        ));
       }
     }
 
     return PlanResult(
       assignment: Map<String, String>.from(cls.assignment),
       unplacedStudentIds: unplaced,
-      violations: violations,
-      warnings: warnings,
+      issues: issues,
       balance: _balanceNotes(seatOf),
       score: _cost(Map<String, String?>.from(seatOf), const {}),
     );
@@ -350,12 +424,19 @@ class SeatingEngine {
   }
 
   /// Nombre d'élèves à mauvaise vue placés hors de la moitié avant.
-  int _poorEyesightBackCount(Map<String, String> seatOf) {
+  ///
+  /// [ids], quand il est fourni, reçoit les élèves concernés. Il reste nul dans
+  /// le chemin chaud du recuit, qui n'a besoin que du compte : aucune
+  /// allocation sur les dizaines de milliers d'évaluations de coût.
+  int _poorEyesightBackCount(Map<String, String> seatOf, [Set<String>? ids]) {
     var count = 0;
     for (final s in cls.students) {
       if (!s.poorEyesight) continue;
       final seat = seatOf[s.id];
-      if (seat != null && Room.parse(seat).$1 >= _frontHalfRows) count++;
+      if (seat != null && Room.parse(seat).$1 >= _frontHalfRows) {
+        count++;
+        ids?.add(s.id);
+      }
     }
     return count;
   }
@@ -409,7 +490,11 @@ class SeatingEngine {
 
   /// Nombre de paires grand-devant / petit-derrière (relation dirigée,
   /// indépendante du voisinage symétrique ci-dessus).
-  int _tallInFrontOfShortCount(Map<String, String> seatOf) {
+  ///
+  /// [ids] suit la même convention que [_poorEyesightBackCount] : nul dans le
+  /// chemin chaud. Les DEUX élèves de la paire sont concernés — c'est leur
+  /// position relative qui pose problème, pas l'un des deux.
+  int _tallInFrontOfShortCount(Map<String, String> seatOf, [Set<String>? ids]) {
     final occ = <String, String>{};
     seatOf.forEach((sid, seat) => occ[seat] = sid);
     var count = 0;
@@ -420,6 +505,8 @@ class SeatingEngine {
       final behindSid = occ[Room.keyOf(r + 1, c)];
       if (behindSid != null && _byId[behindSid]!.size == StudentSize.petit) {
         count++;
+        ids?..add(sid)
+          ..add(behindSid);
       }
     }
     return count;
@@ -428,7 +515,7 @@ class SeatingEngine {
   /// Bilan des objectifs d'équilibre ACTIVÉS : compte, parmi les paires de
   /// voisins, celles qui vont à l'encontre de chaque objectif. Renvoie une
   /// ligne par objectif activé (respecté ou non).
-  List<({bool ok, String label})> _balanceNotes(Map<String, String> seatOf) {
+  List<BalanceNote> _balanceNotes(Map<String, String> seatOf) {
     final b = cls.balance;
     if (!b.mixGender &&
         !b.mixLevel &&
@@ -438,26 +525,37 @@ class SeatingEngine {
       return const [];
     }
 
+    // Pour les objectifs de voisinage, les deux élèves de chaque paire fautive
+    // sont concernés : c'est le fait d'être côte à côte qui pose problème.
     var sameGender = 0;
     var sameLevel = 0;
     var bothAgite = 0;
+    final sameGenderIds = <String>{};
+    final sameLevelIds = <String>{};
+    final bothAgiteIds = <String>{};
     _forEachNeighborPair(seatOf, (s, s2) {
       if (b.mixGender &&
           s.gender != Gender.autre &&
           s2.gender != Gender.autre &&
           s.gender == s2.gender) {
         sameGender++;
+        sameGenderIds..add(s.id)
+          ..add(s2.id);
       }
       if (b.mixLevel &&
           s.level != Level.moyen &&
           s2.level != Level.moyen &&
           s.level == s2.level) {
         sameLevel++;
+        sameLevelIds..add(s.id)
+          ..add(s2.id);
       }
       if (b.separateAgites &&
           s.energy == Energy.agite &&
           s2.energy == Energy.agite) {
         bothAgite++;
+        bothAgiteIds..add(s.id)
+          ..add(s2.id);
       }
     });
 
@@ -465,86 +563,100 @@ class SeatingEngine {
     final eyesightTotal = b.frontForPoorEyesight
         ? cls.students.where((s) => s.poorEyesight).length
         : 0;
-    final eyesightBack =
-        b.frontForPoorEyesight ? _poorEyesightBackCount(seatOf) : 0;
+    final eyesightIds = <String>{};
+    final eyesightBack = b.frontForPoorEyesight
+        ? _poorEyesightBackCount(seatOf, eyesightIds)
+        : 0;
 
     // Taille : comptage des paires grand-devant / petit-derrière (relation
     // dirigée, indépendante du voisinage symétrique ci-dessus).
-    final tallFrontOfShort =
-        b.avoidTallInFrontOfShort ? _tallInFrontOfShortCount(seatOf) : 0;
+    final tallIds = <String>{};
+    final tallFrontOfShort = b.avoidTallInFrontOfShort
+        ? _tallInFrontOfShortCount(seatOf, tallIds)
+        : 0;
 
     return _buildBalanceLines(
       b,
-      sameGender: sameGender,
-      sameLevel: sameLevel,
-      bothAgite: bothAgite,
+      gender: (count: sameGender, ids: sameGenderIds),
+      level: (count: sameLevel, ids: sameLevelIds),
+      agite: (count: bothAgite, ids: bothAgiteIds),
       eyesightTotal: eyesightTotal,
-      eyesightBack: eyesightBack,
-      tallFrontOfShort: tallFrontOfShort,
+      eyesight: (count: eyesightBack, ids: eyesightIds),
+      size: (count: tallFrontOfShort, ids: tallIds),
     );
   }
 
   /// Construit les lignes de bilan d'équilibre à partir des compteurs déjà
   /// calculés (une ligne par objectif activé).
-  List<({bool ok, String label})> _buildBalanceLines(
+  List<BalanceNote> _buildBalanceLines(
     BalanceSettings b, {
-    required int sameGender,
-    required int sameLevel,
-    required int bothAgite,
+    required _Tally gender,
+    required _Tally level,
+    required _Tally agite,
     required int eyesightTotal,
-    required int eyesightBack,
-    required int tallFrontOfShort,
+    required _Tally eyesight,
+    required _Tally size,
   }) {
-    final notes = <({bool ok, String label})>[];
-    _addBalanceNote(notes, b.mixGender, sameGender == 0,
+    final notes = <BalanceNote>[];
+    _addBalanceNote(notes, b.mixGender, gender,
         'Mixité filles/garçons : aucun voisin de même genre.',
-        'Mixité filles/garçons : $sameGender paire(s) de même genre voisines.');
-    _addBalanceNote(notes, b.mixLevel, sameLevel == 0,
+        'Mixité filles/garçons : ${gender.count} paire(s) de même genre voisines.');
+    _addBalanceNote(notes, b.mixLevel, level,
         'Mélange des niveaux : aucune paire de Faibles ou de Forts voisine.',
-        'Mélange des niveaux : $sameLevel paire(s) de Faibles ou de Forts voisines.');
-    _addBalanceNote(notes, b.separateAgites, bothAgite == 0,
+        'Mélange des niveaux : ${level.count} paire(s) de Faibles ou de Forts voisines.');
+    _addBalanceNote(notes, b.separateAgites, agite,
         'Élèves agités séparés : aucun voisin agité.',
-        'Élèves agités : $bothAgite paire(s) d\'agités voisines.');
+        'Élèves agités : ${agite.count} paire(s) d\'agités voisines.');
     // Note affichée seulement s'il existe au moins un élève à mauvaise vue.
     _addBalanceNote(
         notes,
         b.frontForPoorEyesight && eyesightTotal > 0,
-        eyesightBack == 0,
+        eyesight,
         'Mauvaise vue : tous dans la moitié avant (près du tableau).',
-        'Mauvaise vue : $eyesightBack élève(s) hors moitié avant.');
-    _addBalanceNote(notes, b.avoidTallInFrontOfShort, tallFrontOfShort == 0,
+        'Mauvaise vue : ${eyesight.count} élève(s) hors moitié avant.');
+    _addBalanceNote(notes, b.avoidTallInFrontOfShort, size,
         'Tailles : aucun grand directement devant un petit.',
-        'Tailles : $tallFrontOfShort grand(s) directement devant un petit.');
+        'Tailles : ${size.count} grand(s) directement devant un petit.');
     return notes;
   }
 
-  /// Ajoute une ligne de bilan si l'objectif [active] est activé.
-  void _addBalanceNote(List<({bool ok, String label})> notes, bool active,
-      bool ok, String okLabel, String violatedLabel) {
+  /// Ajoute une ligne de bilan si l'objectif [active] est activé. L'objectif est
+  /// atteint quand le compteur est nul ; les élèves ne sont rattachés que dans
+  /// le cas contraire.
+  void _addBalanceNote(List<BalanceNote> notes, bool active, _Tally tally,
+      String okLabel, String violatedLabel) {
     if (!active) return;
-    notes.add((ok: ok, label: ok ? okLabel : violatedLabel));
+    final ok = tally.count == 0;
+    notes.add(BalanceNote(
+      ok: ok,
+      label: ok ? okLabel : violatedLabel,
+      studentIds: ok ? const [] : tally.ids.toList(),
+    ));
   }
 
-  /// Renvoie (violations dures, avertissements souples).
-  (List<String>, List<String>) _report(
+  /// Problèmes issus des règles, rattachés aux élèves concernés.
+  List<PlanIssue> _report(
     Map<String, String> seatOf,
-    List<String> fixedIssues,
+    List<PlanIssue> fixedIssues,
     List<String> unplaced,
   ) {
-    final violations = <String>[...fixedIssues];
-    final warnings = <String>[];
+    final issues = <PlanIssue>[...fixedIssues];
 
     String name(String? id) => _byId[id]?.fullName ?? 'Élève';
 
     for (final rule in cls.rules) {
-      final msg = switch (rule.type) {
+      final found = switch (rule.type) {
         RuleType.separate => _separateViolation(rule, seatOf, name),
         RuleType.keepTogether => _keepTogetherViolation(rule, seatOf, name),
         RuleType.frontZone => _frontZoneViolation(rule, seatOf, name),
         RuleType.fixedSeat => null,
       };
-      if (msg != null) {
-        (rule.hard ? violations : warnings).add(msg);
+      if (found != null) {
+        issues.add(PlanIssue(
+          severity: rule.hard ? IssueSeverity.hard : IssueSeverity.soft,
+          label: found.label,
+          studentIds: found.studentIds,
+        ));
       }
     }
 
@@ -552,33 +664,55 @@ class SeatingEngine {
     // d'équilibre souple, rapporté via _balanceNotes (section « Équilibre »).
 
     if (unplaced.isNotEmpty) {
-      warnings.add(
-          '${unplaced.length} élève(s) non placé(s) : la salle manque de places.');
+      // Sans élèves concernés : un élève non placé n'occupe aucune place, il n'y
+      // a donc rien à marquer sur le plan. C'est un problème de salle.
+      issues.add(PlanIssue(
+        severity: IssueSeverity.soft,
+        label:
+            '${unplaced.length} élève(s) non placé(s) : la salle manque de places.',
+      ));
     }
 
-    return (violations, warnings);
+    return issues;
   }
 
-  String? _separateViolation(
+  /// Les deux élèves d'une règle, le second seulement s'il existe.
+  List<String> _ruleStudents(Rule rule) => [
+        rule.studentAId,
+        if (rule.studentBId != null) rule.studentBId!,
+      ];
+
+  _Violation? _separateViolation(
       Rule rule, Map<String, String> seatOf, String Function(String?) name) {
     if (!_adjacent(seatOf[rule.studentAId], seatOf[rule.studentBId])) {
       return null;
     }
-    return '${name(rule.studentAId)} et ${name(rule.studentBId)} sont voisins (à séparer).';
+    return (
+      label:
+          '${name(rule.studentAId)} et ${name(rule.studentBId)} sont voisins (à séparer).',
+      studentIds: _ruleStudents(rule),
+    );
   }
 
-  String? _keepTogetherViolation(
+  _Violation? _keepTogetherViolation(
       Rule rule, Map<String, String> seatOf, String Function(String?) name) {
     final ka = seatOf[rule.studentAId];
     final kb = seatOf[rule.studentBId];
     if (ka != null && kb != null && _adjacent(ka, kb)) return null;
-    return '${name(rule.studentAId)} et ${name(rule.studentBId)} ne sont pas voisins.';
+    return (
+      label:
+          '${name(rule.studentAId)} et ${name(rule.studentBId)} ne sont pas voisins.',
+      studentIds: _ruleStudents(rule),
+    );
   }
 
-  String? _frontZoneViolation(
+  _Violation? _frontZoneViolation(
       Rule rule, Map<String, String> seatOf, String Function(String?) name) {
     final ka = seatOf[rule.studentAId];
     if (ka != null && Room.parse(ka).$1 < rule.frontRows) return null;
-    return "${name(rule.studentAId)} n'est pas dans les premiers rangs.";
+    return (
+      label: "${name(rule.studentAId)} n'est pas dans les premiers rangs.",
+      studentIds: [rule.studentAId],
+    );
   }
 }
