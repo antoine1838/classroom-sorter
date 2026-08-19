@@ -90,9 +90,9 @@ Deux conclusions qui pilotent tout le reste :
 ## Ordre de travail
 
 1. ~~**Moteur** : faire remonter les identifiants fautifs.~~ **Fait** — voir ci-dessous.
-2. **Prototype de gestes** sur une branche `experiment/` : mécanisme trouvé et couvert par des tests
-   multi-pointeurs ; reste la validation sur appareil. Voir ci-dessous.
-3. **Paysage** (#12) : rail, chrome masqué, cases rectangulaires.
+2. ~~**Prototype de gestes** sur une branche `experiment/`.~~ **Fait et validé sur appareil**
+   le 19/08/2026 (Galaxy A56, One UI 8.5, Android 16). Voir ci-dessous.
+3. **Paysage** (#12) : rail, chrome masqué, cases rectangulaires. ← prochaine étape
 
 ### Étape 1 — ce qui a été construit
 
@@ -156,18 +156,26 @@ survit à un zoom, qu'un doigt annulé libère bien le compteur (sinon les place
 insaisissables), et — le garde-fou du défaut ci-dessus — qu'**une fois zoomé**, un doigt sur une zone
 vide ne déplace toujours pas la vue.
 
-**Ce que ces tests ne prouvent pas**, et qui reste à valider sur l'appareil : la jitter des doigts, le
-décalage réel entre la pose des deux doigts, le rejet de paume, et le seuil de déplacement du système.
-Le banc d'essai `lib/prototypes/plan_gestures_prototype.dart` est fait pour ça — il compte à l'écran
-les élèves déplacés et les zooms, sur une grille 8×5 réduite comme dans l'app :
+**Ce que ces tests ne prouvent pas** : la jitter des doigts, le décalage réel entre la pose des deux
+doigts, le rejet de paume, et le seuil de déplacement du système. D'où le banc d'essai
+`lib/prototypes/plan_gestures_prototype.dart`, qui compte à l'écran les élèves déplacés et les zooms
+sur une grille 8×5 réduite comme dans l'app.
+
+**Validé sur appareil le 19/08/2026** (Galaxy A56, One UI 8.5, Android 16) : un doigt ne zoome jamais,
+deux doigts ne déplacent jamais un élève — y compris pincement démarré pile sur une place — et une fois
+zoomé, un doigt sur une zone vide ne déplace pas la vue. **Le mécanisme est donc bon pour l'étape 3.**
+
+Pour relancer le banc (le `-t` est indispensable : sans lui c'est l'app normale qui se compile, le banc
+ayant son propre `main()`) :
 
 ```
-flutter run -t lib/prototypes/plan_gestures_prototype.dart
+flutter build apk --release --target-platform android-arm64 -t lib/prototypes/plan_gestures_prototype.dart
 ```
 
-Critère d'acceptation : sur une vingtaine d'essais, un glissement à un doigt ne zoome jamais et un
-pincement à deux doigts ne déplace jamais un élève — en insistant sur le pincement démarré pile sur
-une place.
+`--release` et pas debug pour deux raisons : la fluidité ne se juge pas sur un build debug, et la clé
+de signature diffère entre les deux (`android/app/build.gradle.kts`), donc un debug ne s'installe pas
+par-dessus l'app release déjà présente. Attention, le banc partage l'`applicationId` de l'app : il la
+remplace sur le téléphone, données conservées.
 
 ## Tests à faire
 
