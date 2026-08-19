@@ -5,6 +5,8 @@
 ///    deux élèves à la main.
 library;
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../models/classroom.dart';
@@ -16,6 +18,54 @@ const double kGap = 6; // espace normal entre deux colonnes
 const double kAisle = 24; // largeur d'un couloir entre colonnes
 const double kRowGap = 14; // espace entre rangs (toujours un couloir)
 
+/// Largeur d'une case en paysage. Plus large que haute : en paysage la hauteur
+/// est la ressource rare et la largeur abondante, exactement l'inverse du
+/// portrait — d'où des rectangles ici et des carrés là.
+const double kCellWide = 90;
+
+/// Au-delà de cette largeur RENDUE (après réduction et zoom), une case a la
+/// place d'écrire un prénom ; en dessous elle s'en tient aux initiales.
+///
+/// Une seule règle, quatre comportements corrects : portrait 8 colonnes (~44dp)
+/// → initiales ; portrait zoomé ×1,25 (~55dp) → prénom ; paysage (~80dp) →
+/// prénom ; petite salle de 5 colonnes en portrait (62dp) → prénom d'emblée,
+/// sans rien demander à l'utilisateur.
+///
+/// Valeur calculée pour un prénom de 8 lettres à 11px (8 × ~0,55 × 11 ≈ 48dp,
+/// plus la marge intérieure) — à confirmer dans l'app réelle, les polices
+/// factices de `flutter_test` ne mesurant pas le texte comme le moteur.
+const double kFirstNameMinWidth = 54;
+
+/// Hauteur totale de la grille, hors bandeau « devant ».
+double gridHeight(Room room, {bool landscape = false}) =>
+    room.rows * kCell + (room.rows - 1) * kRowGap;
+
+/// Facteur appliqué par le [FittedBox] pour que la salle tienne d'un coup dans
+/// [viewport]. Jamais supérieur à 1 : une petite salle garde sa taille naturelle.
+double fitScale(Room room, Size viewport, {bool landscape = false}) {
+  if (viewport.isEmpty) return 1;
+  final w = gridWidth(room, landscape: landscape);
+  final h = gridHeight(room, landscape: landscape);
+  if (w <= 0 || h <= 0) return 1;
+  final scale = min(viewport.width / w, viewport.height / h);
+  return scale > 1 ? 1 : scale;
+}
+
+/// Largeur d'une case telle qu'elle sera réellement rendue à l'écran.
+double renderedCellWidth(Room room, Size viewport,
+        {bool landscape = false, double zoom = 1}) =>
+    cellWidth(landscape: landscape) *
+    fitScale(room, viewport, landscape: landscape) *
+    zoom;
+
+/// Vrai si les cases ont la place d'afficher un prénom plutôt que des initiales.
+bool showsFirstName(Room room, Size viewport,
+        {bool landscape = false, double zoom = 1}) =>
+    renderedCellWidth(room, viewport, landscape: landscape, zoom: zoom) >=
+    kFirstNameMinWidth;
+
+double cellWidth({bool landscape = false}) => landscape ? kCellWide : kCell;
+
 /// Largeur de l'espace inter-colonnes après la colonne [c].
 /// En mode éditeur, l'espace reste large partout pour être facile à toucher ;
 /// en affichage, il ne s'élargit qu'aux vrais couloirs.
@@ -24,8 +74,8 @@ double _colGapWidth(Room room, int c, {required bool editor}) {
   return (editor || aisle) ? kAisle : kGap;
 }
 
-double gridWidth(Room room, {bool editor = false}) {
-  var w = room.cols * kCell;
+double gridWidth(Room room, {bool editor = false, bool landscape = false}) {
+  var w = room.cols * cellWidth(landscape: landscape);
   for (var c = 0; c < room.cols - 1; c++) {
     w += _colGapWidth(room, c, editor: editor);
   }
