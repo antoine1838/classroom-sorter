@@ -125,26 +125,36 @@ violations et qu'il faudrait sinon dépendre d'une graine.
 
 `lib/widgets/plan_viewport.dart`. Trois pièces, et **les trois sont nécessaires** :
 
-1. `MultiPointerScaleRecognizer` — un `ScaleGestureRecognizer` qui n'abandonne l'arène que lorsqu'un
-   doigt **unique** a franchi `kTouchSlop`. Abandonner dès le premier mouvement rendrait le zoom
-   impossible, parce que le second doigt d'un pincement arrive toujours après.
+1. Le filtrage sur `ScaleUpdateDetails.pointerCount` dans les callbacks de zoom : en dessous de deux
+   doigts, on ne touche pas à la transformation.
 2. `PointerTracker` — un simple compteur de doigts, alimenté par un `Listener` placé **au-dessus** du
    reconnaisseur pour qu'il voie tous les pointeurs quel que soit le verdict de l'arène.
 3. `SeatDraggable` — un `Draggable` dont le reconnaisseur refuse de saisir un élève dès qu'il y a deux
    doigts.
 
-**Ce que le prototype a démontré, et qui n'était pas prévu :** jauger le zoom seul ne suffit pas. Avec
-le `Draggable` standard, un pincement posé sur une place déclenche **deux** glissers — un par doigt —
-et le zoom n'a jamais lieu, parce que `Draggable` s'appuie sur un reconnaisseur *multi*-drag qui gagne
-l'arène pointeur par pointeur. Comme la quasi-totalité de la surface du plan est faite de places, ce
-cas serait arrivé constamment. D'où `SeatDraggable` : l'arbitrage doit se faire **des deux côtés**.
-C'est une contrainte pour l'étape 3 — les places du plan ne peuvent pas utiliser `Draggable` tel quel.
+**On ne peut pas arbitrer par l'arène de gestes.** Première tentative : un `ScaleGestureRecognizer`
+qui renonce à l'arène dès qu'un doigt unique franchit `kTouchSlop`. Ça ne marche pas — quand le
+reconnaisseur est seul candidat, l'arène lui accorde la victoire dès sa fermeture, donc un
+`resolve(rejected)` ultérieur arrive trop tard. Le symptôme était discret : à l'échelle 1 la
+translation est bornée à zéro, donc rien ne bougeait ; mais **une fois zoomé, un doigt sur une zone
+vide déplaçait la vue**. Le filtrage dans les callbacks remplace ce mécanisme et supprime une
+cinquantaine de lignes subtiles. Le reconnaisseur rappelle `onStart` à chaque changement du nombre de
+doigts, ce qui suffit à rattraper l'arrivée du second.
 
-Couverture : `test/plan_viewport_gestures_test.dart`, 7 tests multi-pointeurs. Ils vérifient qu'un
+**Il faut arbitrer des deux côtés.** Avec le `Draggable` standard, un pincement posé sur une place
+déclenche **deux** glissers — un par doigt — et le zoom n'a jamais lieu, parce que `Draggable`
+s'appuie sur un reconnaisseur *multi*-drag qui gagne l'arène pointeur par pointeur. Comme la
+quasi-totalité de la surface du plan est faite de places, ce cas serait arrivé constamment. D'où
+`SeatDraggable`. **Contrainte pour l'étape 3 : les places du plan ne peuvent pas utiliser `Draggable`
+tel quel.**
+
+Couverture : `test/plan_viewport_gestures_test.dart`, 11 tests multi-pointeurs. Ils vérifient qu'un
 doigt atteint le `Draggable`, que deux doigts zooment, qu'un pincement **démarré sur une place** ne
 déplace aucun élève, qu'un second doigt arrivant en retard zoome quand même, que le zoom reste borné
-entre la vue d'ensemble et ×3, que « recentrer » revient à la vue d'ensemble, et que le
-glisser-déposer survit à un zoom.
+entre la vue d'ensemble et ×3, que « recentrer » revient à la vue d'ensemble, que le glisser-déposer
+survit à un zoom, qu'un doigt annulé libère bien le compteur (sinon les places deviendraient
+insaisissables), et — le garde-fou du défaut ci-dessus — qu'**une fois zoomé**, un doigt sur une zone
+vide ne déplace toujours pas la vue.
 
 **Ce que ces tests ne prouvent pas**, et qui reste à valider sur l'appareil : la jitter des doigts, le
 décalage réel entre la pose des deux doigts, le rejet de paume, et le seuil de déplacement du système.

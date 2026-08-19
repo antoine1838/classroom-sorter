@@ -105,72 +105,6 @@ class _OneFingerPointerState extends MultiDragPointerState {
       starter(initialPosition);
 }
 
-/// Reconnaisseur de pincement qui n'entre en jeu qu'à partir de [minPointers]
-/// doigts.
-///
-/// Subtilité qui fait tout le sujet : les deux doigts d'un pincement n'arrivent
-/// jamais dans la même frame. Refuser l'arène dès le premier mouvement à un
-/// doigt rendrait le zoom impossible, parce que le second doigt arriverait après
-/// le refus. On n'abandonne donc que lorsque le doigt unique a franchi le seuil
-/// de déplacement ([kTouchSlop]) — à ce moment-là c'est un vrai glissement, pas
-/// le début d'un pincement.
-class MultiPointerScaleRecognizer extends ScaleGestureRecognizer {
-  MultiPointerScaleRecognizer({super.debugOwner, this.minPointers = 2});
-
-  final int minPointers;
-
-  final Map<int, Offset> _origins = <int, Offset>{};
-  bool _gaveUp = false;
-
-  @override
-  void addAllowedPointer(PointerDownEvent event) {
-    _origins[event.pointer] = event.position;
-    if (_origins.length >= minPointers) {
-      // Le pincement est constitué : on redevient candidat même si un
-      // glissement à un doigt avait commencé à s'éloigner.
-      _gaveUp = false;
-    }
-    super.addAllowedPointer(event);
-  }
-
-  @override
-  void handleEvent(PointerEvent event) {
-    if (event is PointerUpEvent || event is PointerCancelEvent) {
-      _origins.remove(event.pointer);
-      if (_origins.isEmpty) _gaveUp = false;
-    }
-
-    if (!_gaveUp &&
-        _origins.length < minPointers &&
-        event is PointerMoveEvent &&
-        _movedPastSlop(event)) {
-      // Un seul doigt qui glisse franchement : ce n'est pas un pincement.
-      // On laisse la main aux enfants (glisser-déposer d'un élève).
-      _gaveUp = true;
-      resolve(GestureDisposition.rejected);
-      return;
-    }
-
-    if (_gaveUp) return;
-    super.handleEvent(event);
-  }
-
-  bool _movedPastSlop(PointerMoveEvent event) {
-    final origin = _origins[event.pointer];
-    if (origin == null) return false;
-    return (event.position - origin).distance > computeHitSlop(
-      event.kind,
-      gestureSettings,
-    );
-  }
-
-  @override
-  void dispose() {
-    _origins.clear();
-    super.dispose();
-  }
-}
-
 /// Fenêtre zoomable autour du plan.
 class PlanViewport extends StatefulWidget {
   const PlanViewport({
@@ -228,7 +162,23 @@ class PlanViewportState extends State<PlanViewport> {
     widget.onDiagnostic?.call('recentrage');
   }
 
+  /// Nombre de doigts en dessous duquel le geste n'est pas un pincement.
+  static const _minPointers = 2;
+
+  /// Vrai quand le geste en cours a commencé avec trop peu de doigts.
+  bool _ignoring = false;
+
   void _onScaleStart(ScaleStartDetails details) {
+    // On ne peut pas compter sur l'arène pour écarter les gestes à un doigt :
+    // quand le reconnaisseur est seul candidat, elle lui accorde la victoire
+    // dès sa fermeture, donc un refus ultérieur arriverait trop tard. On filtre
+    // donc ici. Le reconnaisseur rappelle onStart à chaque changement du nombre
+    // de doigts, ce qui suffit à rattraper l'arrivée du second.
+    if (details.pointerCount < _minPointers) {
+      _ignoring = true;
+      return;
+    }
+    _ignoring = false;
     _startScale = _scale;
     _childFocal = (details.localFocalPoint - _translation) / _scale;
     widget.onDiagnostic
@@ -236,6 +186,7 @@ class PlanViewportState extends State<PlanViewport> {
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
+    if (_ignoring || details.pointerCount < _minPointers) return;
     final next = (_startScale * details.scale)
         .clamp(widget.minScale, widget.maxScale)
         .toDouble();
@@ -250,6 +201,7 @@ class PlanViewportState extends State<PlanViewport> {
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
+    if (_ignoring) return;
     widget.onDiagnostic?.call('zoom fin (×${_scale.toStringAsFixed(2)})');
   }
 
@@ -280,10 +232,10 @@ class PlanViewportState extends State<PlanViewport> {
             child: RawGestureDetector(
               behavior: HitTestBehavior.opaque,
               gestures: <Type, GestureRecognizerFactory>{
-                MultiPointerScaleRecognizer:
+                ScaleGestureRecognizer:
                     GestureRecognizerFactoryWithHandlers<
-                        MultiPointerScaleRecognizer>(
-                  () => MultiPointerScaleRecognizer(debugOwner: this),
+                        ScaleGestureRecognizer>(
+                  () => ScaleGestureRecognizer(debugOwner: this),
                   (instance) => instance
                     ..onStart = _onScaleStart
                     ..onUpdate = _onScaleUpdate

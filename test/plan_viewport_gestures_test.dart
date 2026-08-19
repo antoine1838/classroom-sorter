@@ -16,9 +16,12 @@ import 'package:plandeclasse/widgets/plan_viewport.dart';
 /// Fenêtre contenant une place déplaçable (à gauche) et une place d'accueil
 /// (à droite) : la structure du plan, réduite à l'essentiel.
 class _Harness extends StatefulWidget {
-  const _Harness({this.viewportKey});
+  const _Harness({this.viewportKey, this.diagnostics});
 
   final GlobalKey<PlanViewportState>? viewportKey;
+
+  /// Reçoit la trace des gestes quand le test veut l'inspecter.
+  final List<String>? diagnostics;
 
   @override
   State<_Harness> createState() => _HarnessState();
@@ -42,6 +45,7 @@ class _HarnessState extends State<_Harness> {
               key: widget.viewportKey,
               tracker: tracker,
               onScaleChanged: (s) => scale = s,
+              onDiagnostic: widget.diagnostics?.add,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -223,6 +227,94 @@ void main() {
 
     expect(key.currentState!.scale, 1);
     expect(key.currentState!.isZoomed, isFalse);
+  });
+
+  testWidgets('la trace de diagnostic rapporte le zoom', (t) async {
+    final log = <String>[];
+    await t.pumpWidget(_Harness(diagnostics: log));
+    final center = t.getCenter(find.byType(PlanViewport));
+
+    final f1 = await t.startGesture(center - const Offset(20, 0), pointer: 1);
+    final f2 = await t.startGesture(center + const Offset(20, 0), pointer: 2);
+    await t.pump();
+    await f1.moveTo(center - const Offset(70, 0));
+    await f2.moveTo(center + const Offset(70, 0));
+    await t.pump();
+    await f1.up();
+    await f2.up();
+    await t.pumpAndSettle();
+
+    expect(log.where((l) => l.startsWith('zoom début')), hasLength(1));
+    expect(log.where((l) => l.startsWith('zoom fin')), hasLength(1));
+    expect(log.first, contains('2 doigts'));
+  });
+
+  testWidgets('un doigt sur le vide ne déplace pas la vue', (t) async {
+    final log = <String>[];
+    await t.pumpWidget(_Harness(diagnostics: log));
+    final center = t.getCenter(find.byType(PlanViewport));
+
+    // L'espace entre les deux places n'a aucun Draggable : rien ne dispute le
+    // geste au reconnaisseur de zoom, qui doit pourtant renoncer de lui-même.
+    await t.dragFrom(center, const Offset(60, 0), pointer: 1);
+    await t.pumpAndSettle();
+
+    expect(state(t).scale, 1, reason: 'un doigt ne déplace jamais la vue');
+    expect(log.where((l) => l.startsWith('zoom début')), isEmpty,
+        reason: 'aucun geste de zoom ne doit être ouvert par un seul doigt');
+  });
+
+  testWidgets('zoomé, un doigt sur le vide ne déplace toujours pas la vue',
+      (t) async {
+    // Le test précédent ne prouve rien à l'échelle 1, où la translation est
+    // bornée à zéro quoi qu'il arrive. C'est zoomé que le défaut se voyait :
+    // le reconnaisseur gagnait l'arène avec un seul doigt et déplaçait la vue.
+    final key = GlobalKey<PlanViewportState>();
+    await t.pumpWidget(_Harness(viewportKey: key));
+    final center = t.getCenter(find.byType(PlanViewport));
+
+    final f1 = await t.startGesture(center - const Offset(20, 0), pointer: 1);
+    final f2 = await t.startGesture(center + const Offset(20, 0), pointer: 2);
+    await t.pump();
+    await f1.moveTo(center - const Offset(50, 0));
+    await f2.moveTo(center + const Offset(50, 0));
+    await t.pump();
+    await f1.up();
+    await f2.up();
+    await t.pumpAndSettle();
+
+    expect(key.currentState!.isZoomed, isTrue);
+
+    // Position à l'écran d'une place, avant et après un glissement à un doigt
+    // dans le vide : la vue ne doit pas avoir bougé d'un pixel.
+    final before = t.getRect(find.byKey(const Key('seatA')));
+    await t.dragFrom(center, const Offset(70, 40), pointer: 3);
+    await t.pumpAndSettle();
+    final after = t.getRect(find.byKey(const Key('seatA')));
+
+    expect(after, before,
+        reason: 'seuls deux doigts déplacent la vue');
+  });
+
+  testWidgets('un doigt annulé libère le compteur', (t) async {
+    await t.pumpWidget(const _Harness());
+
+    // Un pointeur annulé (appel entrant, geste système…) doit décrémenter le
+    // compteur : sinon il reste bloqué à 1, et un pincement ultérieur serait
+    // pris pour un simple glissement — ou pire, les places deviendraient
+    // insaisissables.
+    final g = await t.startGesture(seatA(t), pointer: 1);
+    await t.pump();
+    expect(state(t).tracker.count, 1);
+
+    await g.cancel();
+    await t.pumpAndSettle();
+    expect(state(t).tracker.count, 0, reason: 'le compteur doit se libérer');
+
+    // Et tout fonctionne encore après.
+    await t.drag(find.text('A'), target(t) - seatA(t), pointer: 2);
+    await t.pumpAndSettle();
+    expect(state(t).dropped, 'eleve');
   });
 
   testWidgets('après un zoom, un doigt saisit toujours un élève', (t) async {

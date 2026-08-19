@@ -1,0 +1,554 @@
+// Écran d'édition d'une classe : les quatre onglets, le renommage, les
+// objectifs d'équilibre, la création et la suppression de règles, et le cycle
+// génération / validation du plan.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/models/classroom.dart';
+import 'package:plandeclasse/models/room.dart';
+import 'package:plandeclasse/models/rule.dart';
+import 'package:plandeclasse/models/student.dart';
+import 'package:plandeclasse/screens/class_editor_screen.dart';
+import 'package:plandeclasse/widgets/seat_grid.dart';
+
+ClassGroup _cls({
+  int rows = 3,
+  int cols = 3,
+  int students = 4,
+  List<Rule>? rules,
+}) =>
+    ClassGroup(
+      id: 'c',
+      name: '6ème B',
+      room: Room(rows: rows, cols: cols),
+      students: [
+        for (var i = 0; i < students; i++)
+          Student(
+            id: 'stu$i',
+            firstName: 'Prenom$i',
+            lastName: 'Nom$i',
+          ),
+      ],
+      rules: rules,
+    );
+
+/// Écran haut : l'onglet Règles empile cinq interrupteurs avant la liste des
+/// règles, qui sortirait du champ d'un 800×600 — un `ListView` ne construit pas
+/// ses enfants invisibles, donc les textes attendus n'existeraient tout
+/// simplement pas.
+Future<AppState> _pump(WidgetTester tester, ClassGroup cls) async {
+  await tester.binding.setSurfaceSize(const Size(1000, 2000));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  final state = AppState()..classes.add(cls);
+  await tester.pumpWidget(
+      MaterialApp(home: ClassEditorScreen(state: state, cls: cls)));
+  await tester.pumpAndSettle();
+  return state;
+}
+
+/// Bascule sur un onglet. On cible le [Tab] et non le texte : « Règles »
+/// apparaît aussi comme titre de section dans l'onglet lui-même.
+Future<void> _tab(WidgetTester tester, String label) async {
+  await tester.tap(find.widgetWithText(Tab, label));
+  await tester.pumpAndSettle();
+}
+
+/// Actionne le « + » ou le « − » du compteur portant ce libellé.
+Future<void> _step(WidgetTester tester, String label, IconData icon) async {
+  final stepper =
+      find.ancestor(of: find.text(label), matching: find.byType(Column)).first;
+  await tester.tap(find.descendant(of: stepper, matching: find.byIcon(icon)));
+  await tester.pumpAndSettle();
+}
+
+/// Choisit [value] dans le menu déroulant portant le libellé [fieldLabel].
+Future<void> _pickDropdown(
+    WidgetTester tester, String fieldLabel, String value) async {
+  await tester.tap(find.byWidgetPredicate((w) =>
+      w is DropdownButtonFormField && _labelOf(w) == fieldLabel));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(value).last);
+  await tester.pumpAndSettle();
+}
+
+String? _labelOf(DropdownButtonFormField<Object?> field) {
+  final label = field.decoration.labelText;
+  return label;
+}
+
+void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  group('Renommer la classe', () {
+    testWidgets('le nouveau nom apparaît dans le titre', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+      expect(find.text('6ème B'), findsOneWidget);
+
+      await t.tap(find.byIcon(Icons.edit_outlined));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), '5ème A');
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+
+      expect(cls.name, '5ème A');
+      expect(find.text('5ème A'), findsOneWidget);
+    });
+
+    testWidgets('Annuler laisse le nom intact', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+
+      await t.tap(find.byIcon(Icons.edit_outlined));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), 'Ignoré');
+      await t.tap(find.text('Annuler'));
+      await t.pumpAndSettle();
+
+      expect(cls.name, '6ème B');
+    });
+
+    testWidgets('un nom vide est refusé', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+
+      await t.tap(find.byIcon(Icons.edit_outlined));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), '   ');
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+
+      expect(cls.name, '6ème B');
+    });
+  });
+
+  group('Onglet Salle', () {
+    testWidgets('les compteurs redimensionnent la salle', (t) async {
+      final cls = _cls(rows: 3, cols: 3);
+      await _pump(t, cls);
+
+      expect(find.text('9 places'), findsOneWidget);
+
+      await _step(t, 'Rangs', Icons.add);
+      expect(cls.room.rows, 4);
+      expect(find.text('12 places'), findsOneWidget);
+
+      await _step(t, 'Colonnes', Icons.remove);
+      expect(cls.room.cols, 2);
+      expect(find.text('8 places'), findsOneWidget);
+    });
+
+    testWidgets('la taille reste bornée à 1 au minimum', (t) async {
+      final cls = _cls(rows: 1, cols: 3);
+      await _pump(t, cls);
+
+      await _step(t, 'Rangs', Icons.remove);
+
+      expect(cls.room.rows, 1, reason: 'on ne descend pas sous un rang');
+    });
+
+    testWidgets('toucher une case retire la place, puis la remet', (t) async {
+      final cls = _cls(rows: 2, cols: 2);
+      await _pump(t, cls);
+
+      expect(find.text('4 places'), findsOneWidget);
+
+      await t.tap(find.byIcon(Icons.event_seat_outlined).first);
+      await t.pumpAndSettle();
+      expect(cls.room.capacity, 3);
+      expect(find.text('3 places'), findsOneWidget);
+
+      // La case désactivée porte désormais l'icône « interdit ».
+      await t.tap(find.byIcon(Icons.block).first);
+      await t.pumpAndSettle();
+      expect(cls.room.capacity, 4);
+    });
+
+    testWidgets('réduire la salle nettoie le plan et les couloirs', (t) async {
+      final cls = _cls(rows: 3, cols: 3)
+        ..assignment[Room.keyOf(2, 2)] = 'stu0'
+        ..room.toggleColAisle(1);
+      await _pump(t, cls);
+
+      // On enlève le dernier rang : la place occupée disparaît avec lui.
+      await _step(t, 'Rangs', Icons.remove);
+
+      expect(cls.room.rows, 2);
+      expect(cls.assignment.containsKey(Room.keyOf(2, 2)), isFalse);
+
+      // Puis on descend à une seule colonne : le couloir après la colonne 1
+      // n'a plus de sens.
+      await _step(t, 'Colonnes', Icons.remove);
+      await _step(t, 'Colonnes', Icons.remove);
+
+      expect(cls.room.cols, 1);
+      expect(cls.room.hasColAisleAfter(1), isFalse);
+    });
+  });
+
+  group('Objectifs d\'équilibre', () {
+    testWidgets('seul « séparer les agités » est actif par défaut', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+
+      expect(cls.balance.separateAgites, isTrue);
+      expect(cls.balance.mixGender, isFalse);
+      expect(cls.balance.mixLevel, isFalse);
+      expect(cls.balance.frontForPoorEyesight, isFalse);
+      expect(cls.balance.avoidTallInFrontOfShort, isFalse);
+    });
+
+    testWidgets('chaque interrupteur bascule son objectif', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      // On vérifie le BASCULEMENT et non une valeur absolue : « séparer les
+      // agités » est actif par défaut, les autres non.
+      for (final entry in <String, bool Function()>{
+        'Mixer filles / garçons': () => cls.balance.mixGender,
+        'Mélanger les niveaux': () => cls.balance.mixLevel,
+        'Séparer les élèves agités': () => cls.balance.separateAgites,
+        'Rapprocher du tableau': () => cls.balance.frontForPoorEyesight,
+        'Éviter un grand juste devant un petit': () =>
+            cls.balance.avoidTallInFrontOfShort,
+      }.entries) {
+        final before = entry.value();
+        final tile = find.ancestor(
+            of: find.text(entry.key), matching: find.byType(SwitchListTile));
+
+        await t.tap(tile);
+        await t.pumpAndSettle();
+        expect(entry.value(), !before,
+            reason: '« ${entry.key} » n\'a pas basculé');
+
+        // Et le retour en arrière fonctionne.
+        await t.tap(tile);
+        await t.pumpAndSettle();
+        expect(entry.value(), before,
+            reason: '« ${entry.key} » ne revient pas en arrière');
+      }
+    });
+  });
+
+  group('Onglet Règles', () {
+    testWidgets('sans élève, on ne peut pas créer de règle', (t) async {
+      await _pump(t, _cls(students: 0));
+      await _tab(t, 'Règles');
+
+      expect(find.text('Ajoutez d\'abord des élèves pour créer des règles.'),
+          findsOneWidget);
+      final button = t.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Règle'));
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('avec des élèves mais aucune règle, le placement est libre',
+        (t) async {
+      await _pump(t, _cls());
+      await _tab(t, 'Règles');
+
+      expect(find.text('Aucune règle. Le placement sera libre (aléatoire).'),
+          findsOneWidget);
+    });
+
+    testWidgets('créer une règle « Séparer »', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      await t.tap(find.widgetWithText(FilledButton, 'Règle'));
+      await t.pumpAndSettle();
+      expect(find.text('Nouvelle règle'), findsOneWidget);
+
+      await t.tap(find.text('Ajouter'));
+      await t.pumpAndSettle();
+
+      expect(cls.rules, hasLength(1));
+      expect(cls.rules.single.type, RuleType.separate);
+      expect(find.textContaining('Séparer Prenom0 Nom0 et Prenom1 Nom1'),
+          findsOneWidget);
+      expect(find.textContaining('Obligatoire'), findsOneWidget);
+    });
+
+    testWidgets('deux fois le même élève est refusé', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      await t.tap(find.widgetWithText(FilledButton, 'Règle'));
+      await t.pumpAndSettle();
+
+      // Met le second élève sur le même que le premier.
+      await _pickDropdown(t, 'Deuxième élève', 'Prenom0 Nom0');
+      await t.tap(find.text('Ajouter'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Choisissez deux élèves différents.'), findsOneWidget);
+      expect(cls.rules, isEmpty);
+    });
+
+    testWidgets('créer une règle « Place imposée »', (t) async {
+      final cls = _cls(rows: 3, cols: 3);
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      await t.tap(find.widgetWithText(FilledButton, 'Règle'));
+      await t.pumpAndSettle();
+      await _pickDropdown(t, 'Type de règle', 'Place imposée');
+      await _pickDropdown(t, 'Rang', 'Rang 2');
+      await _pickDropdown(t, 'Colonne', 'Colonne 3');
+      await t.tap(find.text('Ajouter'));
+      await t.pumpAndSettle();
+
+      expect(cls.rules.single.type, RuleType.fixedSeat);
+      expect(cls.rules.single.seatRow, 1);
+      expect(cls.rules.single.seatCol, 2);
+      expect(find.textContaining('place ligne 2, colonne 3'), findsOneWidget);
+    });
+
+    testWidgets('une place désactivée est refusée', (t) async {
+      // La place (0,0) est désactivée d'entrée : c'est celle que le formulaire
+      // propose par défaut. On ne passe pas par l'onglet Salle pour ça, car la
+      // grille s'affiche du fond vers le devant — le premier siège du tableau
+      // de widgets est le dernier rang, pas (0,0).
+      final cls = _cls(rows: 2, cols: 2);
+      cls.room.toggle(0, 0);
+      await _pump(t, cls);
+
+      await _tab(t, 'Règles');
+      await t.tap(find.widgetWithText(FilledButton, 'Règle'));
+      await t.pumpAndSettle();
+      await _pickDropdown(t, 'Type de règle', 'Place imposée');
+      await t.tap(find.text('Ajouter'));
+      await t.pumpAndSettle();
+
+      expect(
+          find.text(
+              'Cette place est désactivée (allée). Choisissez-en une autre.'),
+          findsOneWidget);
+      expect(cls.rules, isEmpty);
+    });
+
+    testWidgets('créer une règle « Doit être devant » en préférence', (t) async {
+      final cls = _cls(rows: 4, cols: 3);
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      await t.tap(find.widgetWithText(FilledButton, 'Règle'));
+      await t.pumpAndSettle();
+      await _pickDropdown(t, 'Type de règle', 'Doit être devant');
+
+      // Deux rangs au lieu d'un.
+      await _step(t, 'Premiers rangs', Icons.add);
+
+      // Et une simple préférence.
+      await t.tap(find.text('Obligatoire'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.text('Ajouter'));
+      await t.pumpAndSettle();
+
+      final rule = cls.rules.single;
+      expect(rule.type, RuleType.frontZone);
+      expect(rule.frontRows, 2);
+      expect(rule.hard, isFalse);
+      expect(find.textContaining('dans les 2 premier(s) rang(s)'),
+          findsOneWidget);
+      expect(find.textContaining('Préférence'), findsOneWidget);
+    });
+
+    testWidgets('Annuler n\'ajoute rien', (t) async {
+      final cls = _cls();
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      await t.tap(find.widgetWithText(FilledButton, 'Règle'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Annuler'));
+      await t.pumpAndSettle();
+
+      expect(cls.rules, isEmpty);
+    });
+
+    testWidgets('supprimer une règle la retire de la liste', (t) async {
+      final cls = _cls(rules: [
+        Rule(
+            id: 'r',
+            type: RuleType.keepTogether,
+            studentAId: 'stu0',
+            studentBId: 'stu1'),
+      ]);
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      expect(find.textContaining('Rapprocher Prenom0 Nom0 et Prenom1 Nom1'),
+          findsOneWidget);
+
+      await t.tap(find.byIcon(Icons.delete_outline));
+      await t.pumpAndSettle();
+
+      expect(cls.rules, isEmpty);
+      expect(find.text('Aucune règle. Le placement sera libre (aléatoire).'),
+          findsOneWidget);
+    });
+
+    testWidgets('une règle sur un élève inconnu s\'affiche sans planter',
+        (t) async {
+      final cls = _cls(rules: [
+        Rule(
+            id: 'r',
+            type: RuleType.separate,
+            studentAId: 'fantome',
+            studentBId: 'stu1'),
+      ]);
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      expect(find.textContaining('Séparer ? et Prenom1 Nom1'), findsOneWidget);
+    });
+  });
+
+  group('Onglet Plan', () {
+    testWidgets('sans élève, on invite à en ajouter', (t) async {
+      await _pump(t, _cls(students: 0));
+      await _tab(t, 'Plan');
+
+      expect(find.text('Ajoutez des élèves, puis générez le plan.'),
+          findsOneWidget);
+      final button = t.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Générer le plan'));
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('avant génération, une astuce explique le glisser-déposer',
+        (t) async {
+      await _pump(t, _cls());
+      await _tab(t, 'Plan');
+
+      expect(find.textContaining('Appuyez sur « Générer le plan »'),
+          findsOneWidget);
+      expect(find.byType(PlanGrid), findsNothing);
+    });
+
+    testWidgets('générer remplit le plan et affiche le rapport', (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      expect(cls.assignment, hasLength(4));
+      expect(find.byType(PlanGrid), findsOneWidget);
+      expect(find.text('Toutes les règles sont respectées 🎉'), findsOneWidget);
+      // Le bouton change de libellé, et « Valider » apparaît.
+      expect(find.text('Régénérer'), findsOneWidget);
+      expect(find.text('Valider'), findsOneWidget);
+    });
+
+    testWidgets('valider réévalue le plan sans le régénérer', (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+      final plan = Map<String, String>.from(cls.assignment);
+
+      await t.tap(find.text('Valider'));
+      await t.pumpAndSettle();
+
+      expect(cls.assignment, plan, reason: 'valider ne doit rien déplacer');
+      expect(find.text('Toutes les règles sont respectées 🎉'), findsOneWidget);
+    });
+
+    testWidgets('les élèves en trop sont signalés', (t) async {
+      final cls = _cls(rows: 1, cols: 2, students: 3);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      expect(cls.assignment, hasLength(2));
+      expect(find.textContaining('Non placés :'), findsOneWidget);
+      expect(find.textContaining('la salle manque de places'), findsOneWidget);
+    });
+
+    testWidgets('une règle dure violée est rapportée', (t) async {
+      // Deux places imposées sur la même case : la seconde est impossible.
+      final cls = _cls(rows: 2, cols: 2, rules: [
+        Rule(
+            id: 'r1',
+            type: RuleType.fixedSeat,
+            studentAId: 'stu0',
+            seatRow: 0,
+            seatCol: 0),
+        Rule(
+            id: 'r2',
+            type: RuleType.fixedSeat,
+            studentAId: 'stu1',
+            seatRow: 0,
+            seatCol: 0),
+      ]);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('place imposée déjà occupée'), findsOneWidget);
+      expect(find.text('Toutes les règles sont respectées 🎉'), findsNothing);
+    });
+
+    testWidgets('le bilan d\'équilibre s\'affiche quand un objectif est actif',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      cls.balance.separateAgites = true;
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Équilibre'), findsOneWidget);
+      expect(find.textContaining('Élèves agités'), findsOneWidget);
+    });
+
+    testWidgets('glisser un élève sur une autre place échange les deux',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 2, students: 2)
+        ..assignment[Room.keyOf(0, 0)] = 'stu0'
+        ..assignment[Room.keyOf(0, 1)] = 'stu1';
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      final from = t.getCenter(find.text('PN').first);
+      final to = t.getCenter(find.text('PN').last);
+      await t.dragFrom(from, to - from);
+      await t.pumpAndSettle();
+
+      expect(cls.assignment[Room.keyOf(0, 0)], 'stu1');
+      expect(cls.assignment[Room.keyOf(0, 1)], 'stu0');
+    });
+
+    testWidgets('glisser un élève sur une place vide le déplace', (t) async {
+      final cls = _cls(rows: 1, cols: 2, students: 1)
+        ..assignment[Room.keyOf(0, 0)] = 'stu0';
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      final occupied = t.getCenter(find.text('PN'));
+      final empty = t.getCenter(find.byIcon(Icons.event_seat_outlined));
+      await t.dragFrom(occupied, empty - occupied);
+      await t.pumpAndSettle();
+
+      expect(cls.assignment.containsKey(Room.keyOf(0, 0)), isFalse);
+      expect(cls.assignment[Room.keyOf(0, 1)], 'stu0');
+    });
+  });
+}
