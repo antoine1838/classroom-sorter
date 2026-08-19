@@ -124,6 +124,55 @@ class Student {
       );
 }
 
+/// Étiquettes courtes et, autant que possible, NON AMBIGUËS pour le plan.
+///
+/// Deux élèves peuvent partager leurs initiales — « Marie Dupont » et « Marc
+/// Durand » donnent tous deux `MD`, ce qui ne désigne personne. On allonge donc
+/// le nom de famille lettre à lettre pour les seuls groupes en conflit :
+/// `M.Du` / `M.Da`, puis `M.Dup` / `M.Dur` s'il le faut.
+///
+/// En cas d'homonymie complète on s'arrête : deux « Marie Dupont » sont
+/// réellement indiscernables sur une case, et c'est le détail de l'élève qui
+/// tranchera. Renvoie `id de l'élève -> étiquette`.
+Map<String, String> disambiguatedInitials(List<Student> students) {
+  final labels = <String, String>{
+    for (final s in students) s.id: s.initials,
+  };
+
+  // Groupe les élèves par étiquette, et n'allonge que là où ça collide.
+  final byLabel = <String, List<Student>>{};
+  for (final s in students) {
+    (byLabel[labels[s.id]!] ??= []).add(s);
+  }
+
+  for (final group in byLabel.values) {
+    if (group.length < 2) continue;
+    for (var keep = 2;; keep++) {
+      final attempt = {for (final s in group) s.id: _longerLabel(s, keep)};
+      final distinct = attempt.values.toSet().length == group.length;
+      // Plus rien à allonger : les noms restants sont identiques.
+      final exhausted = group.every((s) => s.lastName.trim().length <= keep);
+      if (distinct || exhausted) {
+        labels.addAll(attempt);
+        break;
+      }
+    }
+  }
+
+  return labels;
+}
+
+/// Initiale du prénom + [keep] premières lettres du nom : `M.Du`.
+String _longerLabel(Student s, int keep) {
+  final f = s.firstName.trim();
+  final l = s.lastName.trim();
+  if (l.isEmpty) return s.initials;
+  final head = l.length <= keep ? l : l.substring(0, keep);
+  final capitalised = head[0].toUpperCase() + head.substring(1).toLowerCase();
+  if (f.isEmpty) return capitalised;
+  return '${f[0].toUpperCase()}.$capitalised';
+}
+
 /// Trie par nom de famille puis prénom, insensible à la casse.
 int compareStudentsByName(Student a, Student b) {
   final byLast = a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase());
