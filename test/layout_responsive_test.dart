@@ -88,7 +88,9 @@ void main() {
     await _pumpEditor(tester, _demoClass(rows: 5, cols: 7),
         mode: StudentsViewMode.compact);
 
-    await tester.tap(find.text('Élèves'));
+    // Les onglets passent en icônes seules quand leurs libellés ne tiennent
+    // plus : on cible donc l'icône, stable dans les deux cas.
+    await tester.tap(find.byIcon(Icons.people_alt_outlined));
     await tester.pumpAndSettle();
 
     // La colonne la plus à droite est l'attribut « Vue » (en-tête).
@@ -110,7 +112,9 @@ void main() {
     await _pumpEditor(tester, _demoClass(rows: 5, cols: 7),
         mode: StudentsViewMode.complete);
 
-    await tester.tap(find.text('Élèves'));
+    // Les onglets passent en icônes seules quand leurs libellés ne tiennent
+    // plus : on cible donc l'icône, stable dans les deux cas.
+    await tester.tap(find.byIcon(Icons.people_alt_outlined));
     await tester.pumpAndSettle();
 
     // Le dernier groupe de colonnes est l'attribut « Vue » (en-tête).
