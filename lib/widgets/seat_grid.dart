@@ -34,14 +34,17 @@ const double kBannerBlock = 38;
 /// dessous elle s'en tient aux initiales.
 const double kFirstNameMinWidth = 54;
 
-/// Taille de police RENDUE visée pour un prénom.
+/// Bornes de la taille de police RENDUE d'un prénom, et sa part de la largeur
+/// de case.
 ///
-/// **Constante à dessein.** Une police proportionnelle à la case — la première
-/// version — rendait le nombre de lettres invariant : la case grandissait de
-/// 45 % en paysage, la police aussi, et on ne gagnait qu'une lettre. C'est la
-/// taille rendue qui décide du nombre de caractères, donc c'est elle qu'il faut
-/// fixer, et la taille non mise à l'échelle qu'il faut en déduire.
-const double kSeatNameRenderedSize = 11;
+/// La police doit croître **moins vite** que la case, sinon le nombre de
+/// lettres reste invariant : c'était le défaut de la première version, où une
+/// case 45 % plus large affichait une police 45 % plus grosse et donc une seule
+/// lettre de plus. Le plafond garantit qu'au-delà d'une certaine taille, la
+/// place gagnée achète des lettres et non des pixels.
+const double kNameSizeRatio = 0.12;
+const double kNameSizeMin = 11;
+const double kNameSizeMax = 18;
 
 /// Hauteur totale de la grille, bandeau et marges compris. Indépendante de
 /// l'orientation : seule la LARGEUR d'une case change.
@@ -93,9 +96,13 @@ class SeatMetrics {
   /// Le prénom plutôt que les initiales.
   bool get showsFirstName => renderedWidth >= kFirstNameMinWidth;
 
-  /// Police du prénom, avant réduction : choisie pour que la taille RENDUE soit
-  /// [kSeatNameRenderedSize] quelle que soit l'échelle.
-  double get nameFontSize => kSeatNameRenderedSize / (scale * zoom);
+  /// Taille de police du prénom telle qu'elle apparaît à l'écran.
+  double get renderedNameSize =>
+      (renderedWidth * kNameSizeRatio).clamp(kNameSizeMin, kNameSizeMax);
+
+  /// Police du prénom avant mise à l'échelle : déduite de la taille rendue
+  /// voulue, et non l'inverse.
+  double get nameFontSize => renderedNameSize / (scale * zoom);
 
   /// Les initiales, elles, remplissent la case : proportionnelles lui va bien,
   /// puisqu'il n'y a que deux à cinq caractères à faire tenir.
@@ -104,12 +111,16 @@ class SeatMetrics {
 
 /// Mesure la grille pour un [viewport] donné.
 ///
-/// En paysage, la largeur d'une case n'est pas codée en dur : on prend la plus
-/// grande qui n'empire pas l'échelle. Comme la hauteur de la grille ne dépend
-/// pas de cette largeur, tant que c'est la hauteur qui contraint, élargir les
-/// cases est gratuit — et c'est ce qui achète des lettres.
+/// La largeur d'une case n'est jamais codée en dur : on prend la plus grande qui
+/// n'empire pas l'échelle. Comme la hauteur de la grille n'en dépend pas, tant
+/// que c'est la hauteur qui contraint, élargir les cases est gratuit — et c'est
+/// ce qui achète des lettres.
+///
+/// **Aucune notion d'orientation ici**, à dessein : c'est la place disponible
+/// qui décide. Lier l'élargissement au « téléphone en paysage » laissait une
+/// fenêtre de bureau large avec des cases carrées et des prénoms tronqués.
 SeatMetrics seatMetrics(Room room, Size viewport,
-    {bool landscape = false, double zoom = 1, bool editor = false}) {
+    {double zoom = 1, bool editor = false}) {
   if (viewport.isEmpty || room.cols <= 0 || room.rows <= 0) {
     return SeatMetrics(cell: kCell, scale: 1, zoom: zoom);
   }
@@ -118,18 +129,19 @@ SeatMetrics seatMetrics(Room room, Size viewport,
   final extras = _horizontalExtras(room, editor: editor);
   final heightScale = viewport.height / height;
 
-  var cell = kCell;
-  if (landscape) {
-    // Largeur qui rend l'échelle horizontale exactement égale à la verticale.
-    final ideal = (viewport.width / heightScale - extras) / room.cols;
-    cell = ideal.clamp(kCell, kCellWideMax).toDouble();
-  }
+  // Largeur qui rend l'échelle horizontale exactement égale à la verticale :
+  // au-delà, élargir ferait rétrécir toute la grille.
+  final ideal = (viewport.width / heightScale - extras) / room.cols;
+  final cell = ideal.clamp(kCell, kCellWideMax).toDouble();
 
+  // L'échelle peut dépasser 1 : sur un grand écran la salle doit OCCUPER la
+  // place disponible. S'en tenir à « rétrécir seulement » laissait la grille à
+  // sa taille naturelle dans un coin, avec des prénoms tronqués alors que
+  // l'espace était là.
   final widthScale = viewport.width / (room.cols * cell + extras);
-  final scale = min(widthScale, heightScale);
   return SeatMetrics(
     cell: cell,
-    scale: scale > 1 ? 1 : scale,
+    scale: min(widthScale, heightScale),
     zoom: zoom,
   );
 }
@@ -239,11 +251,12 @@ class _FittedGrid extends StatelessWidget {
         ],
       ),
     );
-    // BoxFit.scaleDown ne fait que rétrécir — une petite salle garde sa taille
-    // naturelle et reste alignée en haut.
+    // BoxFit.contain, et non scaleDown : la salle doit aussi GRANDIR pour
+    // occuper un grand écran. Avec scaleDown elle restait à sa taille naturelle
+    // en haut de la fenêtre, laissant tout le bas vide.
     return SizedBox.expand(
       child: FittedBox(
-        fit: BoxFit.scaleDown,
+        fit: BoxFit.contain,
         alignment: Alignment.topCenter,
         child: grid,
       ),
@@ -334,9 +347,6 @@ class PlanGrid extends StatelessWidget {
   /// Échanger les occupants de deux places (glisser-déposer).
   final void Function(String seatA, String seatB) onSwap;
 
-  /// Cases larges portant le prénom, plutôt que carrées (paysage).
-  final bool landscape;
-
   /// Compteur de doigts partagé avec la fenêtre de zoom : une place refuse de se
   /// laisser saisir dès qu'il y a deux doigts, sinon un pincement posé dessus
   /// déclencherait un glisser par doigt.
@@ -346,7 +356,6 @@ class PlanGrid extends StatelessWidget {
     super.key,
     required this.cls,
     required this.onSwap,
-    this.landscape = false,
     this.tracker,
   });
 
@@ -361,9 +370,7 @@ class PlanGrid extends StatelessWidget {
       builder: (context, constraints) {
         // Tout dépend de la place réellement disponible ici : la largeur des
         // cases, l'échelle, donc la police et le choix prénom / initiales.
-        final m = seatMetrics(cls.room, constraints.biggest,
-            landscape: landscape);
-        final width = m.cell;
+        final m = seatMetrics(cls.room, constraints.biggest);
 
         return _FittedGrid(
           room: cls.room,
@@ -371,7 +378,7 @@ class PlanGrid extends StatelessWidget {
           cellBuilder: (r, c) {
             if (!cls.room.isSeat(r, c)) {
               // Allée / vide : simple espace.
-              return SizedBox(width: width, height: kCell);
+              return SizedBox(width: m.cell, height: kCell);
             }
             final seatKey = Room.keyOf(r, c);
             final student = cls.studentById(cls.assignment[seatKey]);
@@ -389,7 +396,7 @@ class PlanGrid extends StatelessWidget {
                   child: _seatContent(context, student, false,
                       labels: labels, metrics: m, elevated: true),
                 );
-                final placeholder = _emptySeat(cs, false);
+                final placeholder = _emptySeat(cs, false, m.cell);
                 // Occupé : rendre l'élève déplaçable. Avec un compteur de
                 // doigts, on passe par SeatDraggable pour qu'un pincement ne
                 // saisisse pas d'élève.
@@ -420,7 +427,7 @@ class PlanGrid extends StatelessWidget {
       required SeatMetrics metrics,
       bool elevated = false}) {
     final cs = Theme.of(context).colorScheme;
-    if (student == null) return _emptySeat(cs, hovering);
+    if (student == null) return _emptySeat(cs, hovering, metrics.cell);
     final levelIcon = _levelCornerIcon(student.level);
     final energyIcon = _energyCornerIcon(student.energy);
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
@@ -522,8 +529,10 @@ class PlanGrid extends StatelessWidget {
     );
   }
 
-  Widget _emptySeat(ColorScheme cs, bool hovering) => Container(
-        width: kCell,
+  /// Place libre. Reçoit la largeur mesurée comme les places occupées : sans
+  /// ça, elle resterait carrée au milieu de rectangles et casserait la grille.
+  Widget _emptySeat(ColorScheme cs, bool hovering, double width) => Container(
+        width: width,
         height: kCell,
         decoration: BoxDecoration(
           color: hovering ? cs.primaryContainer : cs.surface,
