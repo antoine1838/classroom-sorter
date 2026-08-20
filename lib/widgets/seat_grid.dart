@@ -9,6 +9,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'plan_viewport.dart';
+
 import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/student.dart';
@@ -36,8 +38,9 @@ const double kCellWide = 90;
 /// factices de `flutter_test` ne mesurant pas le texte comme le moteur.
 const double kFirstNameMinWidth = 54;
 
-/// Hauteur totale de la grille, hors bandeau « devant ».
-double gridHeight(Room room, {bool landscape = false}) =>
+/// Hauteur totale de la grille, hors bandeau « devant ». Indépendante de
+/// l'orientation : seule la LARGEUR d'une case change (voir [kCellWide]).
+double gridHeight(Room room) =>
     room.rows * kCell + (room.rows - 1) * kRowGap;
 
 /// Facteur appliqué par le [FittedBox] pour que la salle tienne d'un coup dans
@@ -45,7 +48,7 @@ double gridHeight(Room room, {bool landscape = false}) =>
 double fitScale(Room room, Size viewport, {bool landscape = false}) {
   if (viewport.isEmpty) return 1;
   final w = gridWidth(room, landscape: landscape);
-  final h = gridHeight(room, landscape: landscape);
+  final h = gridHeight(room);
   if (w <= 0 || h <= 0) return 1;
   final scale = min(viewport.width / w, viewport.height / h);
   return scale > 1 ? 1 : scale;
@@ -133,19 +136,29 @@ class _FrontBanner extends StatelessWidget {
   }
 }
 
-/// Enveloppe scrollable (H + V) commune aux deux grilles.
+/// Enveloppe commune aux deux grilles : réduit la salle pour qu'elle tienne
+/// d'un coup, comme une carte.
+///
+/// Ne défile pas, contrairement à ce que son ancien nom laissait croire : la
+/// salle est mise à l'échelle, pas parcourue. Le zoom, lui, est fourni par
+/// [PlanViewport] au-dessus.
 ///
 /// Fournit aussi le rendu des couloirs entre colonnes. Si [onToggleAisle] est
 /// non nul (mode éditeur), les espaces inter-colonnes sont tappables pour
 /// ajouter/retirer un couloir ; sinon ils sont seulement affichés.
-class _ScrollableGrid extends StatelessWidget {
+class _FittedGrid extends StatelessWidget {
   final Room room;
   final Widget Function(int r, int c) cellBuilder;
   final void Function(int c)? onToggleAisle;
-  const _ScrollableGrid({
+
+  /// Cases larges plutôt que carrées (voir [kCellWide]).
+  final bool landscape;
+
+  const _FittedGrid({
     required this.room,
     required this.cellBuilder,
     this.onToggleAisle,
+    this.landscape = false,
   });
 
   bool get _editor => onToggleAisle != null;
@@ -173,15 +186,12 @@ class _ScrollableGrid extends StatelessWidget {
                 ],
               ),
             ),
-          _FrontBanner(gridWidth(room, editor: _editor)),
+          _FrontBanner(gridWidth(room, editor: _editor, landscape: landscape)),
         ],
-
       ),
     );
-    // Réduire toute la salle pour qu'elle tienne d'un coup à l'écran, comme
-    // une carte : sur un téléphone (format vertical) une salle large déborderait
-    // sinon. BoxFit.scaleDown ne fait que rétrécir — une petite salle garde sa
-    // taille naturelle et reste alignée en haut.
+    // BoxFit.scaleDown ne fait que rétrécir — une petite salle garde sa taille
+    // naturelle et reste alignée en haut.
     return SizedBox.expand(
       child: FittedBox(
         fit: BoxFit.scaleDown,
@@ -232,7 +242,7 @@ class RoomEditorGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return _ScrollableGrid(
+    return _FittedGrid(
       room: room,
       onToggleAisle: (c) {
         room.toggleColAisle(c);
@@ -275,37 +285,80 @@ class PlanGrid extends StatelessWidget {
   /// Échanger les occupants de deux places (glisser-déposer).
   final void Function(String seatA, String seatB) onSwap;
 
-  const PlanGrid({super.key, required this.cls, required this.onSwap});
+  /// Cases larges portant le prénom, plutôt que carrées (paysage).
+  final bool landscape;
+
+  /// Compteur de doigts partagé avec la fenêtre de zoom : une place refuse de se
+  /// laisser saisir dès qu'il y a deux doigts, sinon un pincement posé dessus
+  /// déclencherait un glisser par doigt.
+  final PointerTracker? tracker;
+
+  const PlanGrid({
+    super.key,
+    required this.cls,
+    required this.onSwap,
+    this.landscape = false,
+    this.tracker,
+  });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return _ScrollableGrid(
-      room: cls.room,
-      cellBuilder: (r, c) {
-        if (!cls.room.isSeat(r, c)) {
-          // Allée / vide : simple espace.
-          return const SizedBox(width: kCell, height: kCell);
-        }
-        final seatKey = Room.keyOf(r, c);
-        final student = cls.studentById(cls.assignment[seatKey]);
+    final width = cellWidth(landscape: landscape);
+    // Étiquettes calculées une fois pour toute la classe : la désambiguïsation
+    // a besoin de voir tout le monde pour repérer les collisions.
+    final labels = disambiguatedInitials(cls.students);
 
-        return DragTarget<String>(
-          onWillAcceptWithDetails: (d) => d.data != seatKey,
-          onAcceptWithDetails: (d) => onSwap(d.data, seatKey),
-          builder: (context, candidate, rejected) {
-            final hovering = candidate.isNotEmpty;
-            final cell = _seatContent(context, student, hovering);
-            if (student == null) return cell;
-            // Occupé : rendre l'élève déplaçable.
-            return Draggable<String>(
-              data: seatKey,
-              feedback: Material(
-                color: Colors.transparent,
-                child: _seatContent(context, student, false, elevated: true),
-              ),
-              childWhenDragging: _emptySeat(cs, false),
-              child: cell,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Le prénom ne s'affiche que si la case aura vraiment la place, ce qui
+        // dépend de la réduction appliquée — donc de l'espace disponible ici.
+        final named = showsFirstName(cls.room, constraints.biggest,
+            landscape: landscape);
+
+        return _FittedGrid(
+          room: cls.room,
+          landscape: landscape,
+          cellBuilder: (r, c) {
+            if (!cls.room.isSeat(r, c)) {
+              // Allée / vide : simple espace.
+              return SizedBox(width: width, height: kCell);
+            }
+            final seatKey = Room.keyOf(r, c);
+            final student = cls.studentById(cls.assignment[seatKey]);
+
+            return DragTarget<String>(
+              onWillAcceptWithDetails: (d) => d.data != seatKey,
+              onAcceptWithDetails: (d) => onSwap(d.data, seatKey),
+              builder: (context, candidate, rejected) {
+                final hovering = candidate.isNotEmpty;
+                final cell = _seatContent(context, student, hovering,
+                    labels: labels, named: named);
+                if (student == null) return cell;
+                final feedback = Material(
+                  color: Colors.transparent,
+                  child: _seatContent(context, student, false,
+                      labels: labels, named: named, elevated: true),
+                );
+                final placeholder = _emptySeat(cs, false);
+                // Occupé : rendre l'élève déplaçable. Avec un compteur de
+                // doigts, on passe par SeatDraggable pour qu'un pincement ne
+                // saisisse pas d'élève.
+                return tracker == null
+                    ? Draggable<String>(
+                        data: seatKey,
+                        feedback: feedback,
+                        childWhenDragging: placeholder,
+                        child: cell,
+                      )
+                    : SeatDraggable<String>(
+                        tracker: tracker!,
+                        data: seatKey,
+                        feedback: feedback,
+                        childWhenDragging: placeholder,
+                        child: cell,
+                      );
+              },
             );
           },
         );
@@ -314,16 +367,19 @@ class PlanGrid extends StatelessWidget {
   }
 
   Widget _seatContent(BuildContext context, Student? student, bool hovering,
-      {bool elevated = false}) {
+      {required Map<String, String> labels,
+      required bool named,
+      bool elevated = false}) {
     final cs = Theme.of(context).colorScheme;
     if (student == null) return _emptySeat(cs, hovering);
     final levelIcon = _levelCornerIcon(student.level);
     final energyIcon = _energyCornerIcon(student.energy);
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
+    final width = cellWidth(landscape: landscape);
     return Tooltip(
       message: student.fullName,
       child: Container(
-        width: kCell,
+        width: width,
         height: kCell,
         decoration: BoxDecoration(
           color: studentColor(student, cs),
@@ -339,11 +395,7 @@ class PlanGrid extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         child: Stack(
           children: [
-            Center(
-              child: Text(student.initials,
-                  style:
-                      const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
+            Center(child: _seatLabel(student, labels, named, width)),
             if (levelIcon != null)
               Positioned(
                 top: 0,
@@ -379,6 +431,42 @@ class PlanGrid extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Le prénom quand la case a la place, les initiales désambiguïsées sinon.
+  ///
+  /// La taille de police est proportionnelle à la largeur de la case, et non
+  /// fixe : tout ce contenu est ensuite réduit par le `FittedBox` de la grille,
+  /// donc une valeur en dur redeviendrait minuscule dès que la salle est large.
+  Widget _seatLabel(
+      Student student, Map<String, String> labels, bool named, double width) {
+    if (!named) {
+      return Text(
+        labels[student.id] ?? student.initials,
+        maxLines: 1,
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: width * 0.26),
+      );
+    }
+    // Prénom sur une ligne, initiale du nom en dessous pour départager deux
+    // homonymes de prénom.
+    final lastInitial = student.lastName.trim();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          student.firstName.trim().isEmpty ? '?' : student.firstName.trim(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: width * 0.16),
+        ),
+        if (lastInitial.isNotEmpty)
+          Text(
+            '${lastInitial[0].toUpperCase()}.',
+            maxLines: 1,
+            style: TextStyle(fontSize: width * 0.13, color: _cornerIconColor),
+          ),
+      ],
     );
   }
 
