@@ -34,7 +34,14 @@ const kClassTabs = <({IconData icon, String label})>[
 /// Largeur du bouton retour, et respiration minimale autour d'un libellé
 /// d'onglet.
 const double _kBackButtonWidth = 48;
-const double _kTabLabelBreathing = 16;
+
+/// Padding interne d'un [Tab] de chaque côté de son contenu
+/// (`kTabLabelPadding` dans le code source de Flutter = 16dp par côté, donc
+/// 32 au total). Mesuré en trouvant le seuil réel de clip par test : une
+/// première valeur à 16 (un seul côté) faisait basculer le palier trop tard,
+/// les libellés larges (« Élèves », « Règles ») restant coupés net alors que
+/// le calcul les croyait déjà casés.
+const double _kTabLabelBreathing = 32;
 
 /// Vrai si les libellés des onglets tiennent en entier dans [width].
 ///
@@ -61,6 +68,11 @@ bool _tabLabelsFit(BuildContext context, double width) {
 /// Toute la barre est tappable pour renommer : un [IconButton] fait 48 dp, il ne
 /// tiendrait pas dans cette hauteur. La cible devient donc large et basse plutôt
 /// que carrée, et le crayon n'est qu'un indice visuel.
+///
+/// Le nom est centré sur toute la largeur de la barre, pas seulement dans
+/// l'espace qui reste après le crayon : une réserve invisible de la même
+/// largeur équilibre le crayon de l'autre côté, sans quoi le centrage ne serait
+/// que visuel d'un côté et le nom paraîtrait décalé vers la gauche.
 class _ClassNameBar extends StatelessWidget {
   const _ClassNameBar({
     required this.state,
@@ -84,11 +96,16 @@ class _ClassNameBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           child: Row(
             children: [
+              // Réserve invisible de la même largeur que le crayon, pour que le
+              // nom se centre sur toute la barre plutôt que sur l'espace qui
+              // reste à sa gauche.
+              const SizedBox(width: 14),
               Expanded(
                 child: ListenableBuilder(
                   listenable: state,
                   builder: (_, _) => Text(
                     cls.name.isEmpty ? 'Classe' : cls.name,
+                    textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     // Même police que les onglets : les onglets Material 3
@@ -203,7 +220,9 @@ class ClassEditorScreen extends StatelessWidget {
           for (final t in kClassTabs)
             labels
                 ? Tab(icon: Icon(t.icon), text: t.label)
-                : Tab(icon: Icon(t.icon)),
+                // Sans libellé visible, l'icône seule ne dit plus son nom :
+                // un Tooltip porte le texte qui vient de disparaître.
+                : Tab(icon: Tooltip(message: t.label, child: Icon(t.icon))),
         ],
       );
 
@@ -229,7 +248,18 @@ class ClassEditorScreen extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, constraints) => Row(
                     children: [
-                      const BackButton(key: kClassBackKey),
+                      // BackButton tire son infobulle de
+                      // MaterialLocalizations, qui répond en anglais faute de
+                      // délégué de localisation configuré pour l'app (aucune
+                      // trace de localizationsDelegates dans main.dart — une
+                      // vraie localisation FR est un chantier à part, hors
+                      // scope ici). On fixe juste ce bouton en français.
+                      IconButton(
+                        key: kClassBackKey,
+                        icon: const BackButtonIcon(),
+                        tooltip: 'Retour',
+                        onPressed: () => Navigator.maybePop(context),
+                      ),
                       Expanded(
                         child: _tabsFor(
                           labels:
@@ -2008,7 +2038,7 @@ class _PlanTabState extends State<_PlanTab> {
 
     // Trois états, et non deux : un objectif d'équilibre non atteint n'est pas
     // une erreur, mais ce n'est pas « tout est bon » non plus.
-    final (IconData icon, Color? colour, String tooltip) = switch (result) {
+    final (IconData icon, Color colour, String tooltip) = switch (result) {
       final r when r.hardCount > 0 => (
           Icons.error_outline,
           cs.error,
@@ -2046,9 +2076,7 @@ class _PlanTabState extends State<_PlanTab> {
       onPressed: () => _showReport(context),
       icon: Icon(icon, color: colour),
       label: Text(_reportLabel),
-      style: colour == null
-          ? null
-          : OutlinedButton.styleFrom(foregroundColor: colour),
+      style: OutlinedButton.styleFrom(foregroundColor: colour),
     );
   }
 
