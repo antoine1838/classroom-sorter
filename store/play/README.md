@@ -9,17 +9,22 @@ Ressources de la fiche Play Store (appli Android). À copier dans la
 |---|---|---|
 | `icon-512.png` | Icône de l'appli | 512×512, PNG 32 bits, opaque |
 | `feature-graphic-1024x500.png` | Image mise en avant | 1024×500, PNG/JPEG 24 bits |
-| `screenshots/*.png` | Captures téléphone | 6 × 1080×1920 (9:16) |
+| `screenshots/*.png` | Captures téléphone | 8 (6 × 1080×1920 portrait + 2 paysage) |
 
 Icône et bandeau régénérés depuis l'icône de l'app via le skill
 `flutter-store-graphics` (`gen_feature_graphic.py`, `regen_platforms.py`).
 
-Captures (`screenshots/`, ≥ 4 en 1080×1920 pour pouvoir promouvoir l'appli) :
+Captures (`screenshots/`), prises sur le build Windows, une classe de démo
+(noms fictifs) :
 `01-accueil`, `02-salle`, `03-eleves-compacte`, `04-eleves-complete`,
-`05-regles`, `06-plan` — prises sur le build Windows (écran portrait), une
-classe de démo (noms fictifs). L'onglet Élèves a deux captures, une par vue :
-Compacte (colonne par attribut, tap pour cycler) et Complète (colonne par
-valeur, cases à cocher).
+`05-regles`, `06-plan` (portrait, 1080×1920) ; `07-plan-detail` (portrait,
+la feuille de détail ouverte au tap sur une place) ; `08-plan-paysage`
+(paysage, ~950×500, cases rectangulaires + rail de commandes). L'onglet
+Élèves a deux captures, une par vue : Compacte (colonne par attribut, tap
+pour cycler) et Complète (colonne par valeur, cases à cocher). `06-plan` et
+`07-plan-detail` forcent une violation (place imposée non honorée) pour que
+le marquage par sévérité et la feuille de détail aient quelque chose à
+montrer — la classe de démo, telle que livrée, respecte toutes ses règles.
 
 Depuis l'ajout du bouton **« Classe de démo »** sur l'accueil (icône baguette
 magique dans l'AppBar), plus besoin d'injecter la classe à la main dans les

@@ -1,0 +1,5 @@
+Nouveautés 1.9.0 :
+• Plan : les élèves concernés par un problème sont mis en évidence directement sur leur place ; touchez une place pour voir tous ses détails.
+• Plan lisible en paysage : cases plus larges, prénoms visibles, sans perdre de hauteur utile pour la salle.
+• Nouveau bouton pour ajouter une classe de démo depuis l'accueil.
+• Prénoms et noms mis en majuscule automatiquement, à la saisie comme à l'import.

@@ -30,8 +30,13 @@ Viser l'équilibre sur toute la classe
 Générer et ajuster
 • Le plan est calculé automatiquement pour respecter au mieux vos contraintes.
 • Un rapport indique les règles et objectifs respectés, et ceux qui ne peuvent pas l'être.
+• Les élèves concernés par un problème sont mis en évidence directement sur leur place ; touchez n'importe quelle place pour voir tous ses détails (nom complet, attributs, motifs).
 • Réorganisez librement par glisser-déposer, puis « Valider » pour vérifier que règles et équilibre sont toujours respectés.
 • Pas satisfait ? « Régénérer » propose une nouvelle disposition.
+
+Lisible sur tout écran
+• La salle s'affiche entière, aussi bien en portrait (avec zoom à deux doigts) qu'en paysage.
+• Le prénom de chaque élève s'affiche dès que la place le permet, sinon des initiales non ambiguës (deux élèves aux mêmes initiales restent distingués).
 
 RESPECT DE LA VIE PRIVÉE
 • 100 % hors-ligne, données stockées uniquement sur l'appareil.
