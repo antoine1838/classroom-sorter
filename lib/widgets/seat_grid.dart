@@ -20,9 +20,17 @@ const double kGap = 6; // espace normal entre deux colonnes
 const double kAisle = 24; // largeur d'un couloir entre colonnes
 const double kRowGap = 14; // espace entre rangs (toujours un couloir)
 
-/// Largeur maximale d'une case en paysage. Au-delà, une place cesse de
-/// ressembler à une place.
-const double kCellWideMax = 140;
+/// Rapport largeur/hauteur maximal d'une place. Au-delà, ce n'est plus une
+/// place mais une barre.
+///
+/// Arbitré à l'essai : 3:1 passe encore pour une place, et on accepte le blanc
+/// qui reste sur les côtés d'une fenêtre très large — une salle de 7 colonnes
+/// sur 5 rangs a un rapport de 2,5:1, elle ne peut pas remplir un 4:1 sans se
+/// déformer.
+const double kCellMaxAspect = 3;
+
+/// Largeur maximale d'une case, déduite de ce rapport.
+const double kCellWideMax = kCell * kCellMaxAspect;
 
 /// Marge intérieure de la grille (`Padding(all: 4)`) et encombrement vertical du
 /// bandeau « DEVANT » : comptés dans la mesure, sinon l'échelle prédite serait

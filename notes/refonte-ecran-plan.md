@@ -435,3 +435,22 @@ Comme `TabBarView` construit les onglets voisins, ces débordements existent mê
 Plan. Le balayage de formats purge donc l'exception du montage — qui a lieu sur l'onglet Salle — avant
 de basculer sur le Plan, sinon les tests du Plan échoueraient pour des défauts qui ne sont pas les
 siens.
+
+
+#### Septième tour : l'app bar disparaît, et le plafond des cases monte à 3:1
+
+**Décision finale sur le nom de classe.** L'app bar disparaît complètement, à toutes les tailles : elle
+n'affichait plus que le nom, désormais permanent sur sa barre fine. Une seule disposition partout — barre
+du nom, puis retour à gauche des onglets — et 56 dp rendus à la grille sur TOUS les formats, bureau
+compris. L'échelle de dégradation perd un étage : il ne reste que l'arbitrage du rail.
+
+**Deux vrais bugs de calcul trouvés en testant cette suppression**, tous deux dans les paliers de
+libellés : les deux commandes principales étant dans des `Expanded`, elles se partagent la largeur à
+parts égales — il fallait donc deux fois la PLUS LARGE des deux, pas leur somme. Et dans l'ancienne
+disposition avec app bar, les onglets étaient câblés en dur sur `labels: true` : seule la variante
+compacte mesurait, donc ils ne passaient jamais en icônes. Et un oubli visuel : l'état sain du rapport
+prenait la couleur grise par défaut plutôt qu'un vert explicite.
+
+**`kCellMaxAspect` monte à 3:1** (146→186 dp de large pour une case de 62 dp de haut), en acceptant
+le blanc restant sur les côtés d'une fenêtre très plate. Mesuré sur le format signalé (7×5, ~1143×250) :
+largeur employée 53 % → 71 %.
