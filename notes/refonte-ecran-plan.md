@@ -454,3 +454,25 @@ prenait la couleur grise par défaut plutôt qu'un vert explicite.
 **`kCellMaxAspect` monte à 3:1** (146→186 dp de large pour une case de 62 dp de haut), en acceptant
 le blanc restant sur les côtés d'une fenêtre très plate. Mesuré sur le format signalé (7×5, ~1143×250) :
 largeur employée 53 % → 71 %.
+
+#### Huitième tour : le vrai palier des onglets, tooltips, retour en français, nom centré
+
+**Le palier des onglets basculait trop tard — un vrai bug de calcul, pas un réglage.** La marge de
+respiration (`_kTabLabelBreathing`) valait 16, en ne comptant qu'UN côté du padding interne d'un
+`Tab` (`kTabLabelPadding` dans les sources Flutter : `EdgeInsets.symmetric(horizontal: 16)`, donc
+32 au total, pas 16). Conséquence mesurée : à 460–500dp de large, « Élèves » et « Règles » (les deux
+libellés les plus longs, 84dp de large chacun) restaient coupés net dans leur case alors que le calcul
+les croyait déjà casés. Passé à 32 ; nouveau seuil ≈512dp au lieu de ≈448dp estimé, confirmé par un
+balayage de 61 largeurs (300 à 900dp par pas de 10) vérifiant qu'aucun libellé n'est jamais rendu plus
+étroit que sa largeur naturelle.
+
+Trois retouches de finition, toutes signalées après essai :
+
+- **Tooltips en mode icônes** : sans libellé visible, une icône seule ne dit plus son nom. Chaque `Tab`
+  sans texte reçoit un `Tooltip` portant le libellé disparu.
+- **Retour en français** : `BackButton` tire son infobulle de `MaterialLocalizations`, qui répond en
+  anglais faute de délégué de localisation configuré pour l'app (aucune trace de
+  `localizationsDelegates` dans `main.dart` — une vraie localisation FR complète est un chantier à
+  part, hors scope ici). Remplacé par un `IconButton` équivalent avec `tooltip: 'Retour'`.
+- **Nom de classe centré** : une réserve invisible de la largeur du crayon équilibre l'autre côté de la
+  barre, sans quoi le centrage n'aurait été que visuel côté gauche et le nom aurait paru décalé.

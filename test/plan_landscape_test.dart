@@ -463,4 +463,64 @@ void main() {
       expect(find.byIcon(Icons.center_focus_strong), findsNothing);
     });
   });
+
+  group('Onglets — libellés jamais coupés', () {
+    // Signalé après essai : « le palier pour le passage en icône des onglets
+    // arrive un peu tard ». Cause : la marge de respiration ne comptait le
+    // padding interne d'un Tab (kTabLabelPadding) que d'un seul côté (16dp) au
+    // lieu des deux (32dp) — le seuil se croyait atteint alors que « Élèves »
+    // et « Règles », les deux libellés les plus longs, étaient encore coupés
+    // net dans leur case.
+    double naturalWidth(WidgetTester t, String text) {
+      final w = t.widget<Text>(find.text(text));
+      final tp = TextPainter(
+        text: TextSpan(text: w.data, style: w.style),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      return tp.width;
+    }
+
+    for (var w = 300.0; w <= 900; w += 10) {
+      testWidgets('aucun libellé coupé à ${w.toInt()}dp de large', (t) async {
+        await _pump(t, _cls(), Size(w, 900));
+
+        for (final label in ['Salle', 'Élèves', 'Règles', 'Plan']) {
+          final finder = find.text(label);
+          if (finder.evaluate().isEmpty) continue; // mode icônes : rien à vérifier
+          final box = t.renderObject(finder) as RenderBox;
+          final natural = naturalWidth(t, label);
+          expect(box.size.width, greaterThanOrEqualTo(natural - 0.5),
+              reason: '« $label » coupé à ${w.toInt()}dp de large '
+                  '(rendu ${box.size.width.toStringAsFixed(1)}, '
+                  'naturel ${natural.toStringAsFixed(1)})');
+        }
+      });
+    }
+  });
+
+  group('Retour et icônes d\'onglets', () {
+    testWidgets('le retour porte une infobulle en français', (t) async {
+      await _pump(t, _cls(), _landscape);
+
+      final button = t.widget<IconButton>(find.byKey(kClassBackKey));
+      expect(button.tooltip, 'Retour',
+          reason: 'BackButton hérite « Back » de MaterialLocalizations, '
+              'faute de délégué FR configuré pour l\'app');
+    });
+
+    testWidgets('en mode icônes, chaque onglet garde son nom en infobulle',
+        (t) async {
+      // 400dp : sous le seuil (~512dp) qui fait apparaître les libellés.
+      await _pump(t, _cls(), const Size(400, 900));
+
+      expect(find.text('Salle'), findsNothing,
+          reason: 'ce test suppose le mode icônes, pas le mode libellés');
+      for (final label in kClassTabs.map((t) => t.label)) {
+        expect(find.byTooltip(label), findsOneWidget,
+            reason: '« $label » doit rester accessible via une infobulle');
+      }
+    });
+  });
+
 }
