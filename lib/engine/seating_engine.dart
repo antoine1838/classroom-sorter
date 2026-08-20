@@ -57,6 +57,22 @@ class PlanResult {
 
   bool get hasHardViolations => issues.any((i) => i.isHard);
 
+  /// Nombre de contraintes DURES non respectées : le plan est invalide.
+  int get hardCount => issues.where((i) => i.isHard).length;
+
+  /// Nombre de points perfectibles : avertissements souples ET objectifs
+  /// d'équilibre non atteints.
+  ///
+  /// Les notes d'équilibre comptent ici, ce qui n'allait pas de soi : le résumé
+  /// annonçait « tout est respecté » alors que des objectifs ne l'étaient pas,
+  /// parce qu'ils ne vivent pas dans [issues] mais dans [balance].
+  int get softCount =>
+      issues.where((i) => !i.isHard).length +
+      balance.where((n) => !n.ok).length;
+
+  /// Vrai quand il n'y a strictement rien à signaler.
+  bool get isClean => hardCount == 0 && softCount == 0;
+
   /// Gravité à marquer sur la place de [studentId] : dure si au moins une
   /// contrainte dure le concerne, souple s'il n'y a que du souple, null s'il
   /// n'est concerné par rien.

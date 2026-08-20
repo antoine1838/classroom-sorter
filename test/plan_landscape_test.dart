@@ -204,6 +204,43 @@ void main() {
       expect(find.byIcon(Icons.fact_check), findsOneWidget);
     });
 
+    testWidgets('les paliers ne reviennent jamais en arrière', (t) async {
+      // Invariant : en rétrécissant, on ne peut que perdre des libellés, jamais
+      // en regagner. Les seuils sont mesurés au TextPainter, donc les largeurs
+      // exactes dépendent de la police — mais la monotonie, elle, ne doit pas.
+      // Hauteur généreuse et fixe pour que seule la largeur varie.
+      var seenIconsOnly = false;
+      var seenReportIcon = false;
+
+      for (var width = 900.0; width >= 300; width -= 25) {
+        await _pump(t, _cls(rows: 5, cols: 7, students: 35),
+            Size(width, 900));
+
+        final mainLabelled = find.text('Régénérer').evaluate().isNotEmpty;
+        final reportLabelled = find.text('Rapport').evaluate().isNotEmpty;
+
+        if (!reportLabelled) seenReportIcon = true;
+        if (!mainLabelled) seenIconsOnly = true;
+
+        expect(reportLabelled && seenReportIcon, isFalse,
+            reason: 'le libellé du rapport est revenu à ${width.toInt()} dp');
+        expect(mainLabelled && seenIconsOnly, isFalse,
+            reason: 'les libellés principaux sont revenus à '
+                '${width.toInt()} dp');
+        // Le rapport perd son libellé AVANT les commandes principales, étant
+        // secondaire : on ne peut donc jamais le voir libellé alors qu'elles ne
+        // le sont pas.
+        if (reportLabelled) {
+          expect(mainLabelled, isTrue,
+              reason: 'rapport libellé mais pas les commandes principales, à '
+                  '${width.toInt()} dp');
+        }
+      }
+
+      expect(seenIconsOnly, isTrue,
+          reason: 'le balayage doit atteindre le palier « icônes seules »');
+    });
+
     testWidgets('fenêtre confortable : les libellés reviennent', (t) async {
       await _pump(t, _cls(), const Size(700, 980));
 
@@ -275,6 +312,25 @@ void main() {
       // bar ferait perdre le retour sans rien gagner d'utile.
       await _pump(t, _cls(), const Size(400, 420));
 
+      expect(find.byType(AppBar), findsOneWidget);
+    });
+
+    testWidgets('fenêtre portrait courte : les commandes restent EN HAUT',
+        (t) async {
+      // Défaut signalé sur un format de petite tablette : le rail se déclenchait
+      // alors que la fenêtre était plus haute que large. Or en portrait c'est la
+      // largeur qui est rare — un rail y vole exactement ce qui manque.
+      //
+      // 340 et non 282 (la largeur réellement signalée) : sous ~320 dp c'est
+      // l'onglet Élèves qui déborde, un défaut préexistant et hors sujet ici.
+      // La décision testée est la même dans les deux cas.
+      await _pump(t, _cls(), const Size(340, 467));
+
+      final grid = t.getRect(find.byType(PlanViewport));
+      final controls = t.getRect(find.byIcon(Icons.auto_awesome));
+
+      expect(controls.center.dy, lessThan(grid.top),
+          reason: 'les commandes doivent être au-dessus de la grille');
       expect(find.byType(AppBar), findsOneWidget);
     });
   });

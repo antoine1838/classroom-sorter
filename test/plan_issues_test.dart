@@ -272,6 +272,87 @@ void main() {
     });
   });
 
+  group('Résumé pour l\'utilisateur', () {
+    test('objectif d\'équilibre non atteint : ce n\'est PAS « tout bon »', () {
+      // Le compteur additionnait violations et warnings mais ignorait les
+      // notes d'équilibre : le résumé annonçait « tout est respecté » alors
+      // que des objectifs ne l'étaient pas.
+      final cls = _cls(
+        room: Room(rows: 1, cols: 4),
+        students: [
+          _s('a', gender: Gender.fille),
+          _s('b', gender: Gender.fille),
+        ],
+        balance: BalanceSettings(mixGender: true),
+        assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(0, 1): 'b'},
+      );
+
+      final res = SeatingEngine(cls).evaluate();
+
+      expect(res.violations, isEmpty, reason: 'aucune contrainte dure');
+      expect(res.warnings, isEmpty, reason: 'aucun avertissement de règle');
+      expect(res.hardCount, 0);
+      expect(res.softCount, 1, reason: 'la mixité non atteinte doit compter');
+      expect(res.isClean, isFalse,
+          reason: 'annoncer « tout est bon » ici serait faux');
+    });
+
+    test('plan irréprochable : isClean', () {
+      final cls = _cls(
+        room: Room(rows: 1, cols: 4),
+        students: [
+          _s('a', gender: Gender.fille),
+          _s('b', gender: Gender.garcon),
+        ],
+        balance: BalanceSettings(mixGender: true),
+        assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(0, 1): 'b'},
+      );
+
+      final res = SeatingEngine(cls).evaluate();
+
+      expect(res.hardCount, 0);
+      expect(res.softCount, 0);
+      expect(res.isClean, isTrue);
+    });
+
+    test('une contrainte dure prime sur les points perfectibles', () {
+      final cls = _cls(
+        room: Room(rows: 1, cols: 4),
+        students: [
+          _s('a', gender: Gender.fille),
+          _s('b', gender: Gender.fille),
+        ],
+        rules: [
+          Rule(
+              id: 'r',
+              type: RuleType.separate,
+              studentAId: 'a',
+              studentBId: 'b',
+              hard: true),
+        ],
+        balance: BalanceSettings(mixGender: true),
+        assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(0, 1): 'b'},
+      );
+
+      final res = SeatingEngine(cls).evaluate();
+
+      expect(res.hardCount, 1);
+      expect(res.softCount, 1, reason: 'la mixité reste comptée à part');
+      expect(res.isClean, isFalse);
+    });
+
+    test('les élèves non placés comptent comme perfectibles', () {
+      final cls =
+          _cls(room: Room(rows: 1, cols: 1), students: [_s('a'), _s('b')]);
+
+      final res = SeatingEngine(cls, seed: 1).generate();
+
+      expect(res.hardCount, 0);
+      expect(res.softCount, greaterThan(0));
+      expect(res.isClean, isFalse);
+    });
+  });
+
   group('objectifs d\'équilibre — les élèves concernés remontent', () {
     test('agités voisins : les deux sont marqués en souple', () {
       final cls = _cls(
