@@ -2117,6 +2117,9 @@ class _PlanTabState extends State<_PlanTab> {
     final issues = _result?.issuesFor(student.id) ?? const <PlanIssue>[];
     showModalBottomSheet<void>(
       context: context,
+      // Sans ça, la feuille est plafonnée à 9/16 de la hauteur d'écran : en
+      // paysage sur téléphone, ça coupe le contenu avant le bouton du bas.
+      isScrollControlled: true,
       builder: (_) => SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -2196,6 +2199,8 @@ class _PlanTabState extends State<_PlanTab> {
     final unplaced = result.unplacedStudentIds;
     showModalBottomSheet<void>(
       context: context,
+      // Même plafond à 9/16 qui peut couper le rapport en paysage.
+      isScrollControlled: true,
       builder: (_) => SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
