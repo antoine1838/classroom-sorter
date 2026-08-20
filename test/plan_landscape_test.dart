@@ -279,6 +279,40 @@ void main() {
     });
   });
 
+  group('Aucun débordement, quelle que soit la fenêtre', () {
+    // Défaut constaté : sur un écran « raisonnable » en paysage, TOUTES les
+    // places débordaient de 7,6 px. Viser une taille de police rendue constante
+    // demandait, à petite échelle, une police non mise à l'échelle si grosse
+    // que les deux lignes ne tenaient plus dans la hauteur fixe de la case.
+    //
+    // On balaie donc un éventail de formats plutôt que de vérifier un cas.
+    const formats = <Size>[
+      Size(587, 266), // le format exact du défaut signalé
+      Size(411, 891), // téléphone portrait
+      Size(891, 411), // téléphone paysage
+      Size(360, 640),
+      Size(640, 360),
+      Size(500, 300),
+      Size(320, 480),
+      Size(768, 1024), // tablette portrait
+      Size(1024, 768), // tablette paysage
+      Size(1280, 800), // bureau
+      Size(1920, 1080),
+      Size(700, 250), // très plat
+      Size(300, 900), // très étroit
+    ];
+
+    for (final size in formats) {
+      testWidgets('${size.width.toInt()}×${size.height.toInt()}', (t) async {
+        await _pump(t, _cls(rows: 5, cols: 7, students: 35), size);
+
+        expect(t.takeException(), isNull,
+            reason: 'débordement de mise en page en ${size.width.toInt()}×'
+                '${size.height.toInt()}');
+      });
+    }
+  });
+
   group('Zoom', () {
     testWidgets('la grille est enveloppée dans la fenêtre de zoom', (t) async {
       await _pump(t, _cls(), _portrait);
