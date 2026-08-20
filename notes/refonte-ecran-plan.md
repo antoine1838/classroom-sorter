@@ -273,3 +273,38 @@ l'orientation vue par MediaQuery doit régler `tester.view.physicalSize` et
 mesurant pas le texte comme le moteur : à ~65dp de largeur rendue en paysage, un prénom long tient-il
 vraiment sans être coupé ? Si non, c'est `kFirstNameMinWidth` ou le coefficient de police
 (`width * 0.16`) qu'il faut ajuster.
+
+#### Correctif : police rendue constante, largeur de case mesurée
+
+Signalé après essai sur émulateur : « en paysage on augmente la police, donc on ne gagne pas de
+lettres — une seule ». Diagnostic confirmé, c'était un défaut de conception, pas un réglage.
+
+**Cause.** La police était proportionnelle à la largeur de la case (`width * 0.16`), pour survivre à
+la réduction du `FittedBox`. Mais cela rend le nombre de caractères *invariant* : la case grandit de
+45 %, la police aussi, on gagne une lettre. Mesuré sur une salle 8×5 :
+
+| | case | échelle | police rendue | lettres |
+| --- | --- | --- | --- | --- |
+| Portrait, avant | 62 dp | 0,719 | 7,1 px | 10,3 |
+| Paysage, avant | 90 dp | 0,817 | 11,8 px | 10,6 |
+| Paysage, après | 133 dp | 0,726 | 11,0 px | 15,3 |
+
+**Deux corrections.**
+
+1. C'est la taille de police **rendue** qui décide du nombre de caractères, donc c'est elle qu'on fixe
+   (`kSeatNameRenderedSize = 11`) et la taille non mise à l'échelle qu'on en déduit
+   (`nameFontSize = 11 / échelle`). Les initiales, elles, restent proportionnelles à la case : deux à
+   cinq caractères, autant qu'ils la remplissent.
+2. `kCellWide = 90` était codé en dur et laissait de la largeur inutilisée quand c'était la hauteur
+   qui contraignait l'échelle. La largeur est désormais **mesurée** : on prend la plus grande valeur
+   qui n'empire pas l'échelle, bornée par `kCellWideMax = 140`. Sur une salle 8×5 en paysage, cela
+   donne 133 dp au lieu de 90.
+
+Les fonctions éparpillées (`fitScale`, `renderedCellWidth`, `showsFirstName`, `cellWidth`) sont
+remplacées par un objet unique `SeatMetrics`, mesuré d'un bloc par `seatMetrics(room, viewport, …)`.
+La hauteur de grille compte maintenant le bandeau « DEVANT » et les marges : sans eux, l'échelle
+prédite était plus optimiste que celle réellement appliquée par le `FittedBox`.
+
+**À regarder sur appareil** : une case de 133 × 62 dp est un rectangle assez plat (2,15:1 ; rendu
+~97 × 45). Si ça ne ressemble plus à une place, c'est `kCellWideMax` qu'il faut baisser — au prix de
+quelques lettres.
