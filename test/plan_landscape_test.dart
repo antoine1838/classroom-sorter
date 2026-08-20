@@ -250,6 +250,25 @@ void main() {
       expect(find.byType(TabBar), findsOneWidget);
     });
 
+    testWidgets('app bar masquée : le retour survit à côté des onglets',
+        (t) async {
+      // Sans lui, on ne pouvait plus quitter la classe : aucun geste système ne
+      // remplace le retour sur un bureau, quelle que soit la forme de la fenêtre.
+      await _pump(t, _cls(), _landscape);
+
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.byKey(kCompactBackKey), findsOneWidget,
+          reason: 'il doit toujours exister un moyen de sortir de la classe');
+    });
+
+    testWidgets('app bar visible : pas de retour en double', (t) async {
+      await _pump(t, _cls(), _desktop);
+
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.byKey(kCompactBackKey), findsNothing,
+          reason: 'l\'app bar porte déjà son propre retour');
+    });
+
     testWidgets('fenêtre étroite et courte : l\'app bar est conservée',
         (t) async {
       // Plus haute que large : un rail n'aurait pas de sens, et masquer l'app

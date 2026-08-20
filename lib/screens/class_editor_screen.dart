@@ -15,6 +15,9 @@ import '../widgets/seat_grid.dart';
 /// Le contrôle qui ouvre le rapport, quelle que soit la disposition.
 const kReportButtonKey = Key('plan-report-button');
 
+/// Le retour affiché à côté des onglets quand l'app bar est masquée.
+const kCompactBackKey = Key('class-compact-back');
+
 /// Quels libellés la barre de commandes du plan peut afficher.
 ///
 /// Trois paliers plutôt que deux : le rapport est secondaire, donc il perd son
@@ -118,7 +121,16 @@ class ClassEditorScreen extends StatelessWidget {
               if (compact)
                 Material(
                   color: Theme.of(context).colorScheme.surface,
-                  child: _tabs,
+                  // L'app bar est masquée : le retour se glisse à côté des
+                  // onglets, qui existent déjà. Il ne coûte donc pas un pixel
+                  // de hauteur — et sans lui on ne pourrait plus quitter la
+                  // classe, aucun geste système ne le remplaçant sur un bureau.
+                  child: const Row(
+                    children: [
+                      BackButton(key: kCompactBackKey),
+                      Expanded(child: _tabs),
+                    ],
+                  ),
                 ),
               Expanded(
                 child: ListenableBuilder(
@@ -1768,76 +1780,75 @@ class _PlanTabState extends State<_PlanTab> {
   }
 
   Widget _controlBar({required bool vertical, required _PlanLabels labels}) {
-    final hasPlan = cls.assignment.isNotEmpty;
-    final canGenerate = cls.students.isNotEmpty;
-    final zoomed = _viewport.currentState?.isZoomed ?? false;
-    final generateLabel = hasPlan ? 'Régénérer' : 'Générer le plan';
     final mainLabelled = labels != _PlanLabels.none;
-
     final children = <Widget>[
-      if (mainLabelled)
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: canGenerate ? _generate : null,
-            icon: const Icon(Icons.auto_awesome),
-            label: Text(generateLabel),
-          ),
-        )
-      else
-        IconButton.filled(
-          tooltip: generateLabel,
-          onPressed: canGenerate ? _generate : null,
-          icon: const Icon(Icons.auto_awesome),
-        ),
-      if (hasPlan)
-        if (mainLabelled)
-          Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: _validate,
-              icon: const Icon(Icons.fact_check),
-              label: const Text('Valider'),
-            ),
-          )
-        else
-          IconButton.filledTonal(
-            tooltip: 'Valider',
-            onPressed: _validate,
-            icon: const Icon(Icons.fact_check),
-          ),
-      if (_result != null)
-        _reportControl(labelled: labels == _PlanLabels.all),
-      if (zoomed)
-        IconButton(
-          tooltip: 'Recentrer',
-          onPressed: () => setState(() => _viewport.currentState?.recenter()),
-          icon: const Icon(Icons.center_focus_strong),
-        ),
+      _generateControl(labelled: mainLabelled),
+      if (cls.assignment.isNotEmpty) _validateControl(labelled: mainLabelled),
+      if (_result != null) _reportControl(labelled: labels == _PlanLabels.all),
+      if (_viewport.currentState?.isZoomed ?? false) _recenterControl(),
     ];
+    return _spacedBar(children, vertical: vertical, labelled: mainLabelled);
+  }
 
+  Widget _generateControl({required bool labelled}) {
+    final label = cls.assignment.isNotEmpty ? 'Régénérer' : 'Générer le plan';
+    final onPressed = cls.students.isEmpty ? null : _generate;
+    const icon = Icon(Icons.auto_awesome);
+    if (!labelled) {
+      return IconButton.filled(
+          tooltip: label, onPressed: onPressed, icon: icon);
+    }
+    return Expanded(
+      child: FilledButton.icon(
+          onPressed: onPressed, icon: icon, label: Text(label)),
+    );
+  }
+
+  Widget _validateControl({required bool labelled}) {
+    const icon = Icon(Icons.fact_check);
+    if (!labelled) {
+      return IconButton.filledTonal(
+          tooltip: 'Valider', onPressed: _validate, icon: icon);
+    }
+    return Expanded(
+      child: FilledButton.tonalIcon(
+          onPressed: _validate, icon: icon, label: const Text('Valider')),
+    );
+  }
+
+  Widget _recenterControl() => IconButton(
+        tooltip: 'Recentrer',
+        onPressed: () => setState(() => _viewport.currentState?.recenter()),
+        icon: const Icon(Icons.center_focus_strong),
+      );
+
+  /// Dispose les contrôles en rangée ou en colonne, séparés d'un espace.
+  Widget _spacedBar(List<Widget> controls,
+      {required bool vertical, required bool labelled}) {
     final spaced = <Widget>[];
-    for (final child in children) {
+    for (final control in controls) {
       if (spaced.isNotEmpty) {
         spaced.add(
             vertical ? const SizedBox(height: 8) : const SizedBox(width: 8));
       }
-      spaced.add(child);
+      spaced.add(control);
     }
 
-    return vertical
-        ? Padding(
-            padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center, children: spaced),
-          )
-        : Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              mainAxisAlignment: mainLabelled
-                  ? MainAxisAlignment.start
-                  : MainAxisAlignment.center,
-              children: spaced,
-            ),
-          );
+    if (vertical) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
+        child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, children: spaced),
+      );
+    }
+    // Sans libellé, les contrôles ne s'étirent pas : on les centre plutôt que
+    // de les laisser collés au bord.
+    final alignment =
+        labelled ? MainAxisAlignment.start : MainAxisAlignment.center;
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(mainAxisAlignment: alignment, children: spaced),
+    );
   }
 
   /// Le rapport : jamais une carte permanente, mais un contrôle à part entière.
