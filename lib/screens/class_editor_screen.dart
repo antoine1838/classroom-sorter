@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../engine/plan_issue.dart';
 import '../engine/seating_engine.dart';
 import '../models/classroom.dart';
 import '../models/room.dart';
@@ -2098,8 +2099,94 @@ class _PlanTabState extends State<_PlanTab> {
       key: _viewport,
       tracker: _tracker,
       onScaleChanged: (_) => setState(() {}),
-      child: PlanGrid(cls: cls, onSwap: _swap, tracker: _tracker),
+      child: PlanGrid(
+        cls: cls,
+        onSwap: _swap,
+        tracker: _tracker,
+        result: _result,
+        onTapSeat: (student) => _showSeatDetail(context, student),
+      ),
     );
+  }
+
+  /// Feuille de détail d'un élève, ouverte au tap sur sa place : nom complet,
+  /// tous les attributs en clair (y compris ceux muets sur la case, sinon les
+  /// glyphes redeviennent indevinables), les motifs de problème s'il y en a,
+  /// et un accès direct au formulaire d'édition existant.
+  void _showSeatDetail(BuildContext context, Student student) {
+    final issues = _result?.issuesFor(student.id) ?? const <PlanIssue>[];
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(student.fullName,
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              _SeatDetailAttributes(student: student),
+              if (issues.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('À signaler',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                for (final issue in issues)
+                  _ReportLine(
+                    icon: issue.isHard ? Icons.error : Icons.warning_amber,
+                    color: issue.isHard ? Colors.red.shade600 : _kSoftColour,
+                    text: issue.label,
+                  ),
+              ],
+              const SizedBox(height: 16),
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _editStudentFromPlan(student);
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Modifier l\'élève'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Édite un élève depuis le plan : même dialogue que l'onglet Élèves.
+  ///
+  /// `onDelete` doit être fourni même ici : c'est lui qui dit au dialogue
+  /// qu'il édite un élève existant plutôt que d'en créer un (`isNew` s'appuie
+  /// sur sa nullité) — l'omettre affichait à tort « Nouvel élève ».
+  Future<void> _editStudentFromPlan(Student existing) async {
+    final result = await showDialog<Student>(
+      context: context,
+      builder: (_) => _StudentFormDialog(
+        initial: existing,
+        onDelete: () => _deleteStudentFromPlan(existing),
+      ),
+    );
+    if (result == null) return;
+    setState(() {
+      existing
+        ..firstName = result.firstName
+        ..lastName = result.lastName
+        ..gender = result.gender
+        ..level = result.level
+        ..energy = result.energy
+        ..size = result.size
+        ..poorEyesight = result.poorEyesight
+        ..notes = result.notes;
+    });
+    widget.state.touch();
+  }
+
+  void _deleteStudentFromPlan(Student s) {
+    cls.purgeStudent(s.id);
+    cls.students.remove(s);
+    setState(() => _result = null);
+    widget.state.touch();
   }
 
   /// Le rapport complet, en feuille.
@@ -2128,6 +2215,41 @@ class _PlanTabState extends State<_PlanTab> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tous les attributs d'un élève, en clair — y compris ceux muets sur la
+/// case (Moyen / Modéré / Bonne vue n'affichent aucune icône), sinon les
+/// glyphes de la place resteraient indevinables sans cette feuille.
+class _SeatDetailAttributes extends StatelessWidget {
+  final Student student;
+  const _SeatDetailAttributes({required this.student});
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = <String>[
+      student.gender.label,
+      'Niveau : ${student.level.label}',
+      'Énergie : ${student.energy.label}',
+      'Taille : ${student.size.label}',
+      student.poorEyesight ? 'Mauvaise vue' : 'Bonne vue',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1),
+            child: Text(line, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        if (student.notes.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(student.notes,
+                style: Theme.of(context).textTheme.bodySmall),
+          ),
+      ],
     );
   }
 }

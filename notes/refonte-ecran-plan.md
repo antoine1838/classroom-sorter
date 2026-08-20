@@ -369,11 +369,58 @@ et Élèves) est reporté aux issues #19 et #17, hors périmètre de #8.
   bar disparaît complètement (tour 6), le nom vit en permanence sur sa propre barre, à toutes les
   tailles.
 
-**Étape 4, non commencée** : marquage des élèves fautifs et feuille de détail au tap. Les décisions
-sont prises (rendu par sévérité, fond réquisitionné, genre replié sur un liseré, feuille au tap avec
-tous les attributs en clair) et le moteur fournit déjà les identifiants depuis l'étape 1.
+**Étape 4 : faite et validée à l'essai (20/08/2026).** Marquage des élèves fautifs et feuille de
+détail au tap — voir la section dédiée plus bas.
 
 ~~**Vérification que je ne peux pas faire** : `kFirstNameMinWidth` (54 dp).~~ **Validé à l'essai.**
+
+### Étape 4 — marquage et feuille de détail
+
+**Rendu, dans `lib/widgets/seat_grid.dart`.** Le fond de la case (`_severityBackground`) est
+réquisitionné par la sévérité — rouge pâle pour une contrainte dure, jaune/orange pâle pour un
+objectif souple non atteint, neutre (`cs.surface`) sinon — via `PlanResult.severityFor`. Le genre,
+qui occupait ce fond jusqu'ici, se replie sur un liseré vertical de 4dp au bord gauche
+(`_genderStripeColor`) ; muet pour « Non précisé », comme les autres indicateurs de coin.
+
+**Deux pièges de rendu, tous deux attrapés par des tests widget avant d'atteindre l'appareil :**
+
+- **`Border` refuse des couleurs par côté dès qu'un `borderRadius` est posé** (« borders with
+  uniform colors » seulement). Le liseré ne peut donc pas être un simple côté de bordure différent
+  des trois autres : il est peint EN SUS, par un `ClipRRect` séparé superposé à la case.
+- **Un `ClipRRect` doit être découpé à la taille PLEINE de la case, pas à celle du liseré.** Un
+  rayon de 8 appliqué à une bande de 4dp de large rogne presque toute sa largeur en haut/bas et
+  dessine une courbe qui ne ressemble plus à celle du bord de la case (signalé après essai — capture
+  à l'appui). Correction : `ClipRRect` de rayon 8 sur la case ENTIÈRE (`Positioned.fill` +
+  `Align(alignment: centerLeft)` pour ne montrer que la bande de gauche) — le même rayon sur les
+  mêmes dimensions produit exactement la même courbe.
+
+**Le marqueur de taille (barre bas-gauche) est recentré sous l'icône de niveau** (`_kSizeBarLeft`,
+signalé après essai) plutôt que collé au bord gauche : sinon il se serait confondu avec le nouveau
+liseré de genre, qui occupe désormais ce bord.
+
+**Tap et feuille de détail, dans `lib/screens/class_editor_screen.dart`.** `PlanGrid` gagne un
+callback `onTapSeat`, câblé par `_PlanTabState._showSeatDetail` : nom complet, tous les attributs en
+clair (`_SeatDetailAttributes` — y compris ceux muets sur la case), les motifs via
+`PlanResult.issuesFor` s'il y en a, et un bouton « Modifier l'élève ».
+
+**Un vrai bug attrapé en écrivant le test de ce bouton, pas seulement en lisant le code** :
+`_StudentFormDialogState` décide `isNew` par la nullité de `onDelete`, pas par un flag dédié — omettre
+`onDelete` depuis la feuille du plan aurait affiché « Nouvel élève » sur un élève existant. Corrigé en
+câblant un vrai `onDelete` (`_deleteStudentFromPlan`, symétrique à `_deleteStudent`), ce qui donne au
+passage un moyen de supprimer un élève depuis sa place.
+
+**Clé de test** : `seat_<id>` sur chaque place occupée (`ValueKey`), qui a aussi permis de retirer le
+`Tooltip` de nom complet — mort depuis l'étape 3 dans la décision mais encore présent dans le code,
+et utilisé par trois tests de `room_orientation_test.dart` comme repère de position (`find.byTooltip`),
+corrigés au passage pour utiliser la clé plutôt que le texte.
+
+Couverture : `test/seat_marking_test.dart` (fond de sévérité, liseré de genre, callback de tap) et le
+groupe « Feuille de détail au tap » de `test/class_editor_screen_test.dart` (contenu de la feuille,
+motifs, enchaînement vers le formulaire d'édition avec le bon titre).
+
+**Validé sur l'appareil de développement (build Windows) le 20/08/2026** : fond de sévérité et liseré
+de genre lisibles, feuille de détail correcte. Deux retouches faites après capture d'écran envoyée par
+l'utilisateur (marqueur de taille décalé, courbe du liseré corrigée) — voir ci-dessus.
 
 
 #### Cinquième tour : le résumé, les paliers et les axes

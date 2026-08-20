@@ -40,7 +40,12 @@ sur Internet — adapté aux données élèves).
   (avec **zoom** à deux doigts) comme en **paysage** (cases plus larges, chrome
   qui se replie en rail au besoin), avec le **prénom** en clair dès que la place
   le permet, sinon des **initiales désambiguïsées** (deux élèves aux mêmes
-  initiales sont distingués).
+  initiales sont distingués). Les élèves concernés par un problème sont
+  **marqués directement sur leur place** (fond rouge pâle pour une contrainte
+  dure, orange pâle pour un objectif souple non atteint) ; un **tap** sur
+  n'importe quelle place ouvre une feuille de détail (nom complet, tous les
+  attributs en clair, motifs du problème s'il y en a) avec un accès direct au
+  formulaire d'édition.
 - **Classe de démo** : bouton (accueil, écran vide ou icône dans l'AppBar)
   pour ajouter en un clic une classe fictive « 6ème B » déjà remplie (20
   élèves, salle, règles, plan) — pratique pour découvrir l'appli sans tout
@@ -146,7 +151,8 @@ test/              moteur : engine_test, seating_neighbors_test, room_orientatio
                    class_editor_screen_test, layout_responsive_test,
                    plan_landscape_test, students_grid_cycle_test,
                    students_table_toggle_test
-                   plan : seat_label_rules_test, plan_viewport_gestures_test
+                   plan : seat_label_rules_test, plan_viewport_gestures_test,
+                   seat_marking_test
                    widget_test
 ```
 

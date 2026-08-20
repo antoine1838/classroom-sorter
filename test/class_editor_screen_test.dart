@@ -571,4 +571,85 @@ void main() {
       expect(cls.assignment[Room.keyOf(0, 1)], 'stu0');
     });
   });
+
+  group('Feuille de détail au tap (étape 4)', () {
+    testWidgets(
+        'tous les attributs apparaissent en clair, même ceux muets sur la case',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 1, students: 1);
+      cls.assignment[Room.keyOf(0, 0)] = 'stu0';
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.byKey(const ValueKey('seat_stu0')));
+      await t.pumpAndSettle();
+
+      expect(find.text('Prenom0 Nom0'), findsOneWidget);
+      // Genre/Niveau/Énergie/Taille par défaut sont tous « muets » sur la
+      // case (aucune icône de coin) : la feuille doit les nommer quand même.
+      expect(find.text('Non précisé'), findsOneWidget);
+      expect(find.text('Niveau : Moyen'), findsOneWidget);
+      expect(find.text('Énergie : Modéré'), findsOneWidget);
+      expect(find.text('Taille : Moyen'), findsOneWidget);
+      expect(find.text('Bonne vue'), findsOneWidget);
+      expect(find.text('Modifier l\'élève'), findsOneWidget);
+      expect(find.text('À signaler'), findsNothing);
+    });
+
+    testWidgets('un problème marqué sur l\'élève apparaît dans « À signaler »',
+        (t) async {
+      // Deux places seulement : une règle « séparer » dure entre les deux
+      // seuls élèves est nécessairement violée, aucune autre affectation
+      // n'étant possible.
+      final cls = _cls(rows: 1, cols: 2, students: 2, rules: [
+        Rule(
+          id: 'r',
+          type: RuleType.separate,
+          studentAId: 'stu0',
+          studentBId: 'stu1',
+          hard: true,
+        ),
+      ]);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byKey(const ValueKey('seat_stu0')));
+      await t.pumpAndSettle();
+
+      expect(find.text('À signaler'), findsOneWidget);
+      expect(find.textContaining('sont voisins (à séparer)'), findsOneWidget);
+    });
+
+    testWidgets(
+        '« Modifier l\'élève » ouvre le formulaire existant et applique les changements',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 1, students: 1);
+      cls.assignment[Room.keyOf(0, 0)] = 'stu0';
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.byKey(const ValueKey('seat_stu0')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Modifier l\'élève'));
+      await t.pumpAndSettle();
+
+      // Le formulaire édite bien l'élève EXISTANT (titre + bouton supprimer),
+      // pas un nouvel élève : sans onDelete, _StudentFormDialog l'aurait cru.
+      expect(find.text('Modifier l\'élève'), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+
+      await t.enterText(find.widgetWithText(TextField, 'Prénom'), 'Changé');
+      await t.tap(find.text('Enregistrer'));
+      await t.pumpAndSettle();
+
+      expect(cls.students.first.firstName, 'Changé');
+      // Rouvre la feuille pour vérifier que le changement est bien reflété.
+      await t.tap(find.byKey(const ValueKey('seat_stu0')));
+      await t.pumpAndSettle();
+      expect(find.text('Changé Nom0'), findsOneWidget);
+    });
+  });
 }

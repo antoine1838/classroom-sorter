@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 
 import 'plan_viewport.dart';
 
+import '../engine/plan_issue.dart';
+import '../engine/seating_engine.dart';
 import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/student.dart';
@@ -191,16 +193,35 @@ SeatMetrics seatMetrics(
   );
 }
 
-Color studentColor(Student s, ColorScheme cs) => switch (s.gender) {
-  Gender.fille => const Color(0xFFF3B8D0),
-  Gender.garcon => const Color(0xFFA9CCF5),
-  Gender.autre => cs.surfaceContainerHighest,
+/// Fond de la place : réquisitionné par le marquage de sévérité, le canal le
+/// plus lisible quand les cases sont petites. Neutre si l'élève n'est
+/// concerné par aucun problème.
+Color _severityBackground(IssueSeverity? severity, ColorScheme cs) =>
+    switch (severity) {
+      IssueSeverity.hard => const Color(0xFFF3AFAF),
+      IssueSeverity.soft => const Color(0xFFFFD98A),
+      null => cs.surface,
+    };
+
+/// Le genre, replié sur un liseré au bord gauche : le fond n'est plus
+/// disponible, pris par [_severityBackground]. Muet pour « autre », comme les
+/// autres indicateurs de coin.
+Color? _genderStripeColor(Gender gender) => switch (gender) {
+  Gender.fille => const Color(0xFFD6478F),
+  Gender.garcon => const Color(0xFF3B82C4),
+  Gender.autre => null,
 };
 
 // Icônes de coin : affichées seulement quand la valeur sort de l'ordinaire
-// (Moyen / Modéré / Bonne vue restent muets) — le genre reste exprimé par la
-// couleur de fond ([studentColor]), pas par un coin.
+// (Moyen / Modéré / Bonne vue restent muets).
 const _cornerIconColor = Color(0xFF3A3A3A);
+const _kCornerIconSize = 13.0;
+
+// Largeur de la barre de taille : centrée sous l'icône de niveau (même bord
+// gauche que top-left), pas collée au bord gauche de la case — sinon elle se
+// confond avec le liseré de genre, qui occupe désormais ce bord.
+const _kSizeBarWidth = 4.0;
+const _kSizeBarLeft = (_kCornerIconSize - _kSizeBarWidth) / 2;
 
 IconData? _levelCornerIcon(Level level) => switch (level) {
   Level.faible => Icons.arrow_downward,
@@ -407,11 +428,20 @@ class PlanGrid extends StatelessWidget {
   /// déclencherait un glisser par doigt.
   final PointerTracker? tracker;
 
+  /// Dernier plan validé : fournit la sévérité et les motifs à marquer sur les
+  /// places. Nul tant qu'aucun plan n'a été généré ou validé.
+  final PlanResult? result;
+
+  /// Tap sur une place occupée : ouvre la feuille de détail de l'élève.
+  final void Function(Student student)? onTapSeat;
+
   const PlanGrid({
     super.key,
     required this.cls,
     required this.onSwap,
     this.tracker,
+    this.result,
+    this.onTapSeat,
   });
 
   @override
@@ -449,6 +479,8 @@ class PlanGrid extends StatelessWidget {
                   hovering,
                   labels: labels,
                   metrics: m,
+                  result: result,
+                  onTapSeat: onTapSeat,
                 );
                 if (student == null) return cell;
                 final feedback = Material(
@@ -459,6 +491,7 @@ class PlanGrid extends StatelessWidget {
                     false,
                     labels: labels,
                     metrics: m,
+                    result: result,
                     elevated: true,
                   ),
                 );
@@ -494,6 +527,8 @@ class PlanGrid extends StatelessWidget {
     bool hovering, {
     required Map<String, String> labels,
     required SeatMetrics metrics,
+    PlanResult? result,
+    void Function(Student student)? onTapSeat,
     bool elevated = false,
   }) {
     final cs = Theme.of(context).colorScheme;
@@ -502,64 +537,112 @@ class PlanGrid extends StatelessWidget {
     final energyIcon = _energyCornerIcon(student.energy);
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
     final width = metrics.cell;
-    return Tooltip(
-      message: student.fullName,
-      child: Container(
-        width: width,
-        height: kCell,
-        decoration: BoxDecoration(
-          color: studentColor(student, cs),
-          border: Border.all(
-            color: hovering ? cs.primary : cs.outline,
-            width: hovering ? 2.4 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: elevated
-              ? [const BoxShadow(blurRadius: 8, color: Colors.black26)]
-              : null,
-        ),
-        padding: const EdgeInsets.all(kSeatPadding),
-        child: Stack(
-          children: [
-            Center(child: _seatLabel(student, labels, metrics)),
-            if (levelIcon != null)
-              Positioned(
-                top: 0,
-                left: 0,
-                child: Icon(levelIcon, size: 13, color: _cornerIconColor),
+    final severity = result?.severityFor(student.id);
+    final stripeColor = _genderStripeColor(student.gender);
+    final outline = hovering ? cs.primary : cs.outline;
+    final outlineWidth = hovering ? 2.4 : 1.0;
+    final box = Container(
+      width: width,
+      height: kCell,
+      decoration: BoxDecoration(
+        color: _severityBackground(severity, cs),
+        border: Border.all(color: outline, width: outlineWidth),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: elevated
+            ? [const BoxShadow(blurRadius: 8, color: Colors.black26)]
+            : null,
+      ),
+      padding: const EdgeInsets.all(kSeatPadding),
+      child: Stack(
+        children: [
+          Center(child: _seatLabel(student, labels, metrics)),
+          if (levelIcon != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: Icon(levelIcon,
+                  size: _kCornerIconSize, color: _cornerIconColor),
+            ),
+          if (energyIcon != null)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Icon(energyIcon,
+                  size: _kCornerIconSize, color: _cornerIconColor),
+            ),
+          if (sizeBarHeight != null)
+            Positioned(
+              bottom: 0,
+              left: _kSizeBarLeft,
+              child: Container(
+                width: _kSizeBarWidth,
+                height: sizeBarHeight,
+                decoration: BoxDecoration(
+                  color: _cornerIconColor,
+                  borderRadius: BorderRadius.circular(1),
+                ),
               ),
-            if (energyIcon != null)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Icon(energyIcon, size: 13, color: _cornerIconColor),
+            ),
+          if (student.poorEyesight)
+            const Positioned(
+              bottom: 0,
+              right: 0,
+              child: Icon(
+                Icons.visibility_off,
+                size: _kCornerIconSize,
+                color: _cornerIconColor,
               ),
-            if (sizeBarHeight != null)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                child: Container(
-                  width: 4,
-                  height: sizeBarHeight,
-                  decoration: BoxDecoration(
-                    color: _cornerIconColor,
-                    borderRadius: BorderRadius.circular(1),
+            ),
+        ],
+      ),
+    );
+    // Le liseré de genre est peint EN SUS de la case, pas comme un côté de sa
+    // bordure : `Border` refuse des couleurs par côté dès qu'un `borderRadius`
+    // est présent (« borders with uniform colors » uniquement). Le survol du
+    // glisser-déposer prime dessus : c'est un retour transitoire sur toute la
+    // bordure, plus important que le genre à cet instant précis.
+    final seat = SizedBox(
+      width: width,
+      height: kCell,
+      child: Stack(
+        children: [
+          box,
+          // Découpé à la taille PLEINE de la case (et non à celle, étroite,
+          // du liseré) : un `ClipRRect` de rayon 8 sur une bande de 4dp de
+          // large rogne presque toute sa largeur en haut/bas et dessine une
+          // courbe qui ne correspond plus du tout à celle de la case. En
+          // clippant le plein cadre puis en n'affichant que la bande de
+          // gauche, le même rayon 8 produit exactement la même courbe.
+          if (!hovering && stripeColor != null)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    key: ValueKey('gender_stripe_${student.id}'),
+                    width: 4,
+                    color: stripeColor,
                   ),
                 ),
               ),
-            if (student.poorEyesight)
-              const Positioned(
-                bottom: 0,
-                right: 0,
-                child: Icon(
-                  Icons.visibility_off,
-                  size: 13,
-                  color: _cornerIconColor,
-                ),
-              ),
-          ],
-        ),
+            ),
+        ],
       ),
+    );
+    // Clé stable par élève : localise la place en test sans dépendre d'un
+    // texte affiché (prénom/initiales varient avec l'échelle), depuis que le
+    // Tooltip de nom complet a été retiré au profit de la feuille au tap.
+    final keyed = KeyedSubtree(
+      key: ValueKey('seat_${student.id}'),
+      child: seat,
+    );
+    if (onTapSeat == null) return keyed;
+    // opaque : toute la case répond au tap, pas seulement les zones peintes.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTapSeat(student),
+      child: keyed,
     );
   }
 
