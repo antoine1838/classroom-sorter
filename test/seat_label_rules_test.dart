@@ -98,82 +98,118 @@ void main() {
     });
   });
 
-  group('Seuil d\'affichage du prénom', () {
-    // Galaxy A56 en logique : 411 × 891. On retire le padding de l'écran (24)
-    // comme le fait l'onglet Plan.
-    const portrait = Size(387, 620);
-    const landscape = Size(795, 363);
+  group('Mesures d\'une place', () {
+    // Galaxy A56 en logique : 411 × 891. Espace réellement laissé à la grille
+    // dans chaque orientation, chrome et marges déduits.
+    const portrait = Size(387, 651);
+    const landscape = Size(811, 299);
+
+    /// Nombre approximatif de caractères qui tiennent dans une case, à la
+    /// taille de police rendue. C'est LA mesure qui compte : la largeur seule
+    /// ne dit rien si la police grandit en même temps.
+    double letters(SeatMetrics m) {
+      final usable = m.renderedWidth - 2 * 3 * m.scale;
+      return usable / (0.55 * kSeatNameRenderedSize);
+    }
 
     test('portrait, 8 colonnes : initiales', () {
-      final room = Room(rows: 5, cols: 8);
-      final w = renderedCellWidth(room, portrait);
+      final m = seatMetrics(Room(rows: 5, cols: 8), portrait);
 
-      expect(w, closeTo(44, 1.5), reason: 'places d\'environ 44dp');
-      expect(showsFirstName(room, portrait), isFalse);
+      expect(m.cell, kCell, reason: 'cases carrées en portrait');
+      expect(m.renderedWidth, lessThan(kFirstNameMinWidth));
+      expect(m.showsFirstName, isFalse);
     });
 
-    test('portrait, 8 colonnes, zoom ×1,25 : prénom', () {
-      final room = Room(rows: 5, cols: 8);
+    test('portrait, 8 colonnes, zoom : le prénom apparaît', () {
+      final m = seatMetrics(Room(rows: 5, cols: 8), portrait, zoom: 1.4);
 
-      expect(showsFirstName(room, portrait, zoom: 1.25), isTrue,
-          reason: 'un léger zoom suffit à passer le seuil');
+      expect(m.showsFirstName, isTrue);
     });
 
-    test('portrait, petite salle de 5 colonnes : prénom d\'emblée', () {
-      final room = Room(rows: 5, cols: 5);
+    test('portrait, petite salle : prénom d\'emblée, sans réduction', () {
+      final m = seatMetrics(Room(rows: 5, cols: 5), portrait);
 
-      expect(fitScale(room, portrait), 1,
-          reason: 'la salle tient sans réduction');
-      expect(renderedCellWidth(room, portrait), kCell);
-      expect(showsFirstName(room, portrait), isTrue);
+      expect(m.scale, 1);
+      expect(m.renderedWidth, kCell);
+      expect(m.showsFirstName, isTrue);
     });
 
-    test('paysage, 8 colonnes : prénom', () {
-      final room = Room(rows: 5, cols: 8);
-      final w = renderedCellWidth(room, landscape, landscape: true);
+    test('paysage : les cases s\'élargissent pour gagner des LETTRES', () {
+      final small = seatMetrics(Room(rows: 5, cols: 8), portrait);
+      final wide =
+          seatMetrics(Room(rows: 5, cols: 8), landscape, landscape: true);
 
-      expect(w, greaterThan(70), reason: 'cases larges en paysage');
-      expect(showsFirstName(room, landscape, landscape: true), isTrue);
+      expect(wide.cell, greaterThan(kCell),
+          reason: 'la largeur de case est mesurée, pas codée en dur');
+      expect(wide.showsFirstName, isTrue);
+      // Le vrai critère, et ce que la première version manquait : on doit
+      // gagner des caractères, pas seulement des pixels.
+      expect(letters(wide), greaterThan(letters(small) + 3),
+          reason: 'au moins trois lettres de plus qu\'en portrait');
+    });
+
+    test('la police rendue reste constante quelle que soit l\'échelle', () {
+      final petite = seatMetrics(Room(rows: 3, cols: 3), portrait);
+      final grande = seatMetrics(Room(rows: 5, cols: 10), portrait);
+
+      expect(petite.scale, greaterThan(grande.scale));
+      // C'est tout l'objet du correctif : la taille RENDUE ne bouge pas, donc
+      // une case plus large accueille plus de lettres.
+      expect(petite.nameFontSize * petite.scale,
+          closeTo(kSeatNameRenderedSize, 0.01));
+      expect(grande.nameFontSize * grande.scale,
+          closeTo(kSeatNameRenderedSize, 0.01));
+    });
+
+    test('la largeur de case reste bornée', () {
+      // Une seule colonne dans un paysage très large : sans borne, la case
+      // deviendrait absurdement allongée.
+      final m = seatMetrics(Room(rows: 5, cols: 1), landscape, landscape: true);
+
+      expect(m.cell, lessThanOrEqualTo(kCellWideMax));
     });
 
     test('la réduction ne grossit jamais une petite salle', () {
-      final room = Room(rows: 2, cols: 2);
-
-      expect(fitScale(room, portrait), 1);
-      expect(fitScale(room, landscape, landscape: true), 1);
+      expect(seatMetrics(Room(rows: 2, cols: 2), portrait).scale, 1);
+      expect(
+          seatMetrics(Room(rows: 2, cols: 2), landscape, landscape: true).scale,
+          1);
     });
 
     test('une salle très large est réduite, pas débordante', () {
       final room = Room(rows: 5, cols: 15);
-      final scale = fitScale(room, portrait);
+      final m = seatMetrics(room, portrait);
 
-      expect(scale, lessThan(1));
-      expect(gridWidth(room) * scale, lessThanOrEqualTo(portrait.width + 0.01));
-      expect(showsFirstName(room, portrait), isFalse,
+      expect(m.scale, lessThan(1));
+      expect(gridWidth(room, cell: m.cell) * m.scale,
+          lessThanOrEqualTo(portrait.width + 0.01));
+      expect(m.showsFirstName, isFalse,
           reason: '15 colonnes sur un téléphone : initiales obligatoires');
     });
 
     test('la hauteur peut aussi être la contrainte qui mord', () {
-      // Beaucoup de rangs, peu de colonnes : c'est la hauteur qui limite.
       final room = Room(rows: 15, cols: 2);
-      final scale = fitScale(room, portrait);
+      final m = seatMetrics(room, portrait);
 
-      expect(scale, lessThan(1));
-      expect(gridHeight(room) * scale,
-          lessThanOrEqualTo(portrait.height + 0.01));
+      expect(m.scale, lessThan(1));
+      expect(
+          gridHeight(room) * m.scale, lessThanOrEqualTo(portrait.height + 0.01));
     });
 
     test('un viewport vide ne divise pas par zéro', () {
-      expect(fitScale(Room(rows: 3, cols: 3), Size.zero), 1);
+      final m = seatMetrics(Room(rows: 3, cols: 3), Size.zero);
+
+      expect(m.scale, 1);
+      expect(m.cell, kCell);
     });
 
     test('les couloirs élargissent la grille, donc réduisent les cases', () {
       final sans = Room(rows: 3, cols: 6);
       final avec = Room(rows: 3, cols: 6)..toggleColAisle(2);
+      const etroit = Size(300, 651);
 
-      expect(gridWidth(avec), greaterThan(gridWidth(sans)));
-      expect(renderedCellWidth(avec, const Size(300, 620)),
-          lessThan(renderedCellWidth(sans, const Size(300, 620))));
+      expect(seatMetrics(avec, etroit).renderedWidth,
+          lessThan(seatMetrics(sans, etroit).renderedWidth));
     });
   });
 }

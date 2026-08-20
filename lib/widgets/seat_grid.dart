@@ -20,54 +20,36 @@ const double kGap = 6; // espace normal entre deux colonnes
 const double kAisle = 24; // largeur d'un couloir entre colonnes
 const double kRowGap = 14; // espace entre rangs (toujours un couloir)
 
-/// Largeur d'une case en paysage. Plus large que haute : en paysage la hauteur
-/// est la ressource rare et la largeur abondante, exactement l'inverse du
-/// portrait — d'où des rectangles ici et des carrés là.
-const double kCellWide = 90;
+/// Largeur maximale d'une case en paysage. Au-delà, une place cesse de
+/// ressembler à une place.
+const double kCellWideMax = 140;
 
-/// Au-delà de cette largeur RENDUE (après réduction et zoom), une case a la
-/// place d'écrire un prénom ; en dessous elle s'en tient aux initiales.
-///
-/// Une seule règle, quatre comportements corrects : portrait 8 colonnes (~44dp)
-/// → initiales ; portrait zoomé ×1,25 (~55dp) → prénom ; paysage (~80dp) →
-/// prénom ; petite salle de 5 colonnes en portrait (62dp) → prénom d'emblée,
-/// sans rien demander à l'utilisateur.
-///
-/// Valeur calculée pour un prénom de 8 lettres à 11px (8 × ~0,55 × 11 ≈ 48dp,
-/// plus la marge intérieure) — à confirmer dans l'app réelle, les polices
-/// factices de `flutter_test` ne mesurant pas le texte comme le moteur.
+/// Marge intérieure de la grille (`Padding(all: 4)`) et encombrement vertical du
+/// bandeau « DEVANT » : comptés dans la mesure, sinon l'échelle prédite serait
+/// plus optimiste que celle réellement appliquée par le [FittedBox].
+const double kGridPadding = 4;
+const double kBannerBlock = 38;
+
+/// Au-delà de cette largeur RENDUE, une case a la place d'écrire un prénom ; en
+/// dessous elle s'en tient aux initiales.
 const double kFirstNameMinWidth = 54;
 
-/// Hauteur totale de la grille, hors bandeau « devant ». Indépendante de
-/// l'orientation : seule la LARGEUR d'une case change (voir [kCellWide]).
+/// Taille de police RENDUE visée pour un prénom.
+///
+/// **Constante à dessein.** Une police proportionnelle à la case — la première
+/// version — rendait le nombre de lettres invariant : la case grandissait de
+/// 45 % en paysage, la police aussi, et on ne gagnait qu'une lettre. C'est la
+/// taille rendue qui décide du nombre de caractères, donc c'est elle qu'il faut
+/// fixer, et la taille non mise à l'échelle qu'il faut en déduire.
+const double kSeatNameRenderedSize = 11;
+
+/// Hauteur totale de la grille, bandeau et marges compris. Indépendante de
+/// l'orientation : seule la LARGEUR d'une case change.
 double gridHeight(Room room) =>
-    room.rows * kCell + (room.rows - 1) * kRowGap;
-
-/// Facteur appliqué par le [FittedBox] pour que la salle tienne d'un coup dans
-/// [viewport]. Jamais supérieur à 1 : une petite salle garde sa taille naturelle.
-double fitScale(Room room, Size viewport, {bool landscape = false}) {
-  if (viewport.isEmpty) return 1;
-  final w = gridWidth(room, landscape: landscape);
-  final h = gridHeight(room);
-  if (w <= 0 || h <= 0) return 1;
-  final scale = min(viewport.width / w, viewport.height / h);
-  return scale > 1 ? 1 : scale;
-}
-
-/// Largeur d'une case telle qu'elle sera réellement rendue à l'écran.
-double renderedCellWidth(Room room, Size viewport,
-        {bool landscape = false, double zoom = 1}) =>
-    cellWidth(landscape: landscape) *
-    fitScale(room, viewport, landscape: landscape) *
-    zoom;
-
-/// Vrai si les cases ont la place d'afficher un prénom plutôt que des initiales.
-bool showsFirstName(Room room, Size viewport,
-        {bool landscape = false, double zoom = 1}) =>
-    renderedCellWidth(room, viewport, landscape: landscape, zoom: zoom) >=
-    kFirstNameMinWidth;
-
-double cellWidth({bool landscape = false}) => landscape ? kCellWide : kCell;
+    room.rows * kCell +
+    (room.rows - 1) * kRowGap +
+    kBannerBlock +
+    2 * kGridPadding;
 
 /// Largeur de l'espace inter-colonnes après la colonne [c].
 /// En mode éditeur, l'espace reste large partout pour être facile à toucher ;
@@ -77,12 +59,79 @@ double _colGapWidth(Room room, int c, {required bool editor}) {
   return (editor || aisle) ? kAisle : kGap;
 }
 
-double gridWidth(Room room, {bool editor = false, bool landscape = false}) {
-  var w = room.cols * cellWidth(landscape: landscape);
+/// Somme des espaces inter-colonnes, marges de la grille comprises.
+double _horizontalExtras(Room room, {required bool editor}) {
+  var extras = 2 * kGridPadding;
   for (var c = 0; c < room.cols - 1; c++) {
-    w += _colGapWidth(room, c, editor: editor);
+    extras += _colGapWidth(room, c, editor: editor);
   }
-  return w;
+  return extras;
+}
+
+double gridWidth(Room room, {bool editor = false, double cell = kCell}) =>
+    room.cols * cell + _horizontalExtras(room, editor: editor);
+
+/// Tout ce que l'affichage d'une place a besoin de savoir, mesuré d'un bloc.
+class SeatMetrics {
+  const SeatMetrics({
+    required this.cell,
+    required this.scale,
+    required this.zoom,
+  });
+
+  /// Largeur d'une case AVANT réduction.
+  final double cell;
+
+  /// Facteur appliqué par le [FittedBox].
+  final double scale;
+
+  final double zoom;
+
+  /// Largeur telle qu'elle apparaît réellement à l'écran.
+  double get renderedWidth => cell * scale * zoom;
+
+  /// Le prénom plutôt que les initiales.
+  bool get showsFirstName => renderedWidth >= kFirstNameMinWidth;
+
+  /// Police du prénom, avant réduction : choisie pour que la taille RENDUE soit
+  /// [kSeatNameRenderedSize] quelle que soit l'échelle.
+  double get nameFontSize => kSeatNameRenderedSize / (scale * zoom);
+
+  /// Les initiales, elles, remplissent la case : proportionnelles lui va bien,
+  /// puisqu'il n'y a que deux à cinq caractères à faire tenir.
+  double get initialsFontSize => cell * 0.26;
+}
+
+/// Mesure la grille pour un [viewport] donné.
+///
+/// En paysage, la largeur d'une case n'est pas codée en dur : on prend la plus
+/// grande qui n'empire pas l'échelle. Comme la hauteur de la grille ne dépend
+/// pas de cette largeur, tant que c'est la hauteur qui contraint, élargir les
+/// cases est gratuit — et c'est ce qui achète des lettres.
+SeatMetrics seatMetrics(Room room, Size viewport,
+    {bool landscape = false, double zoom = 1, bool editor = false}) {
+  if (viewport.isEmpty || room.cols <= 0 || room.rows <= 0) {
+    return SeatMetrics(cell: kCell, scale: 1, zoom: zoom);
+  }
+
+  final height = gridHeight(room);
+  final extras = _horizontalExtras(room, editor: editor);
+  final heightScale = viewport.height / height;
+
+  var cell = kCell;
+  if (landscape) {
+    // Largeur qui rend l'échelle horizontale exactement égale à la verticale.
+    final ideal = (viewport.width / heightScale - extras) / room.cols;
+    cell = ideal.clamp(kCell, kCellWideMax).toDouble();
+  }
+
+  final widthScale = viewport.width / (room.cols * cell + extras);
+  final scale = min(widthScale, heightScale);
+  return SeatMetrics(
+    cell: cell,
+    scale: scale > 1 ? 1 : scale,
+    zoom: zoom,
+  );
 }
 
 Color studentColor(Student s, ColorScheme cs) => switch (s.gender) {
@@ -151,14 +200,14 @@ class _FittedGrid extends StatelessWidget {
   final Widget Function(int r, int c) cellBuilder;
   final void Function(int c)? onToggleAisle;
 
-  /// Cases larges plutôt que carrées (voir [kCellWide]).
-  final bool landscape;
+  /// Largeur d'une case, mesurée par [seatMetrics].
+  final double cell;
 
   const _FittedGrid({
     required this.room,
     required this.cellBuilder,
     this.onToggleAisle,
-    this.landscape = false,
+    this.cell = kCell,
   });
 
   bool get _editor => onToggleAisle != null;
@@ -186,7 +235,7 @@ class _FittedGrid extends StatelessWidget {
                 ],
               ),
             ),
-          _FrontBanner(gridWidth(room, editor: _editor, landscape: landscape)),
+          _FrontBanner(gridWidth(room, editor: _editor, cell: cell)),
         ],
       ),
     );
@@ -304,21 +353,21 @@ class PlanGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final width = cellWidth(landscape: landscape);
     // Étiquettes calculées une fois pour toute la classe : la désambiguïsation
     // a besoin de voir tout le monde pour repérer les collisions.
     final labels = disambiguatedInitials(cls.students);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Le prénom ne s'affiche que si la case aura vraiment la place, ce qui
-        // dépend de la réduction appliquée — donc de l'espace disponible ici.
-        final named = showsFirstName(cls.room, constraints.biggest,
+        // Tout dépend de la place réellement disponible ici : la largeur des
+        // cases, l'échelle, donc la police et le choix prénom / initiales.
+        final m = seatMetrics(cls.room, constraints.biggest,
             landscape: landscape);
+        final width = m.cell;
 
         return _FittedGrid(
           room: cls.room,
-          landscape: landscape,
+          cell: m.cell,
           cellBuilder: (r, c) {
             if (!cls.room.isSeat(r, c)) {
               // Allée / vide : simple espace.
@@ -333,12 +382,12 @@ class PlanGrid extends StatelessWidget {
               builder: (context, candidate, rejected) {
                 final hovering = candidate.isNotEmpty;
                 final cell = _seatContent(context, student, hovering,
-                    labels: labels, named: named);
+                    labels: labels, metrics: m);
                 if (student == null) return cell;
                 final feedback = Material(
                   color: Colors.transparent,
                   child: _seatContent(context, student, false,
-                      labels: labels, named: named, elevated: true),
+                      labels: labels, metrics: m, elevated: true),
                 );
                 final placeholder = _emptySeat(cs, false);
                 // Occupé : rendre l'élève déplaçable. Avec un compteur de
@@ -368,14 +417,14 @@ class PlanGrid extends StatelessWidget {
 
   Widget _seatContent(BuildContext context, Student? student, bool hovering,
       {required Map<String, String> labels,
-      required bool named,
+      required SeatMetrics metrics,
       bool elevated = false}) {
     final cs = Theme.of(context).colorScheme;
     if (student == null) return _emptySeat(cs, hovering);
     final levelIcon = _levelCornerIcon(student.level);
     final energyIcon = _energyCornerIcon(student.energy);
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
-    final width = cellWidth(landscape: landscape);
+    final width = metrics.cell;
     return Tooltip(
       message: student.fullName,
       child: Container(
@@ -395,7 +444,7 @@ class PlanGrid extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         child: Stack(
           children: [
-            Center(child: _seatLabel(student, labels, named, width)),
+            Center(child: _seatLabel(student, labels, metrics)),
             if (levelIcon != null)
               Positioned(
                 top: 0,
@@ -440,12 +489,13 @@ class PlanGrid extends StatelessWidget {
   /// fixe : tout ce contenu est ensuite réduit par le `FittedBox` de la grille,
   /// donc une valeur en dur redeviendrait minuscule dès que la salle est large.
   Widget _seatLabel(
-      Student student, Map<String, String> labels, bool named, double width) {
-    if (!named) {
+      Student student, Map<String, String> labels, SeatMetrics metrics) {
+    if (!metrics.showsFirstName) {
       return Text(
         labels[student.id] ?? student.initials,
         maxLines: 1,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: width * 0.26),
+        style: TextStyle(
+            fontWeight: FontWeight.bold, fontSize: metrics.initialsFontSize),
       );
     }
     // Prénom sur une ligne, initiale du nom en dessous pour départager deux
@@ -458,13 +508,15 @@ class PlanGrid extends StatelessWidget {
           student.firstName.trim().isEmpty ? '?' : student.firstName.trim(),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: width * 0.16),
+          style: TextStyle(
+              fontWeight: FontWeight.bold, fontSize: metrics.nameFontSize),
         ),
         if (lastInitial.isNotEmpty)
           Text(
             '${lastInitial[0].toUpperCase()}.',
             maxLines: 1,
-            style: TextStyle(fontSize: width * 0.13, color: _cornerIconColor),
+            style: TextStyle(
+                fontSize: metrics.nameFontSize * 0.8, color: _cornerIconColor),
           ),
       ],
     );
