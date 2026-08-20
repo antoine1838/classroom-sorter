@@ -92,7 +92,10 @@ Deux conclusions qui pilotent tout le reste :
 1. ~~**Moteur** : faire remonter les identifiants fautifs.~~ **Fait** — voir ci-dessous.
 2. ~~**Prototype de gestes** sur une branche `experiment/`.~~ **Fait et validé sur appareil**
    le 19/08/2026 (Galaxy A56, One UI 8.5, Android 16). Voir ci-dessous.
-3. **Paysage** (#12) : rail, chrome masqué, cases rectangulaires. ← prochaine étape
+3. **Paysage** (#12) : rail, chrome masqué, cases rectangulaires. **Fait**, voir ci-dessous ;
+   reste la vérification typographique sur appareil.
+4. **Marquage et feuille de détail** : le moteur remonte déjà les élèves fautifs (étape 1), il reste à
+   les peindre et à ouvrir la feuille au tap. ← prochaine étape
 
 ### Étape 1 — ce qui a été construit
 
@@ -227,3 +230,46 @@ vérifiables autrement que sur l'appareil.
   48 dp : attraper le bon élève au doigt restera ingrat tant qu'on n'a pas zoomé. Acceptable si le zoom
   est fluide, mais c'est le point à surveiller.
 - **Zones sûres en paysage** avec la navigation par gestes et l'encoche, une fois app bar et onglets masqués.
+
+### Étape 3 — paysage, dimensionnement, étiquettes
+
+**Deux règles pures**, dans `lib/models/student.dart` et `lib/widgets/seat_grid.dart` :
+
+- `disambiguatedInitials` allonge le nom de famille lettre à lettre pour les seuls groupes en conflit,
+  et s'arrête net sur une homonymie complète. (Au passage : l'exemple `M.Du` / `M.Da` donné en
+  conception était faux, « Durand » commence par `Du` — les deux noms sont indiscernables à deux
+  lettres, l'algorithme va donc jusqu'à `M.Dup` / `M.Dur`.)
+- `showsFirstName(room, viewport, landscape, zoom)` : une case affiche le prénom dès que sa largeur
+  **rendue** atteint `kFirstNameMinWidth` (54dp). Une seule règle, quatre comportements corrects,
+  vérifiés par test.
+
+**Écart assumé avec la décision Q8.** Il était prévu de masquer app bar **et** onglets en paysage.
+Refait le calcul : masquer les deux donne des cases à ~80dp, garder les deux donne **52,7dp, juste
+sous le seuil de 54**. Or masquer les onglets supprime le seul moyen de quitter l'onglet Plan.
+Masquer l'app bar seule et garder les onglets donne **~65dp**, ce qui passe le seuil tout en
+préservant la navigation. C'est la variante retenue.
+
+**Ce n'est pas l'orientation qui décide, mais la hauteur.** `isLandscapePhone` exige
+`largeur > hauteur ET hauteur < 500`. Se fier à l'orientation seule casserait le bureau : une fenêtre
+y est large mais haute, et masquer son app bar supprimerait le seul retour possible, faute de geste
+système. Un test couvre explicitement ce cas.
+
+**Police proportionnelle à la case**, et non fixe : tout le contenu est ensuite réduit par le
+`FittedBox`, donc une taille en dur redeviendrait minuscule dès que la salle est large.
+
+Le rapport devient un **badge compteur** dans le rail, ouvrant une feuille — c'était lui qui, en
+paysage, faisait tomber l'échelle à 0,21.
+
+Couverture : `test/seat_label_rules_test.dart` (16 tests, logique pure) et
+`test/plan_landscape_test.dart` (10 tests d'écran, dont la non-régression de #12 : la grille doit
+recevoir plus de 250dp de hauteur, contre ~187 avant).
+
+**Piège de test rencontré** : `binding.setSurfaceSize` change les contraintes de mise en page mais
+**pas** ce que rapporte `MediaQuery` (mesuré : il reste à 800×600). Un test qui dépend de
+l'orientation vue par MediaQuery doit régler `tester.view.physicalSize` et
+`tester.view.devicePixelRatio`. Les deux usages coexistent dans la suite, chacun commenté.
+
+**Reste à vérifier sur appareil** — et moi seul ne peux pas le faire, les polices de `flutter_test` ne
+mesurant pas le texte comme le moteur : à ~65dp de largeur rendue en paysage, un prénom long tient-il
+vraiment sans être coupé ? Si non, c'est `kFirstNameMinWidth` ou le coefficient de police
+(`width * 0.16`) qu'il faut ajuster.

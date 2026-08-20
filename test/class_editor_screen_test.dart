@@ -34,10 +34,14 @@ ClassGroup _cls({
       rules: rules,
     );
 
-/// Écran haut : l'onglet Règles empile cinq interrupteurs avant la liste des
+/// Surface haute : l'onglet Règles empile cinq interrupteurs avant la liste des
 /// règles, qui sortirait du champ d'un 800×600 — un `ListView` ne construit pas
-/// ses enfants invisibles, donc les textes attendus n'existeraient tout
-/// simplement pas.
+/// ses enfants invisibles, donc les textes attendus n'existeraient pas.
+///
+/// Attention : `setSurfaceSize` change les contraintes de MISE EN PAGE mais pas
+/// ce que rapporte `MediaQuery` (vérifié : il reste à 800×600). Pour un test qui
+/// dépend de l'orientation vue par MediaQuery, il faut régler `tester.view` —
+/// voir plan_landscape_test.dart.
 Future<AppState> _pump(WidgetTester tester, ClassGroup cls) async {
   await tester.binding.setSurfaceSize(const Size(1000, 2000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -527,8 +531,9 @@ void main() {
       await _pump(t, cls);
       await _tab(t, 'Plan');
 
-      final from = t.getCenter(find.text('PN').first);
-      final to = t.getCenter(find.text('PN').last);
+      // Les cases ont ici largement la place : elles affichent le prénom.
+      final from = t.getCenter(find.text('Prenom0'));
+      final to = t.getCenter(find.text('Prenom1'));
       await t.dragFrom(from, to - from);
       await t.pumpAndSettle();
 
@@ -542,7 +547,7 @@ void main() {
       await _pump(t, cls);
       await _tab(t, 'Plan');
 
-      final occupied = t.getCenter(find.text('PN'));
+      final occupied = t.getCenter(find.text('Prenom0'));
       final empty = t.getCenter(find.byIcon(Icons.event_seat_outlined));
       await t.dragFrom(occupied, empty - occupied);
       await t.pumpAndSettle();

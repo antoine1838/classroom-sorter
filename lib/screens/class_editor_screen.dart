@@ -9,50 +9,85 @@ import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/rule.dart';
 import '../models/student.dart';
+import '../widgets/plan_viewport.dart';
 import '../widgets/seat_grid.dart';
+
+/// Vrai sur un téléphone tenu en paysage, où la HAUTEUR est la ressource rare.
+///
+/// On ne se contente pas de l'orientation : une fenêtre de bureau est large
+/// elle aussi, mais assez haute pour ne rien avoir à sacrifier — et y masquer
+/// l'app bar supprimerait le seul retour possible, faute de geste système.
+bool isLandscapePhone(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  return size.width > size.height && size.height < 500;
+}
 
 class ClassEditorScreen extends StatelessWidget {
   final AppState state;
   final ClassGroup cls;
   const ClassEditorScreen({super.key, required this.state, required this.cls});
 
+  static const _tabs = TabBar(
+    // Non scrollable : les 4 onglets se répartissent sur toute la largeur de
+    // l'écran (adaptatif), sans défilement ni espace vide.
+    isScrollable: false,
+    tabs: [
+      Tab(icon: Icon(Icons.grid_on), text: 'Salle'),
+      Tab(icon: Icon(Icons.people_alt_outlined), text: 'Élèves'),
+      Tab(icon: Icon(Icons.rule), text: 'Règles'),
+      Tab(icon: Icon(Icons.event_seat), text: 'Plan'),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
+    // Téléphone en paysage : on rend les 56dp de l'app bar à la grille, mais on
+    // GARDE les onglets. Masquer les deux donnerait des cases plus grandes
+    // (~80dp au lieu de ~65) au prix du seul moyen de quitter l'onglet Plan —
+    // et 65dp suffisent largement à écrire un prénom.
+    final compact = isLandscapePhone(context);
+
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(
-          title: ListenableBuilder(
-            listenable: state,
-            builder: (_, _) => Text(cls.name.isEmpty ? 'Classe' : cls.name),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Renommer',
-              onPressed: () => _rename(context),
-            ),
-          ],
-          bottom: const TabBar(
-            // Non scrollable : les 4 onglets se répartissent sur toute la
-            // largeur de l'écran (adaptatif), sans défilement ni espace vide.
-            isScrollable: false,
-            tabs: [
-              Tab(icon: Icon(Icons.grid_on), text: 'Salle'),
-              Tab(icon: Icon(Icons.people_alt_outlined), text: 'Élèves'),
-              Tab(icon: Icon(Icons.rule), text: 'Règles'),
-              Tab(icon: Icon(Icons.event_seat), text: 'Plan'),
-            ],
-          ),
-        ),
-        body: ListenableBuilder(
-          listenable: state,
-          builder: (context, _) => TabBarView(
+        appBar: compact
+            ? null
+            : AppBar(
+                title: ListenableBuilder(
+                  listenable: state,
+                  builder: (_, _) =>
+                      Text(cls.name.isEmpty ? 'Classe' : cls.name),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Renommer',
+                    onPressed: () => _rename(context),
+                  ),
+                ],
+                bottom: _tabs,
+              ),
+        body: SafeArea(
+          child: Column(
             children: [
-              _RoomTab(state: state, cls: cls),
-              _StudentsTab(state: state, cls: cls),
-              _RulesTab(state: state, cls: cls),
-              _PlanTab(state: state, cls: cls),
+              if (compact)
+                Material(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: _tabs,
+                ),
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: state,
+                  builder: (context, _) => TabBarView(
+                    children: [
+                      _RoomTab(state: state, cls: cls),
+                      _StudentsTab(state: state, cls: cls),
+                      _RulesTab(state: state, cls: cls),
+                      _PlanTab(state: state, cls: cls),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1597,6 +1632,11 @@ class _PlanTab extends StatefulWidget {
 class _PlanTabState extends State<_PlanTab> {
   PlanResult? _result;
 
+  /// Partagé entre la fenêtre de zoom et les places : un pincement posé sur une
+  /// place ne doit pas saisir d'élève (voir PlanViewport).
+  final _tracker = PointerTracker();
+  final _viewport = GlobalKey<PlanViewportState>();
+
   ClassGroup get cls => widget.cls;
 
   void _generate() {
@@ -1632,6 +1672,12 @@ class _PlanTabState extends State<_PlanTab> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = isLandscapePhone(context);
+    return compact ? _landscape(context) : _portrait(context);
+  }
+
+  /// Portrait : tout en colonne, la grille prenant la place restante.
+  Widget _portrait(BuildContext context) {
     final hasPlan = cls.assignment.isNotEmpty;
     final unplaced = _result?.unplacedStudentIds ?? const [];
     return Column(
@@ -1640,22 +1686,10 @@ class _PlanTabState extends State<_PlanTab> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: cls.students.isEmpty ? null : _generate,
-                  icon: const Icon(Icons.auto_awesome),
-                  label: Text(hasPlan ? 'Régénérer' : 'Générer le plan'),
-                ),
-              ),
+              Expanded(child: _generateButton(hasPlan)),
               if (hasPlan) ...[
                 const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.tonalIcon(
-                    onPressed: _validate,
-                    icon: const Icon(Icons.fact_check),
-                    label: const Text('Valider'),
-                  ),
-                ),
+                Expanded(child: _validateButton()),
               ],
             ],
           ),
@@ -1677,22 +1711,182 @@ class _PlanTabState extends State<_PlanTab> {
             ),
           ),
         Expanded(
-          child: cls.students.isEmpty
-              ? const Center(child: Text('Ajoutez des élèves, puis générez le plan.'))
-              : Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: hasPlan
-                      ? PlanGrid(cls: cls, onSwap: _swap)
-                      : const Center(
-                          child: Text(
-                              'Appuyez sur « Générer le plan ».\n'
-                              'Astuce : ensuite, faites glisser un élève sur une '
-                              'autre place pour ajuster à la main.',
-                              textAlign: TextAlign.center),
-                        ),
-                ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: _grid(landscape: false),
+          ),
         ),
       ],
+    );
+  }
+
+  /// Paysage sur téléphone : les commandes passent dans un rail vertical à
+  /// droite, où la largeur est abondante, pour rendre à la grille la hauteur qui
+  /// est ici la ressource rare.
+  Widget _landscape(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+            child: _grid(landscape: true),
+          ),
+        ),
+        _Rail(
+          hasPlan: cls.assignment.isNotEmpty,
+          canGenerate: cls.students.isNotEmpty,
+          result: _result,
+          onGenerate: _generate,
+          onValidate: _validate,
+          onShowReport: () => _showReport(context),
+          onRecenter: (_viewport.currentState?.isZoomed ?? false)
+              ? () => setState(() => _viewport.currentState?.recenter())
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _generateButton(bool hasPlan) => FilledButton.icon(
+        onPressed: cls.students.isEmpty ? null : _generate,
+        icon: const Icon(Icons.auto_awesome),
+        label: Text(hasPlan ? 'Régénérer' : 'Générer le plan'),
+      );
+
+  Widget _validateButton() => FilledButton.tonalIcon(
+        onPressed: _validate,
+        icon: const Icon(Icons.fact_check),
+        label: const Text('Valider'),
+      );
+
+  Widget _grid({required bool landscape}) {
+    if (cls.students.isEmpty) {
+      return const Center(child: Text('Ajoutez des élèves, puis générez le plan.'));
+    }
+    if (cls.assignment.isEmpty) {
+      return const Center(
+        child: Text(
+            'Appuyez sur « Générer le plan ».\n'
+            'Astuce : ensuite, faites glisser un élève sur une autre place '
+            'pour ajuster à la main.',
+            textAlign: TextAlign.center),
+      );
+    }
+    // Un doigt déplace un élève, deux doigts zooment et déplacent la vue.
+    return PlanViewport(
+      key: _viewport,
+      tracker: _tracker,
+      onScaleChanged: (_) => setState(() {}),
+      child: PlanGrid(
+        cls: cls,
+        onSwap: _swap,
+        landscape: landscape,
+        tracker: _tracker,
+      ),
+    );
+  }
+
+  /// Le rapport complet, en feuille : en paysage il n'a pas la hauteur pour
+  /// s'afficher en permanence sans écraser la grille.
+  void _showReport(BuildContext context) {
+    final result = _result;
+    if (result == null) return;
+    final unplaced = result.unplacedStudentIds;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ReportCard(result: result),
+              if (unplaced.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Non placés : ${unplaced.map((id) => cls.studentById(id)?.fullName ?? '?').join(', ')}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Rail vertical des commandes du plan, en paysage.
+class _Rail extends StatelessWidget {
+  const _Rail({
+    required this.hasPlan,
+    required this.canGenerate,
+    required this.result,
+    required this.onGenerate,
+    required this.onValidate,
+    required this.onShowReport,
+    required this.onRecenter,
+  });
+
+  final bool hasPlan;
+  final bool canGenerate;
+  final PlanResult? result;
+  final VoidCallback onGenerate;
+  final VoidCallback onValidate;
+  final VoidCallback onShowReport;
+  final VoidCallback? onRecenter;
+
+  @override
+  Widget build(BuildContext context) {
+    final problems =
+        (result?.violations.length ?? 0) + (result?.warnings.length ?? 0);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton.filled(
+            tooltip: hasPlan ? 'Régénérer' : 'Générer le plan',
+            onPressed: canGenerate ? onGenerate : null,
+            icon: const Icon(Icons.auto_awesome),
+          ),
+          if (hasPlan) ...[
+            const SizedBox(height: 8),
+            IconButton.filledTonal(
+              tooltip: 'Valider',
+              onPressed: onValidate,
+              icon: const Icon(Icons.fact_check),
+            ),
+          ],
+          if (result != null) ...[
+            const SizedBox(height: 8),
+            // Badge compteur plutôt que la carte de rapport : c'est elle qui,
+            // en paysage, faisait tomber l'échelle de la grille.
+            Badge(
+              isLabelVisible: problems > 0,
+              label: Text('$problems'),
+              child: IconButton(
+                tooltip: problems > 0
+                    ? '$problems problème(s)'
+                    : 'Toutes les règles sont respectées',
+                onPressed: onShowReport,
+                icon: Icon(problems > 0
+                    ? Icons.warning_amber
+                    : Icons.check_circle_outline),
+              ),
+            ),
+          ],
+          if (onRecenter != null) ...[
+            const SizedBox(height: 8),
+            IconButton(
+              tooltip: 'Recentrer',
+              onPressed: onRecenter,
+              icon: const Icon(Icons.center_focus_strong),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
