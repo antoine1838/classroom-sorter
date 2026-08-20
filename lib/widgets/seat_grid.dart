@@ -565,9 +565,11 @@ class PlanGrid extends StatelessWidget {
 
   /// Le prénom quand la case a la place, les initiales désambiguïsées sinon.
   ///
-  /// La taille de police est proportionnelle à la largeur de la case, et non
-  /// fixe : tout ce contenu est ensuite réduit par le `FittedBox` de la grille,
-  /// donc une valeur en dur redeviendrait minuscule dès que la salle est large.
+  /// Les deux branches ne dimensionnent PAS leur police de la même façon.
+  /// Les initiales suivent [SeatMetrics.initialsFontSize] (simple proportion de
+  /// la largeur de case) : peu de caractères, autant qu'ils remplissent la case.
+  /// Le prénom suit [SeatMetrics.nameFontSize] (taille rendue ciblée, plafonnée
+  /// par la hauteur) — voir la documentation de ce getter pour le pourquoi.
   Widget _seatLabel(
     Student student,
     Map<String, String> labels,

@@ -355,23 +355,25 @@ inspecter `tester.takeException()`.
 
 ## Reste à faire
 
+**Étape 3 : close.** Toutes les décisions et vérifications ci-dessous sont tranchées ; ce qui
+restait ouvert (localisation FR des widgets système, débordements préexistants des onglets Salle
+et Élèves) est reporté aux issues #19 et #17, hors périmètre de #8.
+
 **Décisions qui te reviennent**
 
 - ~~`kCellWideMax` (140) : les cases élargies ressemblent-elles encore à des places ?~~ **Validé** :
   « ce n'est pas choquant, ça ressemble à des places. »
 - ~~Initiales plutôt qu'un prénom minuscule dans les formats serrés.~~ **Validé** : « c'est OK, c'est
   plus lisible. »
-- **En attente d'essai** : quand l'app bar est masquée, le **nom de la classe** et le bouton
-  **Renommer** deviennent inaccessibles. Le retour suffit à ne plus être piégé, mais faut-il leur
-  trouver une place ?
+- ~~Le nom de la classe et Renommer deviennent inaccessibles app bar masquée.~~ **Réglé** : l'app
+  bar disparaît complètement (tour 6), le nom vit en permanence sur sa propre barre, à toutes les
+  tailles.
 
 **Étape 4, non commencée** : marquage des élèves fautifs et feuille de détail au tap. Les décisions
 sont prises (rendu par sévérité, fond réquisitionné, genre replié sur un liseré, feuille au tap avec
 tous les attributs en clair) et le moteur fournit déjà les identifiants depuis l'étape 1.
 
-**Vérification que je ne peux pas faire** : `kFirstNameMinWidth` (54 dp) reste une estimation
-arithmétique côté largeur. Le plafond de hauteur est désormais mesuré, mais pas la largeur réelle
-d'un prénom long dans la police du moteur.
+~~**Vérification que je ne peux pas faire** : `kFirstNameMinWidth` (54 dp).~~ **Validé à l'essai.**
 
 
 #### Cinquième tour : le résumé, les paliers et les axes
@@ -465,6 +467,16 @@ libellés les plus longs, 84dp de large chacun) restaient coupés net dans leur 
 les croyait déjà casés. Passé à 32 ; nouveau seuil ≈512dp au lieu de ≈448dp estimé, confirmé par un
 balayage de 61 largeurs (300 à 900dp par pas de 10) vérifiant qu'aucun libellé n'est jamais rendu plus
 étroit que sa largeur naturelle.
+
+**Réserve sur le chiffre « ≈512dp ».** La correction elle-même (32 au lieu de 16) est solide,
+indépendante de la police : `kTabLabelPadding` dans les sources Flutter est bien 16dp de CHAQUE
+côté. Mais le seuil exact où le palier bascule dans l'app réelle reste À VÉRIFIER EN LIVE :
+`flutter_test` substitue une police où chaque caractère mesure exactement `fontSize` de large —
+vérifié : « Salle » 5 lettres → 70 = 5×14, « Élèves »/« Règles » 6 lettres → 84 = 6×14, « Plan »
+4 lettres → 56 = 4×14, exactement la police de test, pas Roboto. Le balayage de 61 largeurs prouve
+que le MÉCANISME ne se contredit jamais lui-même, pas que 512dp est la bonne valeur sur un vrai
+téléphone. Même piège que documenté pour l'onglet Élèves (mémoire `students-grid-narrow-floor`) —
+j'y suis retombé sans la relire avant d'écrire ce chiffre.
 
 Trois retouches de finition, toutes signalées après essai :
 

@@ -33,9 +33,14 @@ sur Internet — adapté aux données élèves).
   - *Éviter un grand devant un petit* — un élève grand ne bloque pas la vue de
     celui placé juste derrière.
 - **Plan** : génération automatique, rapport des contraintes respectées /
-  violées, et **glisser-déposer** pour ajuster à la main. Bouton *Régénérer*
-  pour une autre proposition, bouton *Valider* pour recontrôler règles et
-  équilibre après un ajustement manuel.
+  violées (dur en rouge, perfectible en orange), et **glisser-déposer** pour
+  ajuster à la main. Bouton *Régénérer* pour une autre proposition, bouton
+  *Valider* pour recontrôler règles et équilibre après un ajustement manuel.
+  Lisible à toute taille d'écran : la salle s'affiche en entier en **portrait**
+  (avec **zoom** à deux doigts) comme en **paysage** (cases plus larges, chrome
+  qui se replie en rail au besoin), avec le **prénom** en clair dès que la place
+  le permet, sinon des **initiales désambiguïsées** (deux élèves aux mêmes
+  initiales sont distingués).
 - **Classe de démo** : bouton (accueil, écran vide ou icône dans l'AppBar)
   pour ajouter en un clic une classe fictive « 6ème B » déjà remplie (20
   élèves, salle, règles, plan) — pratique pour découvrir l'appli sans tout
@@ -125,16 +130,24 @@ lib/
 ├── data/          repository.dart — stockage local (shared_preferences)
 ├── screens/       home_screen, class_editor_screen (4 onglets), settings_screen
 ├── widgets/       seat_grid.dart — grilles (édition + drag & drop)
+│               plan_viewport.dart — zoom / pan du plan (2 doigts), sans conflit
+│                                    avec le glisser-déposer d'un élève (1 doigt)
 ├── app_state.dart État global (ChangeNotifier) + persistance
 └── main.dart      Point d'entrée + fenêtre desktop (taille/position)
 
 assets/demo/       demo_class_6emeb.json — classe de démo embarquée (voir
                    test/fixtures/README.md pour la fixture de référence)
 
-test/              engine_test, seating_neighbors_test, room_orientation_test,
-                   layout_responsive_test, students_grid_cycle_test,
-                   students_table_toggle_test, balance_objectives_test,
-                   app_state_test, demo_class_test, widget_test
+test/              moteur : engine_test, seating_neighbors_test, room_orientation_test,
+                   balance_objectives_test, plan_issues_test
+                   modèles / stockage : models_test, repository_test, app_state_test,
+                   demo_class_test
+                   écrans : home_screen_test, settings_screen_test,
+                   class_editor_screen_test, layout_responsive_test,
+                   plan_landscape_test, students_grid_cycle_test,
+                   students_table_toggle_test
+                   plan : seat_label_rules_test, plan_viewport_gestures_test
+                   widget_test
 ```
 
 ## Idées d'améliorations
