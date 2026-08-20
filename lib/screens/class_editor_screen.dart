@@ -1,6 +1,8 @@
 /// Éditeur d'une classe : 4 onglets — Salle, Élèves, Règles, Plan.
 library;
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -16,7 +18,93 @@ import '../widgets/seat_grid.dart';
 const kReportButtonKey = Key('plan-report-button');
 
 /// Le retour affiché à côté des onglets quand l'app bar est masquée.
-const kCompactBackKey = Key('class-compact-back');
+const kClassBackKey = Key('class-back');
+
+/// La barre fine qui porte le nom de la classe quand l'app bar est masquée.
+const kClassNameBarKey = Key('class-name-bar');
+
+/// Les quatre onglets de l'écran, dans l'ordre.
+const kClassTabs = <({IconData icon, String label})>[
+  (icon: Icons.grid_on, label: 'Salle'),
+  (icon: Icons.people_alt_outlined, label: 'Élèves'),
+  (icon: Icons.rule, label: 'Règles'),
+  (icon: Icons.event_seat, label: 'Plan'),
+];
+
+/// Largeur du bouton retour, et respiration minimale autour d'un libellé
+/// d'onglet.
+const double _kBackButtonWidth = 48;
+const double _kTabLabelBreathing = 16;
+
+/// Vrai si les libellés des onglets tiennent en entier dans [width].
+///
+/// Mesuré, comme les boutons du plan : tronqués à « Sa », « Élè », « Rè », ils ne
+/// renseignent plus personne, et les quatre icônes sont distinctes. Autant
+/// rendre cette largeur au nom de la classe.
+bool _tabLabelsFit(BuildContext context, double width) {
+  final style = Theme.of(context).textTheme.labelLarge;
+  var widest = 0.0;
+  for (final tab in kClassTabs) {
+    final painter = TextPainter(
+      text: TextSpan(text: tab.label, style: style),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    widest = max(widest, painter.width);
+  }
+  return width >=
+      _kBackButtonWidth + kClassTabs.length * (widest + _kTabLabelBreathing);
+}
+
+/// Nom de la classe sur une ligne fine, au-dessus des onglets.
+///
+/// Toute la barre est tappable pour renommer : un [IconButton] fait 48 dp, il ne
+/// tiendrait pas dans cette hauteur. La cible devient donc large et basse plutôt
+/// que carrée, et le crayon n'est qu'un indice visuel.
+class _ClassNameBar extends StatelessWidget {
+  const _ClassNameBar({
+    required this.state,
+    required this.cls,
+    required this.onRename,
+  });
+
+  final AppState state;
+  final ClassGroup cls;
+  final VoidCallback onRename;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      key: kClassNameBarKey,
+      color: cs.surfaceContainerLow,
+      child: InkWell(
+        onTap: onRename,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          child: Row(
+            children: [
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: state,
+                  builder: (_, _) => Text(
+                    cls.name.isEmpty ? 'Classe' : cls.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    // Même police que les onglets : les onglets Material 3
+                    // utilisent titleSmall (vérifié dans tabs.dart).
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              ),
+              Icon(Icons.edit_outlined, size: 14, color: cs.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Quels libellés la barre de commandes du plan peut afficher.
 ///
@@ -35,9 +123,11 @@ const double _kIconMinW = 48;
 const double _kPlanBarPadding = 24;
 const double _kPlanBarGap = 8;
 
-/// Couleur des points perfectibles : ni l'erreur, ni le vert. Reprend l'orange
-/// des lignes d'avertissement du rapport.
+/// Couleur d'un plan irréprochable, et celle des points perfectibles : ni
+/// l'erreur, ni le vert. Reprennent le vert et l'orange déjà employés par les
+/// lignes du rapport.
 final Color _kSoftColour = Colors.orange.shade700;
+const Color _kCleanColour = Colors.green;
 
 /// Largeur qu'occuperait un bouton portant ce libellé.
 ///
@@ -54,7 +144,11 @@ double _labelledWidth(BuildContext context, String label) {
 }
 
 /// Ce que coûte chaque élément de chrome vertical, au-dessus de la grille.
-const double _kAppBarHeight = 56;
+///
+/// Il n'y a plus d'app bar : le nom de la classe vit sur sa propre barre fine,
+/// permanente, et le retour à gauche des onglets. Une seule disposition à
+/// toutes les tailles, et 56 dp rendus à la grille sur TOUS les formats.
+const double _kNameBarHeight = 30;
 const double _kTabsHeight = 72;
 const double _kButtonRowHeight = 64;
 const double _kPlanPadding = 24;
@@ -62,101 +156,90 @@ const double _kPlanPadding = 24;
 /// Hauteur en dessous de laquelle la grille cesse d'être lisible.
 const double _kMinGridHeight = 320;
 
-/// Chrome à sacrifier pour que la grille garde de la place.
+/// Rapport largeur/hauteur à partir duquel la largeur est franchement l'axe
+/// abondant, et un rail latéral vaut la peine.
+const double _kWideRatio = 1.2;
+
+/// Vrai si les commandes du plan doivent passer dans un rail latéral.
 ///
-/// Dégradation **progressive**, du moins coûteux au plus coûteux, plutôt qu'un
-/// seuil brutal sur la hauteur : avec un seuil, une fenêtre de 570 dp de haut
-/// gardait tout son chrome et la grille se réduisait à une vignette.
-({bool rail, bool hideAppBar}) planChrome(BuildContext context) {
+/// C'est le seul arbitrage qui reste : le rail échange de la largeur, souvent
+/// abondante, contre de la hauteur, souvent rare.
+bool planUsesRail(BuildContext context) {
   final size = MediaQuery.sizeOf(context);
   final insets = MediaQuery.paddingOf(context).vertical;
-  var free = size.height -
+  final free = size.height -
       insets -
-      _kAppBarHeight -
+      _kNameBarHeight -
       _kTabsHeight -
       _kButtonRowHeight -
       _kPlanPadding;
-  if (free >= _kMinGridHeight) return (rail: false, hideAppBar: false);
+  if (free >= _kMinGridHeight) return false;
 
-  // Un rail n'a de sens que si la largeur est l'axe ABONDANT. Dans une fenêtre
-  // portrait, c'est elle qui est rare : un rail y volerait précisément la
-  // ressource qui manque. On garde donc les commandes en haut, où les paliers de
-  // libellés feront le nécessaire.
-  if (size.width <= size.height) {
-    return (rail: false, hideAppBar: false);
-  }
-
-  // 1) Les commandes passent dans un rail latéral.
-  free += _kButtonRowHeight;
-  if (free >= _kMinGridHeight) return (rail: true, hideAppBar: false);
-
-  // 2) En dernier recours seulement, l'app bar : elle porte le retour, qu'aucun
-  //    geste système ne remplace sur un bureau.
-  return (rail: true, hideAppBar: true);
+  // Un rail n'a de sens que si la largeur est l'axe franchement ABONDANT. Dans
+  // une fenêtre portrait, c'est elle qui est rare : un rail y volerait
+  // précisément la ressource qui manque.
+  //
+  // La marge de [_kWideRatio] n'est pas décorative : sans elle, une fenêtre
+  // presque carrée bascule d'une disposition à l'autre au pixel près, ce qui
+  // donne une impression d'arbitraire au redimensionnement.
+  return size.width >= size.height * _kWideRatio;
 }
+
 
 class ClassEditorScreen extends StatelessWidget {
   final AppState state;
   final ClassGroup cls;
   const ClassEditorScreen({super.key, required this.state, required this.cls});
 
-  static const _tabs = TabBar(
-    // Non scrollable : les 4 onglets se répartissent sur toute la largeur de
-    // l'écran (adaptatif), sans défilement ni espace vide.
-    isScrollable: false,
-    tabs: [
-      Tab(icon: Icon(Icons.grid_on), text: 'Salle'),
-      Tab(icon: Icon(Icons.people_alt_outlined), text: 'Élèves'),
-      Tab(icon: Icon(Icons.rule), text: 'Règles'),
-      Tab(icon: Icon(Icons.event_seat), text: 'Plan'),
-    ],
-  );
+  /// Les quatre onglets, avec ou sans libellés.
+  ///
+  /// Sans libellé, un [Tab] fait 46 dp de haut au lieu de 72 : les 26 dp gagnés
+  /// paient presque entièrement la barre du nom de classe.
+  static TabBar _tabsFor({required bool labels}) => TabBar(
+        // Non scrollable : les 4 onglets se répartissent sur toute la largeur de
+        // l'écran (adaptatif), sans défilement ni espace vide.
+        isScrollable: false,
+        tabs: [
+          for (final t in kClassTabs)
+            labels
+                ? Tab(icon: Icon(t.icon), text: t.label)
+                : Tab(icon: Icon(t.icon)),
+        ],
+      );
 
   @override
   Widget build(BuildContext context) {
-    // Téléphone en paysage : on rend les 56dp de l'app bar à la grille, mais on
-    // GARDE les onglets. Masquer les deux donnerait des cases plus grandes
-    // (~80dp au lieu de ~65) au prix du seul moyen de quitter l'onglet Plan —
-    // et 65dp suffisent largement à écrire un prénom.
-    final compact = planChrome(context).hideAppBar;
-
+    // Plus d'app bar : une seule disposition à toutes les tailles. Le nom de
+    // la classe vit sur sa barre fine, permanente, et le retour à gauche des
+    // onglets — l'arrangement retenu après essai. 56 dp rendus à la grille
+    // sur tous les formats, y compris le bureau.
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: compact
-            ? null
-            : AppBar(
-                title: ListenableBuilder(
-                  listenable: state,
-                  builder: (_, _) =>
-                      Text(cls.name.isEmpty ? 'Classe' : cls.name),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    tooltip: 'Renommer',
-                    onPressed: () => _rename(context),
-                  ),
-                ],
-                bottom: _tabs,
-              ),
         body: SafeArea(
           child: Column(
             children: [
-              if (compact)
-                Material(
-                  color: Theme.of(context).colorScheme.surface,
-                  // L'app bar est masquée : le retour se glisse à côté des
-                  // onglets, qui existent déjà. Il ne coûte donc pas un pixel
-                  // de hauteur — et sans lui on ne pourrait plus quitter la
-                  // classe, aucun geste système ne le remplaçant sur un bureau.
-                  child: const Row(
+              _ClassNameBar(
+                state: state,
+                cls: cls,
+                onRename: () => _rename(context),
+              ),
+              Material(
+                color: Theme.of(context).colorScheme.surface,
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Row(
                     children: [
-                      BackButton(key: kCompactBackKey),
-                      Expanded(child: _tabs),
+                      const BackButton(key: kClassBackKey),
+                      Expanded(
+                        child: _tabsFor(
+                          labels:
+                              _tabLabelsFit(context, constraints.maxWidth),
+                        ),
+                      ),
                     ],
                   ),
                 ),
+              ),
               Expanded(
                 child: ListenableBuilder(
                   listenable: state,
@@ -1754,9 +1837,9 @@ class _PlanTabState extends State<_PlanTab> {
 
   @override
   Widget build(BuildContext context) {
-    final chrome = planChrome(context);
+    final rail = planUsesRail(context);
     final grid = Padding(
-      padding: chrome.rail
+      padding: rail
           ? const EdgeInsets.fromLTRB(12, 8, 4, 8)
           : const EdgeInsets.all(12),
       child: _grid(),
@@ -1764,7 +1847,7 @@ class _PlanTabState extends State<_PlanTab> {
 
     // Les mêmes trois commandes dans les deux cas : seule leur disposition
     // change. En rail, elles ne coûtent plus de hauteur.
-    if (chrome.rail) {
+    if (rail) {
       return Row(children: [Expanded(child: grid), _controls(vertical: true)]);
     }
     return Column(
@@ -1793,8 +1876,15 @@ class _PlanTabState extends State<_PlanTab> {
     final hasPlan = cls.assignment.isNotEmpty;
     final hasReport = _result != null;
 
-    var needMain = _labelledWidth(context, _generateLabel);
-    if (hasPlan) needMain += _kPlanBarGap + _labelledWidth(context, 'Valider');
+    // Les deux commandes principales sont dans des Expanded : elles se
+    // partagent la largeur À PARTS ÉGALES. Ce qu'il faut donc, c'est deux fois
+    // le plus LARGE des deux libellés, pas la somme des deux — sinon « Valider »
+    // (court) masque le besoin de « Régénérer » (long), qui se coupe alors en
+    // plein mot avant que le palier ne bascule.
+    var widest = _labelledWidth(context, _generateLabel);
+    if (hasPlan) widest = max(widest, _labelledWidth(context, 'Valider'));
+    var needMain = widest * (hasPlan ? 2 : 1);
+    if (hasPlan) needMain += _kPlanBarGap;
 
     // needMain compte déjà l'espace entre les deux boutons principaux : il ne
     // reste à prévoir que celui qui précède le rapport.
@@ -1880,10 +1970,21 @@ class _PlanTabState extends State<_PlanTab> {
     }
 
     if (vertical) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, children: spaced),
+      // Défilable : sur une fenêtre très plate, quatre contrôles de 48 dp
+      // demandent plus de hauteur que le rail n'en a. Le `minHeight` conserve
+      // le centrage tant que la place suffit.
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: spaced),
+            ),
+          ),
+        ),
       );
     }
     // Sans libellé, les contrôles ne s'étirent pas : on les centre plutôt que
@@ -1920,7 +2021,9 @@ class _PlanTabState extends State<_PlanTab> {
         ),
       _ => (
           Icons.check_circle_outline,
-          null,
+          // Explicitement vert : laisser la couleur par défaut donnait une
+          // coche grise, indiscernable d'un état neutre.
+          _kCleanColour,
           'Toutes les règles et tous les objectifs sont respectés',
         ),
     };

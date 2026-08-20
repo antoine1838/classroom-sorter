@@ -403,3 +403,35 @@ fois et soit relisible. D'ici là, on suit le style environnant à la main.
 préexistant, repéré en testant l'onglet Plan à 282 dp (une fenêtre de petite tablette avec la mise à
 l'échelle Windows). `TabBarView` construisant les onglets voisins, le débordement existe même quand on
 regarde le Plan. Hors périmètre de #8.
+
+#### Sixième tour : nom de classe, onglets mesurés, bascule portrait/paysage
+
+**Le nom de la classe revient**, sur une barre fine au-dessus des onglets (~26 dp). Toute la barre est
+tappable pour renommer : un `IconButton` fait 48 dp et ne tiendrait pas dans cette hauteur, donc la
+cible devient large et basse plutôt que carrée, et le crayon n'est qu'un indice visuel.
+
+**Les onglets se dégradent comme les boutons.** Leurs libellés sont mesurés au `TextPainter` ; quand
+ils ne tiennent plus, les onglets passent en icônes seules. Effet de bord heureux : un `Tab` sans
+libellé fait 46 dp au lieu de 72, donc les 26 dp gagnés paient presque exactement la barre du nom.
+À la largeur où ça se déclenche, les libellés étaient de toute façon tronqués à « Sa », « Élè », « Rè ».
+
+**La bascule portrait/paysage ne se fait plus au pixel près.** Le rail exige désormais que la largeur
+dépasse la hauteur d'un facteur `_kWideRatio`. Sans cette marge, une fenêtre presque carrée changeait
+de disposition à un pixel de différence, ce qui donnait une impression d'arbitraire.
+
+**Le rail est défilable** : sur une fenêtre très plate, quatre contrôles de 48 dp demandent plus de
+hauteur qu'il n'en a. Le `minHeight` conserve le centrage tant que la place suffit.
+
+### Débordements préexistants, hors périmètre (issue #17)
+
+Mesurés en construisant le balayage de formats, et **antérieurs à ce chantier** :
+
+- **onglet Salle** : déborde de 14 px à 700 × 250 (rangée de compteurs + paragraphe d'aide de hauteur
+  fixe, au-dessus de la grille) ;
+- **onglet Élèves** : déborde de 51 px à 700 × 250, et sous ~320 dp de large (plancher connu des deux
+  vues Élèves).
+
+Comme `TabBarView` construit les onglets voisins, ces débordements existent même quand on regarde le
+Plan. Le balayage de formats purge donc l'exception du montage — qui a lieu sur l'onglet Salle — avant
+de basculer sur le Plan, sinon les tests du Plan échoueraient pour des défauts qui ne sont pas les
+siens.
