@@ -104,12 +104,15 @@ void main() {
     const portrait = Size(387, 651);
     const landscape = Size(811, 299);
 
+    /// Grande fenêtre de bureau / tablette.
+    const grandEcran = Size(1400, 1200);
+
     /// Nombre approximatif de caractères qui tiennent dans une case, à la
-    /// taille de police rendue. C'est LA mesure qui compte : la largeur seule
-    /// ne dit rien si la police grandit en même temps.
+    /// taille de police RENDUE. C'est LA mesure qui compte : la largeur seule ne
+    /// dit rien si la police grandit en même temps.
     double letters(SeatMetrics m) {
       final usable = m.renderedWidth - 2 * 3 * m.scale;
-      return usable / (0.55 * kSeatNameRenderedSize);
+      return usable / (0.55 * m.renderedNameSize);
     }
 
     test('portrait, 8 colonnes : initiales', () {
@@ -126,18 +129,16 @@ void main() {
       expect(m.showsFirstName, isTrue);
     });
 
-    test('portrait, petite salle : prénom d\'emblée, sans réduction', () {
+    test('portrait, petite salle : prénom d\'emblée', () {
       final m = seatMetrics(Room(rows: 5, cols: 5), portrait);
 
-      expect(m.scale, 1);
-      expect(m.renderedWidth, kCell);
       expect(m.showsFirstName, isTrue);
     });
 
     test('paysage : les cases s\'élargissent pour gagner des LETTRES', () {
       final small = seatMetrics(Room(rows: 5, cols: 8), portrait);
       final wide =
-          seatMetrics(Room(rows: 5, cols: 8), landscape, landscape: true);
+          seatMetrics(Room(rows: 5, cols: 8), landscape);
 
       expect(wide.cell, greaterThan(kCell),
           reason: 'la largeur de case est mesurée, pas codée en dur');
@@ -148,32 +149,51 @@ void main() {
           reason: 'au moins trois lettres de plus qu\'en portrait');
     });
 
-    test('la police rendue reste constante quelle que soit l\'échelle', () {
-      final petite = seatMetrics(Room(rows: 3, cols: 3), portrait);
-      final grande = seatMetrics(Room(rows: 5, cols: 10), portrait);
+    test('une grande fenêtre est OCCUPÉE, pas laissée vide', () {
+      // Défaut constaté sur l'app Windows : `BoxFit.scaleDown` ne grandissait
+      // jamais, donc la grille restait dans un coin et les prénoms étaient
+      // tronqués alors que la place était là.
+      final room = Room(rows: 5, cols: 7);
+      final m = seatMetrics(room, grandEcran);
 
-      expect(petite.scale, greaterThan(grande.scale));
-      // C'est tout l'objet du correctif : la taille RENDUE ne bouge pas, donc
-      // une case plus large accueille plus de lettres.
-      expect(petite.nameFontSize * petite.scale,
-          closeTo(kSeatNameRenderedSize, 0.01));
-      expect(grande.nameFontSize * grande.scale,
-          closeTo(kSeatNameRenderedSize, 0.01));
+      expect(m.scale, greaterThan(1),
+          reason: 'la salle doit grandir pour remplir la fenêtre');
+      expect(gridWidth(room, cell: m.cell) * m.scale,
+          greaterThan(grandEcran.width * 0.9),
+          reason: 'au moins 90 % de la largeur employée');
+      expect(letters(m), greaterThan(14),
+          reason: 'assez de place pour un prénom composé');
+    });
+
+    test('la police rendue est bornée et croît moins vite que la case', () {
+      for (final m in [
+        seatMetrics(Room(rows: 5, cols: 8), portrait),
+        seatMetrics(Room(rows: 5, cols: 8), landscape),
+        seatMetrics(Room(rows: 5, cols: 7), grandEcran),
+      ]) {
+        expect(m.nameFontSize * m.scale * m.zoom,
+            closeTo(m.renderedNameSize, 0.01),
+            reason: 'la police non mise à l\'échelle se déduit de la taille '
+                'rendue voulue, et non l\'inverse');
+        expect(m.renderedNameSize, inInclusiveRange(kNameSizeMin, kNameSizeMax));
+      }
+
+      // Une case bien plus large doit accueillir plus de lettres : c'est ce que
+      // garantit une police qui croît moins vite qu'elle.
+      final etroit =
+          seatMetrics(Room(rows: 5, cols: 8), landscape);
+      final large = seatMetrics(Room(rows: 5, cols: 7), grandEcran);
+
+      expect(large.renderedWidth, greaterThan(etroit.renderedWidth));
+      expect(letters(large), greaterThan(letters(etroit)));
     });
 
     test('la largeur de case reste bornée', () {
       // Une seule colonne dans un paysage très large : sans borne, la case
       // deviendrait absurdement allongée.
-      final m = seatMetrics(Room(rows: 5, cols: 1), landscape, landscape: true);
+      final m = seatMetrics(Room(rows: 5, cols: 1), landscape);
 
       expect(m.cell, lessThanOrEqualTo(kCellWideMax));
-    });
-
-    test('la réduction ne grossit jamais une petite salle', () {
-      expect(seatMetrics(Room(rows: 2, cols: 2), portrait).scale, 1);
-      expect(
-          seatMetrics(Room(rows: 2, cols: 2), landscape, landscape: true).scale,
-          1);
     });
 
     test('une salle très large est réduite, pas débordante', () {

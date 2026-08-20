@@ -15,7 +15,6 @@ import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/student.dart';
 import 'package:plandeclasse/screens/class_editor_screen.dart';
 import 'package:plandeclasse/widgets/plan_viewport.dart';
-import 'package:plandeclasse/widgets/seat_grid.dart';
 
 /// Galaxy A56 en logique : 411 × 891 en portrait, l'inverse en paysage.
 const _portrait = Size(411, 891);
@@ -65,6 +64,17 @@ Future<void> _pump(WidgetTester t, ClassGroup cls, Size size) async {
 double _gridHeight(WidgetTester t) =>
     t.getSize(find.byType(PlanViewport)).height;
 
+/// Vrai si Flutter a signalé un débordement de mise en page.
+///
+/// Les débordements passent par `FlutterError.onError` sans faire échouer le
+/// test : sans cette vérification, un « RIGHT OVERFLOWED BY 0.333 PIXELS »
+/// resterait invisible en CI.
+bool hasOverflow(WidgetTester t) => t
+    .takeException()
+    .toString()
+    .toLowerCase()
+    .contains('overflow');
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -100,8 +110,6 @@ void main() {
     testWidgets('les cases sont larges et portent le prénom', (t) async {
       await _pump(t, _cls(), _landscape);
 
-      final grid = t.widget<PlanGrid>(find.byType(PlanGrid));
-      expect(grid.landscape, isTrue);
       expect(find.text('Prenom0'), findsOneWidget,
           reason: 'en paysage la case a la place d\'écrire le prénom');
     });
@@ -113,11 +121,11 @@ void main() {
       await t.tap(find.byIcon(Icons.auto_awesome));
       await t.pumpAndSettle();
 
-      expect(find.byType(Badge), findsOneWidget);
+      expect(find.byKey(kReportButtonKey), findsOneWidget);
       // La carte de rapport ne doit PAS occuper la hauteur en permanence.
       expect(find.text('Non placés :'), findsNothing);
 
-      await t.tap(find.byType(Badge));
+      await t.tap(find.byKey(kReportButtonKey));
       await t.pumpAndSettle();
 
       expect(find.textContaining('la salle manque de places'), findsOneWidget);
@@ -138,8 +146,6 @@ void main() {
         (t) async {
       await _pump(t, _cls(), _portrait);
 
-      final grid = t.widget<PlanGrid>(find.byType(PlanGrid));
-      expect(grid.landscape, isFalse);
       // 8 colonnes sur 411dp : pas la place d'un prénom.
       expect(find.text('Prenom0'), findsNothing);
       expect(find.textContaining('P.Nom0'), findsOneWidget,
@@ -156,9 +162,101 @@ void main() {
               'système sur un bureau');
       expect(find.widgetWithText(FilledButton, 'Régénérer'), findsOneWidget);
 
-      final grid = t.widget<PlanGrid>(find.byType(PlanGrid));
-      expect(grid.landscape, isFalse,
-          reason: 'la hauteur ne manque pas : pas besoin de rectangles');
+      // Le chrome est conservé, mais les cases s'élargissent quand même pour
+      // occuper la fenêtre : c'est la place disponible qui décide, pas
+      // l'orientation.
+      expect(find.text('Prenom0'), findsOneWidget);
+    });
+  });
+
+  group('Dégradation progressive du chrome', () {
+    // Signalé sur l'app Windows : « l'application met très longtemps à se dire
+    // que la hauteur est rare ». Un seuil unique laissait une fenêtre de 570 dp
+    // avec tout son chrome ET la carte de rapport, grille réduite à une
+    // vignette. On sacrifie donc le chrome par étapes.
+
+    testWidgets('le rapport n\'est JAMAIS une carte permanente', (t) async {
+      // C'était le principal voleur de hauteur : jusqu'à 170 dp.
+      await _pump(t, _cls(rows: 2, cols: 3, students: 5), const Size(675, 750));
+      await t.tap(find.text('Régénérer'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Toutes les règles sont respectées 🎉'), findsNothing);
+      expect(find.byKey(kReportButtonKey), findsOneWidget);
+
+      await t.tap(find.byKey(kReportButtonKey));
+      await t.pumpAndSettle();
+      expect(find.text('Équilibre'), findsOneWidget,
+          reason: 'le rapport reste accessible, mais à la demande');
+    });
+
+    testWidgets('fenêtre étroite : les libellés cèdent la place aux icônes',
+        (t) async {
+      // Reproduit le débordement constaté : à cette largeur, les libellés se
+      // coupaient en plein mot (« Régé / nérer ») puis débordaient.
+      await _pump(t, _cls(rows: 5, cols: 7, students: 35), const Size(324, 980));
+
+      expect(hasOverflow(t), isFalse,
+          reason: 'aucun débordement de mise en page');
+      expect(find.text('Régénérer'), findsNothing);
+      expect(find.byIcon(Icons.auto_awesome), findsOneWidget,
+          reason: 'l\'icône reste, avec son infobulle');
+      expect(find.byIcon(Icons.fact_check), findsOneWidget);
+    });
+
+    testWidgets('fenêtre confortable : les libellés reviennent', (t) async {
+      await _pump(t, _cls(), const Size(700, 980));
+
+      expect(find.widgetWithText(FilledButton, 'Régénérer'), findsOneWidget);
+    });
+
+    testWidgets('en rangée, le rapport est un bouton à libellé', (t) async {
+      // Sur un grand écran, une icône nue au bout de la rangée passait
+      // inaperçue à côté de deux boutons pleins.
+      await _pump(t, _cls(), const Size(1900, 1000));
+      await t.tap(find.text('Régénérer'));
+      await t.pumpAndSettle();
+
+      expect(find.widgetWithText(OutlinedButton, 'Rapport'), findsOneWidget);
+      expect(find.byType(Badge), findsNothing,
+          reason: 'le libellé porte déjà le compte, un badge ferait doublon');
+    });
+
+    testWidgets('fenêtre haute : rien n\'est sacrifié', (t) async {
+      await _pump(t, _cls(), const Size(1280, 800));
+
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Régénérer'), findsOneWidget,
+          reason: 'les boutons gardent leur libellé');
+    });
+
+    testWidgets('fenêtre moyennement courte : seul le rail est sacrifié',
+        (t) async {
+      // 480 dp de haut : après passage en rail il reste assez de hauteur, donc
+      // l'app bar — et son bouton retour — est conservée.
+      await _pump(t, _cls(), const Size(1000, 480));
+
+      expect(find.byType(AppBar), findsOneWidget,
+          reason: 'pas encore besoin de sacrifier le retour');
+      expect(find.widgetWithText(FilledButton, 'Régénérer'), findsNothing,
+          reason: 'les commandes sont passées en rail');
+      expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
+    });
+
+    testWidgets('fenêtre très courte : l\'app bar part en dernier', (t) async {
+      await _pump(t, _cls(), _landscape);
+
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.byType(TabBar), findsOneWidget);
+    });
+
+    testWidgets('fenêtre étroite et courte : l\'app bar est conservée',
+        (t) async {
+      // Plus haute que large : un rail n'aurait pas de sens, et masquer l'app
+      // bar ferait perdre le retour sans rien gagner d'utile.
+      await _pump(t, _cls(), const Size(400, 420));
+
+      expect(find.byType(AppBar), findsOneWidget);
     });
   });
 

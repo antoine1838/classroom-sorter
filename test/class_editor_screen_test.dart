@@ -68,6 +68,13 @@ Future<void> _step(WidgetTester tester, String label, IconData icon) async {
   await tester.pumpAndSettle();
 }
 
+/// Ouvre la feuille de rapport : le rapport n'est plus une carte permanente,
+/// c'est un badge compteur — la carte mangeait jusqu'à 170 dp de hauteur.
+Future<void> _openReport(WidgetTester tester) async {
+  await tester.tap(find.byKey(kReportButtonKey));
+  await tester.pumpAndSettle();
+}
+
 /// Choisit [value] dans le menu déroulant portant le libellé [fieldLabel].
 Future<void> _pickDropdown(
     WidgetTester tester, String fieldLabel, String value) async {
@@ -448,10 +455,12 @@ void main() {
 
       expect(cls.assignment, hasLength(4));
       expect(find.byType(PlanGrid), findsOneWidget);
-      expect(find.text('Toutes les règles sont respectées 🎉'), findsOneWidget);
       // Le bouton change de libellé, et « Valider » apparaît.
       expect(find.text('Régénérer'), findsOneWidget);
       expect(find.text('Valider'), findsOneWidget);
+
+      await _openReport(t);
+      expect(find.text('Toutes les règles sont respectées 🎉'), findsOneWidget);
     });
 
     testWidgets('valider réévalue le plan sans le régénérer', (t) async {
@@ -467,6 +476,8 @@ void main() {
       await t.pumpAndSettle();
 
       expect(cls.assignment, plan, reason: 'valider ne doit rien déplacer');
+
+      await _openReport(t);
       expect(find.text('Toutes les règles sont respectées 🎉'), findsOneWidget);
     });
 
@@ -479,6 +490,8 @@ void main() {
       await t.pumpAndSettle();
 
       expect(cls.assignment, hasLength(2));
+
+      await _openReport(t);
       expect(find.textContaining('Non placés :'), findsOneWidget);
       expect(find.textContaining('la salle manque de places'), findsOneWidget);
     });
@@ -505,6 +518,7 @@ void main() {
       await t.tap(find.text('Générer le plan'));
       await t.pumpAndSettle();
 
+      await _openReport(t);
       expect(find.textContaining('place imposée déjà occupée'), findsOneWidget);
       expect(find.text('Toutes les règles sont respectées 🎉'), findsNothing);
     });
@@ -519,6 +533,7 @@ void main() {
       await t.tap(find.text('Générer le plan'));
       await t.pumpAndSettle();
 
+      await _openReport(t);
       expect(find.text('Équilibre'), findsOneWidget);
       expect(find.textContaining('Élèves agités'), findsOneWidget);
     });
