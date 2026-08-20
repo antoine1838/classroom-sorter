@@ -372,3 +372,34 @@ tous les attributs en clair) et le moteur fournit déjà les identifiants depuis
 **Vérification que je ne peux pas faire** : `kFirstNameMinWidth` (54 dp) reste une estimation
 arithmétique côté largeur. Le plafond de hauteur est désormais mesuré, mais pas la largeur réelle
 d'un prénom long dans la police du moteur.
+
+
+#### Cinquième tour : le résumé, les paliers et les axes
+
+**Le résumé annonçait « tout est bon » alors que des objectifs d'équilibre ne l'étaient pas.** Le
+compteur additionnait `violations` et `warnings` mais ignorait complètement les notes d'équilibre, qui
+ne vivent pas dans `issues`. Corrigé à la source : `PlanResult` expose `hardCount`, `softCount` et
+`isClean`, et le bouton a désormais **trois** états — erreur, point perfectible, tout bon — car un
+objectif non atteint n'est pas une faute mais n'est pas rien non plus.
+
+**Les paliers de libellés basculaient trop tôt.** Les minimums par bouton étaient estimés (150 dp)
+alors qu'un « Régénérer » n'en occupe qu'environ 130. Chaque libellé est maintenant **mesuré** au
+`TextPainter`, ce qui fait tenir les paliers au plus juste, et le nombre de contrôles entre dans le
+calcul.
+
+**Le rail se déclenchait en portrait.** Confusion d'axes : un rail latéral n'a de sens que si la
+largeur est l'axe abondant. Dans une fenêtre plus haute que large, il vole précisément la ressource
+rare. Le garde-fou existant ne protégeait que le masquage de l'app bar, pas le rail.
+
+### Deux dettes à traiter séparément
+
+**Reformatage.** Le projet n'est pas formaté avec le `dart format` actuel : la commande réécrit des
+fichiers entiers, même ceux qu'on ne touche pas. Un `dart format` lancé pour ranger une seule édition
+a produit 1452 lignes de diff autour d'un ajout de 16 lignes. **Décision : un commit de reformatage
+dédié sera fait quand le projet sera prêt à passer en production**, pour que ce bruit arrive une seule
+fois et soit relisible. D'ici là, on suit le style environnant à la main.
+
+**Onglet Élèves sous ~320 dp de large.** En dessous de ce plancher, les vues Élèves débordent — défaut
+préexistant, repéré en testant l'onglet Plan à 282 dp (une fenêtre de petite tablette avec la mise à
+l'échelle Windows). `TabBarView` construisant les onglets voisins, le débordement existe même quand on
+regarde le Plan. Hors périmètre de #8.

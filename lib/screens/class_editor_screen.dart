@@ -25,12 +25,33 @@ const kCompactBackKey = Key('class-compact-back');
 /// permet de garder « Régénérer » et « Valider » écrits en clair.
 enum _PlanLabels { all, mainOnly, none }
 
-/// Largeurs minimales estimées, pour décider du palier.
-const double _kLabelledMinW = 150; // un bouton à libellé
-const double _kReportLabelledMinW = 140;
+/// Ce qu'un bouton à libellé consomme AUTOUR de son texte : marges internes,
+/// icône et son espacement. Le texte, lui, est mesuré — pas estimé.
+const double _kButtonOverhead = 66;
+
+/// Largeur d'un bouton réduit à son icône.
 const double _kIconMinW = 48;
+
 const double _kPlanBarPadding = 24;
 const double _kPlanBarGap = 8;
+
+/// Couleur des points perfectibles : ni l'erreur, ni le vert. Reprend l'orange
+/// des lignes d'avertissement du rapport.
+final Color _kSoftColour = Colors.orange.shade700;
+
+/// Largeur qu'occuperait un bouton portant ce libellé.
+///
+/// Mesurée avec un [TextPainter] plutôt qu'estimée : des minimums au doigt
+/// mouillé faisaient basculer les paliers trop tôt, alors qu'il restait
+/// visiblement de la place dans les boutons.
+double _labelledWidth(BuildContext context, String label) {
+  final painter = TextPainter(
+    text: TextSpan(text: label, style: Theme.of(context).textTheme.labelLarge),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  )..layout();
+  return painter.width + _kButtonOverhead;
+}
 
 /// Ce que coûte chaque élément de chrome vertical, au-dessus de la grille.
 const double _kAppBarHeight = 56;
@@ -57,13 +78,17 @@ const double _kMinGridHeight = 320;
       _kPlanPadding;
   if (free >= _kMinGridHeight) return (rail: false, hideAppBar: false);
 
-  // 1) Les commandes passent dans un rail latéral : la largeur est presque
-  //    toujours moins contrainte que la hauteur.
-  free += _kButtonRowHeight;
-  final wide = size.width > size.height;
-  if (free >= _kMinGridHeight || !wide) {
-    return (rail: true, hideAppBar: false);
+  // Un rail n'a de sens que si la largeur est l'axe ABONDANT. Dans une fenêtre
+  // portrait, c'est elle qui est rare : un rail y volerait précisément la
+  // ressource qui manque. On garde donc les commandes en haut, où les paliers de
+  // libellés feront le nécessaire.
+  if (size.width <= size.height) {
+    return (rail: false, hideAppBar: false);
   }
+
+  // 1) Les commandes passent dans un rail latéral.
+  free += _kButtonRowHeight;
+  if (free >= _kMinGridHeight) return (rail: true, hideAppBar: false);
 
   // 2) En dernier recours seulement, l'app bar : elle porte le retour, qu'aucun
   //    geste système ne remplace sur un bureau.
@@ -1756,27 +1781,47 @@ class _PlanTabState extends State<_PlanTab> {
     return LayoutBuilder(
       builder: (context, constraints) => _controlBar(
         vertical: false,
-        labels: _labelsFor(constraints.maxWidth),
+        labels: _labelsFor(context, constraints.maxWidth),
       ),
     );
   }
 
   /// Combien de libellés la largeur disponible permet d'afficher.
-  _PlanLabels _labelsFor(double width) {
-    final main = 1 + (cls.assignment.isNotEmpty ? 1 : 0);
+  ///
+  /// Chaque libellé est mesuré, ce qui fait tenir les paliers au plus juste.
+  _PlanLabels _labelsFor(BuildContext context, double width) {
+    final hasPlan = cls.assignment.isNotEmpty;
     final hasReport = _result != null;
-    final count = main + (hasReport ? 1 : 0);
-    final chrome = _kPlanBarPadding + _kPlanBarGap * (count - 1);
+
+    var needMain = _labelledWidth(context, _generateLabel);
+    if (hasPlan) needMain += _kPlanBarGap + _labelledWidth(context, 'Valider');
+
+    // needMain compte déjà l'espace entre les deux boutons principaux : il ne
+    // reste à prévoir que celui qui précède le rapport.
+    final chrome = _kPlanBarPadding + (hasReport ? _kPlanBarGap : 0);
 
     if (hasReport &&
-        width >= main * _kLabelledMinW + _kReportLabelledMinW + chrome) {
+        width >= needMain + _labelledWidth(context, _reportLabel) + chrome) {
       return _PlanLabels.all;
     }
-    if (width >=
-        main * _kLabelledMinW + (hasReport ? _kIconMinW : 0) + chrome) {
+    if (width >= needMain + (hasReport ? _kIconMinW : 0) + chrome) {
       return _PlanLabels.mainOnly;
     }
     return _PlanLabels.none;
+  }
+
+  String get _generateLabel =>
+      cls.assignment.isNotEmpty ? 'Régénérer' : 'Générer le plan';
+
+  /// Résumé porté par le bouton du rapport.
+  String get _reportLabel {
+    final result = _result;
+    if (result == null || result.isClean) return 'Rapport';
+    // Une contrainte dure prime ; sinon on annonce les points perfectibles,
+    // objectifs d'équilibre compris.
+    return result.hardCount > 0
+        ? '${result.hardCount} problème(s)'
+        : '${result.softCount} à améliorer';
   }
 
   Widget _controlBar({required bool vertical, required _PlanLabels labels}) {
@@ -1791,7 +1836,7 @@ class _PlanTabState extends State<_PlanTab> {
   }
 
   Widget _generateControl({required bool labelled}) {
-    final label = cls.assignment.isNotEmpty ? 'Régénérer' : 'Générer le plan';
+    final label = _generateLabel;
     final onPressed = cls.students.isEmpty ? null : _generate;
     const icon = Icon(Icons.auto_awesome);
     if (!labelled) {
@@ -1858,30 +1903,49 @@ class _PlanTabState extends State<_PlanTab> {
   /// s'impose, faute de largeur, et le compteur passe par un badge.
   Widget _reportControl({required bool labelled}) {
     final result = _result!;
-    final problems = result.violations.length + result.warnings.length;
-    final icon =
-        problems > 0 ? Icons.warning_amber : Icons.check_circle_outline;
-    final tooltip = problems > 0
-        ? '$problems problème(s)'
-        : 'Toutes les règles sont respectées';
+    final cs = Theme.of(context).colorScheme;
+
+    // Trois états, et non deux : un objectif d'équilibre non atteint n'est pas
+    // une erreur, mais ce n'est pas « tout est bon » non plus.
+    final (IconData icon, Color? colour, String tooltip) = switch (result) {
+      final r when r.hardCount > 0 => (
+          Icons.error_outline,
+          cs.error,
+          '${r.hardCount} contrainte(s) non respectée(s)',
+        ),
+      final r when r.softCount > 0 => (
+          Icons.warning_amber,
+          _kSoftColour,
+          '${r.softCount} point(s) perfectible(s)',
+        ),
+      _ => (
+          Icons.check_circle_outline,
+          null,
+          'Toutes les règles et tous les objectifs sont respectés',
+        ),
+    };
 
     if (!labelled) {
       return Badge(
-        isLabelVisible: problems > 0,
-        label: Text('$problems'),
+        isLabelVisible: !result.isClean,
+        backgroundColor: colour,
+        label: Text('${result.hardCount + result.softCount}'),
         child: IconButton(
           key: kReportButtonKey,
           tooltip: tooltip,
           onPressed: () => _showReport(context),
-          icon: Icon(icon),
+          icon: Icon(icon, color: colour),
         ),
       );
     }
     return OutlinedButton.icon(
       key: kReportButtonKey,
       onPressed: () => _showReport(context),
-      icon: Icon(icon),
-      label: Text(problems > 0 ? '$problems problème(s)' : 'Rapport'),
+      icon: Icon(icon, color: colour),
+      label: Text(_reportLabel),
+      style: colour == null
+          ? null
+          : OutlinedButton.styleFrom(foregroundColor: colour),
     );
   }
 
