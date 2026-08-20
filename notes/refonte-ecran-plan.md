@@ -308,3 +308,67 @@ prédite était plus optimiste que celle réellement appliquée par le `FittedBo
 **À regarder sur appareil** : une case de 133 × 62 dp est un rectangle assez plat (2,15:1 ; rendu
 ~97 × 45). Si ça ne ressemble plus à une place, c'est `kCellWideMax` qu'il faut baisser — au prix de
 quelques lettres.
+
+#### Quatre tours de correction après essai réel
+
+Tout ce qui suit vient d'essais sur l'app Windows et l'émulateur. Aucun n'avait été attrapé par les
+tests, et chacun a donné lieu à un garde-fou.
+
+**La place perdue sur grand écran.** `BoxFit.scaleDown` ne fait que rétrécir : dès que la fenêtre
+dépassait la salle, la grille restait à sa taille naturelle collée en haut, avec des prénoms tronqués
+alors que l'espace était là. Passé en `BoxFit.contain`, échelle autorisée au-delà de 1.
+
+**Les places vides restaient carrées** au milieu de rectangles : `_emptySeat` codait `width: kCell` en
+dur au lieu de la largeur mesurée.
+
+**L'orientation ne devait pas décider de la largeur des cases.** Deux décisions étaient confondues :
+masquer l'app bar exige que la hauteur soit rare, mais élargir les cases ne dépend que de la place
+disponible. `seatMetrics` n'a donc plus aucune notion d'orientation.
+
+**Le chrome se sacrifie par étapes**, et non sur un seuil unique — avec un seuil, une fenêtre de
+570 dp gardait tout son chrome et la grille tombait à l'état de vignette. Ladder : rien tant que la
+grille garde `_kMinGridHeight`, puis les commandes passent en rail, puis l'app bar en dernier. Le
+coupable principal était toutefois la **carte de rapport** (jusqu'à 170 dp) : la décision de la
+remplacer par un badge n'avait été appliquée qu'au paysage.
+
+**Le retour ne doit jamais disparaître.** Le garde-fou « fenêtre plus large que haute » était mal
+pensé : sur un bureau aucun geste système ne remplace le retour, quelle que soit la forme. Il vit
+maintenant à côté des onglets, donc sans coût en hauteur, et vaut pour les quatre onglets.
+
+**Les libellés cèdent la place aux icônes** quand la barre se resserre — mécanique qui existait dans
+l'onglet Élèves et que le Plan avait perdue. Le seuil ne peut pas être constant : il dépend du nombre
+de contrôles. Trois paliers, le rapport perdant son libellé avant les commandes principales.
+
+**Les étiquettes débordaient de leur place**, sur toutes les cases à la fois. Viser une taille rendue
+constante demandait, à petite échelle, une police non mise à l'échelle trop grosse pour la hauteur
+fixe d'une case. La police est plafonnée par la hauteur utile — bordure comprise, 1 px de chaque côté
+au repos et 2,4 au survol, ce que le premier calcul oubliait — et le prénom n'est affiché que si la
+police qui tient dans cette hauteur reste lisible. Un `FittedBox` sert de filet : ce calcul dépend de
+métriques de police qu'on ne peut pas connaître exactement (mon facteur de ligne était faux, 1,25 au
+lieu de ~1,5).
+
+**La leçon de test.** Ces défauts se cachaient dans les formats *intermédiaires*, pas dans les cas
+choisis. D'où le balayage de treize formats de `test/plan_landscape_test.dart`, qui vérifie qu'aucun
+ne produit de débordement — il a immédiatement attrapé un cas de plus (500 × 300) que je n'avais pas
+prévu. À noter : un débordement de mise en page ne fait pas échouer un test par lui-même, il faut
+inspecter `tester.takeException()`.
+
+## Reste à faire
+
+**Décisions qui te reviennent**
+
+- ~~`kCellWideMax` (140) : les cases élargies ressemblent-elles encore à des places ?~~ **Validé** :
+  « ce n'est pas choquant, ça ressemble à des places. »
+- ~~Initiales plutôt qu'un prénom minuscule dans les formats serrés.~~ **Validé** : « c'est OK, c'est
+  plus lisible. »
+- **En attente d'essai** : quand l'app bar est masquée, le **nom de la classe** et le bouton
+  **Renommer** deviennent inaccessibles. Le retour suffit à ne plus être piégé, mais faut-il leur
+  trouver une place ?
+
+**Étape 4, non commencée** : marquage des élèves fautifs et feuille de détail au tap. Les décisions
+sont prises (rendu par sévérité, fond réquisitionné, genre replié sur un liseré, feuille au tap avec
+tous les attributs en clair) et le moteur fournit déjà les identifiants depuis l'étape 1.
+
+**Vérification que je ne peux pas faire** : `kFirstNameMinWidth` (54 dp) reste une estimation
+arithmétique côté largeur. Le plafond de hauteur est désormais mesuré, mais pas la largeur réelle
+d'un prénom long dans la police du moteur.

@@ -46,6 +46,18 @@ const double kNameSizeRatio = 0.12;
 const double kNameSizeMin = 11;
 const double kNameSizeMax = 18;
 
+/// Marge intérieure d'une place, épaisseur maximale de sa bordure (celle du
+/// survol), et hauteur d'une ligne de texte rapportée à sa taille de police.
+/// Servent à vérifier qu'une étiquette tient dans la hauteur de la case.
+///
+/// La bordure est facile à oublier : elle retire 1 px de chaque côté au repos,
+/// 2,4 au survol — c'est ce qui manquait au premier calcul. Quant au facteur de
+/// ligne, il est délibérément généreux : les métriques réelles dépendent de la
+/// police, que `flutter_test` ne reproduit pas.
+const double kSeatPadding = 3;
+const double kSeatBorderMax = 2.4;
+const double kTextLineFactor = 1.5;
+
 /// Hauteur totale de la grille, bandeau et marges compris. Indépendante de
 /// l'orientation : seule la LARGEUR d'une case change.
 double gridHeight(Room room) =>
@@ -94,15 +106,36 @@ class SeatMetrics {
   double get renderedWidth => cell * scale * zoom;
 
   /// Le prénom plutôt que les initiales.
-  bool get showsFirstName => renderedWidth >= kFirstNameMinWidth;
+  ///
+  /// Deux conditions : la case doit être assez large, ET la police qui tient
+  /// dans sa hauteur doit rester lisible. Ne regarder que la largeur laissait
+  /// afficher un prénom dans une police trop grosse pour la case.
+  /// Tolérance : quand le plafond de hauteur ne mord pas, la taille rendue vaut
+  /// exactement le minimum, à l'arrondi flottant près.
+  bool get showsFirstName =>
+      renderedWidth >= kFirstNameMinWidth &&
+      renderedNameSize >= kNameSizeMin - 0.01;
 
-  /// Taille de police du prénom telle qu'elle apparaît à l'écran.
-  double get renderedNameSize =>
+  /// Taille de police rendue que l'on VOUDRAIT, si la hauteur le permettait.
+  double get _wantedNameSize =>
       (renderedWidth * kNameSizeRatio).clamp(kNameSizeMin, kNameSizeMax);
 
-  /// Police du prénom avant mise à l'échelle : déduite de la taille rendue
-  /// voulue, et non l'inverse.
-  double get nameFontSize => renderedNameSize / (scale * zoom);
+  /// Police du prénom avant mise à l'échelle.
+  ///
+  /// Déduite de la taille rendue voulue — mais **plafonnée par la hauteur de la
+  /// case**, qui ne bouge pas. Sans ce plafond, une petite échelle demandait une
+  /// police non mise à l'échelle si grosse que les deux lignes débordaient de la
+  /// case : le défaut se voyait sur TOUTES les places à la fois.
+  double get nameFontSize =>
+      min(_wantedNameSize / (scale * zoom), _maxNameFontByHeight);
+
+  /// Ce que la hauteur utile d'une case autorise pour deux lignes (le prénom,
+  /// puis l'initiale du nom à 80 %).
+  static double get _maxNameFontByHeight =>
+      (kCell - 2 * kSeatPadding - 2 * kSeatBorderMax) / (kTextLineFactor * 1.8);
+
+  /// Taille de police du prénom telle qu'elle apparaît réellement à l'écran.
+  double get renderedNameSize => nameFontSize * scale * zoom;
 
   /// Les initiales, elles, remplissent la case : proportionnelles lui va bien,
   /// puisqu'il n'y a que deux à cinq caractères à faire tenir.
@@ -119,8 +152,12 @@ class SeatMetrics {
 /// **Aucune notion d'orientation ici**, à dessein : c'est la place disponible
 /// qui décide. Lier l'élargissement au « téléphone en paysage » laissait une
 /// fenêtre de bureau large avec des cases carrées et des prénoms tronqués.
-SeatMetrics seatMetrics(Room room, Size viewport,
-    {double zoom = 1, bool editor = false}) {
+SeatMetrics seatMetrics(
+  Room room,
+  Size viewport, {
+  double zoom = 1,
+  bool editor = false,
+}) {
   if (viewport.isEmpty || room.cols <= 0 || room.rows <= 0) {
     return SeatMetrics(cell: kCell, scale: 1, zoom: zoom);
   }
@@ -147,10 +184,10 @@ SeatMetrics seatMetrics(Room room, Size viewport,
 }
 
 Color studentColor(Student s, ColorScheme cs) => switch (s.gender) {
-      Gender.fille => const Color(0xFFF3B8D0),
-      Gender.garcon => const Color(0xFFA9CCF5),
-      Gender.autre => cs.surfaceContainerHighest,
-    };
+  Gender.fille => const Color(0xFFF3B8D0),
+  Gender.garcon => const Color(0xFFA9CCF5),
+  Gender.autre => cs.surfaceContainerHighest,
+};
 
 // Icônes de coin : affichées seulement quand la valeur sort de l'ordinaire
 // (Moyen / Modéré / Bonne vue restent muets) — le genre reste exprimé par la
@@ -158,22 +195,22 @@ Color studentColor(Student s, ColorScheme cs) => switch (s.gender) {
 const _cornerIconColor = Color(0xFF3A3A3A);
 
 IconData? _levelCornerIcon(Level level) => switch (level) {
-      Level.faible => Icons.arrow_downward,
-      Level.fort => Icons.arrow_upward,
-      Level.moyen => null,
-    };
+  Level.faible => Icons.arrow_downward,
+  Level.fort => Icons.arrow_upward,
+  Level.moyen => null,
+};
 
 IconData? _energyCornerIcon(Energy energy) => switch (energy) {
-      Energy.calme => Icons.self_improvement,
-      Energy.agite => Icons.bolt,
-      Energy.modere => null,
-    };
+  Energy.calme => Icons.self_improvement,
+  Energy.agite => Icons.bolt,
+  Energy.modere => null,
+};
 
 double? _sizeCornerBarHeight(StudentSize size) => switch (size) {
-      StudentSize.petit => 6,
-      StudentSize.grand => 14,
-      StudentSize.moyen => null,
-    };
+  StudentSize.petit => 6,
+  StudentSize.grand => 14,
+  StudentSize.moyen => null,
+};
 
 class _FrontBanner extends StatelessWidget {
   final double width;
@@ -191,8 +228,10 @@ class _FrontBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       alignment: Alignment.center,
-      child: Text('⬇  DEVANT (tableau)',
-          style: Theme.of(context).textTheme.labelMedium),
+      child: Text(
+        '⬇  DEVANT (tableau)',
+        style: Theme.of(context).textTheme.labelMedium,
+      ),
     );
   }
 }
@@ -280,8 +319,12 @@ class _FittedGrid extends StatelessWidget {
                 ),
               )
             : (_editor
-                ? Container(width: 2, height: kCell * 0.5, color: cs.outlineVariant)
-                : const SizedBox.shrink()),
+                  ? Container(
+                      width: 2,
+                      height: kCell * 0.5,
+                      color: cs.outlineVariant,
+                    )
+                  : const SizedBox.shrink()),
       ),
     );
     if (!_editor) return gap;
@@ -299,7 +342,11 @@ class _FittedGrid extends StatelessWidget {
 class RoomEditorGrid extends StatelessWidget {
   final Room room;
   final VoidCallback onChanged;
-  const RoomEditorGrid({super.key, required this.room, required this.onChanged});
+  const RoomEditorGrid({
+    super.key,
+    required this.room,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -388,13 +435,24 @@ class PlanGrid extends StatelessWidget {
               onAcceptWithDetails: (d) => onSwap(d.data, seatKey),
               builder: (context, candidate, rejected) {
                 final hovering = candidate.isNotEmpty;
-                final cell = _seatContent(context, student, hovering,
-                    labels: labels, metrics: m);
+                final cell = _seatContent(
+                  context,
+                  student,
+                  hovering,
+                  labels: labels,
+                  metrics: m,
+                );
                 if (student == null) return cell;
                 final feedback = Material(
                   color: Colors.transparent,
-                  child: _seatContent(context, student, false,
-                      labels: labels, metrics: m, elevated: true),
+                  child: _seatContent(
+                    context,
+                    student,
+                    false,
+                    labels: labels,
+                    metrics: m,
+                    elevated: true,
+                  ),
                 );
                 final placeholder = _emptySeat(cs, false, m.cell);
                 // Occupé : rendre l'élève déplaçable. Avec un compteur de
@@ -422,10 +480,14 @@ class PlanGrid extends StatelessWidget {
     );
   }
 
-  Widget _seatContent(BuildContext context, Student? student, bool hovering,
-      {required Map<String, String> labels,
-      required SeatMetrics metrics,
-      bool elevated = false}) {
+  Widget _seatContent(
+    BuildContext context,
+    Student? student,
+    bool hovering, {
+    required Map<String, String> labels,
+    required SeatMetrics metrics,
+    bool elevated = false,
+  }) {
     final cs = Theme.of(context).colorScheme;
     if (student == null) return _emptySeat(cs, hovering, metrics.cell);
     final levelIcon = _levelCornerIcon(student.level);
@@ -448,7 +510,7 @@ class PlanGrid extends StatelessWidget {
               ? [const BoxShadow(blurRadius: 8, color: Colors.black26)]
               : null,
         ),
-        padding: const EdgeInsets.all(3),
+        padding: const EdgeInsets.all(kSeatPadding),
         child: Stack(
           children: [
             Center(child: _seatLabel(student, labels, metrics)),
@@ -481,8 +543,11 @@ class PlanGrid extends StatelessWidget {
               const Positioned(
                 bottom: 0,
                 right: 0,
-                child: Icon(Icons.visibility_off,
-                    size: 13, color: _cornerIconColor),
+                child: Icon(
+                  Icons.visibility_off,
+                  size: 13,
+                  color: _cornerIconColor,
+                ),
               ),
           ],
         ),
@@ -496,52 +561,69 @@ class PlanGrid extends StatelessWidget {
   /// fixe : tout ce contenu est ensuite réduit par le `FittedBox` de la grille,
   /// donc une valeur en dur redeviendrait minuscule dès que la salle est large.
   Widget _seatLabel(
-      Student student, Map<String, String> labels, SeatMetrics metrics) {
+    Student student,
+    Map<String, String> labels,
+    SeatMetrics metrics,
+  ) {
     if (!metrics.showsFirstName) {
       return Text(
         labels[student.id] ?? student.initials,
         maxLines: 1,
         style: TextStyle(
-            fontWeight: FontWeight.bold, fontSize: metrics.initialsFontSize),
+          fontWeight: FontWeight.bold,
+          fontSize: metrics.initialsFontSize,
+        ),
       );
     }
     // Prénom sur une ligne, initiale du nom en dessous pour départager deux
     // homonymes de prénom.
+    //
+    // FittedBox en filet de sécurité : le calcul ci-dessus dépend de métriques
+    // de police qu'on ne peut pas connaître exactement, et un débordement
+    // barbouillait TOUTES les places d'un bandeau rouge. Ici, au pire, le texte
+    // rétrécit d'un cheveu.
     final lastInitial = student.lastName.trim();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          student.firstName.trim().isEmpty ? '?' : student.firstName.trim(),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: metrics.nameFontSize),
-        ),
-        if (lastInitial.isNotEmpty)
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Text(
-            '${lastInitial[0].toUpperCase()}.',
+            student.firstName.trim().isEmpty ? '?' : student.firstName.trim(),
             maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-                fontSize: metrics.nameFontSize * 0.8, color: _cornerIconColor),
+              fontWeight: FontWeight.bold,
+              fontSize: metrics.nameFontSize,
+            ),
           ),
-      ],
+          if (lastInitial.isNotEmpty)
+            Text(
+              '${lastInitial[0].toUpperCase()}.',
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: metrics.nameFontSize * 0.8,
+                color: _cornerIconColor,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   /// Place libre. Reçoit la largeur mesurée comme les places occupées : sans
   /// ça, elle resterait carrée au milieu de rectangles et casserait la grille.
   Widget _emptySeat(ColorScheme cs, bool hovering, double width) => Container(
-        width: width,
-        height: kCell,
-        decoration: BoxDecoration(
-          color: hovering ? cs.primaryContainer : cs.surface,
-          border: Border.all(
-            color: hovering ? cs.primary : cs.outlineVariant,
-            width: hovering ? 2.4 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(Icons.event_seat_outlined, color: cs.outlineVariant, size: 22),
-      );
+    width: width,
+    height: kCell,
+    decoration: BoxDecoration(
+      color: hovering ? cs.primaryContainer : cs.surface,
+      border: Border.all(
+        color: hovering ? cs.primary : cs.outlineVariant,
+        width: hovering ? 2.4 : 1,
+      ),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Icon(Icons.event_seat_outlined, color: cs.outlineVariant, size: 22),
+  );
 }
