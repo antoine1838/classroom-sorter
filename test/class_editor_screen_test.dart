@@ -174,6 +174,16 @@ void main() {
 
       expect(cls.room.facingOf(0, 0), Facing.est);
       expect(cls.room.capacity, 1, reason: 'le tap tourne, il ne retire pas');
+
+      // Même repère que sur les cartes du Plan (bord de dossier), affiché en
+      // plus de l'icône pivotée — pour rester cohérent entre les deux
+      // onglets.
+      expect(
+          t
+              .widgetList<Align>(find.byType(Align))
+              .where((a) => a.alignment == Alignment.centerLeft),
+          isNotEmpty,
+          reason: 'facing est => dossier au bord gauche de la case');
     });
 
     testWidgets(
@@ -254,6 +264,22 @@ void main() {
       await t.tapAt(gap);
       await t.pumpAndSettle();
       expect(cls.room.hasRowAisleAfter(0), isFalse);
+    });
+
+    testWidgets(
+        'un couloir de colonne actif est une seule grande barre, pas un '
+        'trait par rang', (t) async {
+      final cls = _cls(rows: 3, cols: 2)..room.toggleColAisle(0);
+      await _pump(t, cls);
+
+      // Repérée par la largeur (4) posée sur le Positioned lui-même, pas sur
+      // son enfant — seule la grande barre de couloir la déclare ainsi.
+      final bars = t
+          .widgetList<Positioned>(find.byType(Positioned))
+          .where((p) => p.width == 4)
+          .toList();
+      expect(bars, hasLength(1),
+          reason: 'une seule barre continue, pas ${cls.room.rows} segments');
     });
 
     testWidgets('le sélecteur de disposition applique le modèle U choisi',

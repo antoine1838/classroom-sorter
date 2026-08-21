@@ -112,6 +112,25 @@ double _horizontalExtras(Room room, {required bool editor}) {
 double gridWidth(Room room, {bool editor = false, double cell = kCell}) =>
     room.cols * cell + _horizontalExtras(room, editor: editor);
 
+/// Centre horizontal du couloir après la colonne [c], relatif au bord gauche
+/// de la zone des places (sans la marge de la grille) : sert à peindre une
+/// grande barre verticale continue sur toute la hauteur de la salle plutôt
+/// qu'un trait répété à chaque rang, symétrique de ce qui existe déjà pour
+/// les couloirs de rang (voir [_rowGap]).
+double _colGapCenterX(Room room, int c, double cell, {required bool editor}) {
+  var x = 0.0;
+  for (var i = 0; i < c; i++) {
+    x += cell + _colGapWidth(room, i, editor: editor);
+  }
+  return x + cell + _colGapWidth(room, c, editor: editor) / 2;
+}
+
+/// Hauteur de la seule zone des places (rangs + espaces inter-rangs), sans la
+/// marge de la grille ni le bandeau « DEVANT » — l'étendue verticale que doit
+/// couvrir une grande barre de couloir de colonne.
+double _seatingAreaHeight(Room room, {required bool editor}) =>
+    room.rows * kCell + _verticalExtras(room, editor: editor);
+
 /// Tout ce que l'affichage d'une place a besoin de savoir, mesuré d'un bloc.
 class SeatMetrics {
   const SeatMetrics({
@@ -228,6 +247,42 @@ Color? _genderStripeColor(Gender gender) => switch (gender) {
   Gender.autre => null,
 };
 
+/// Bord de la place opposé au regard (le dossier), pour signaler son
+/// orientation. [Facing.nord] (par défaut) place ce bord en haut, donc sans
+/// changement visuel pour les salles enregistrées avant l'introduction de
+/// l'orientation. Affiché à la fois sur une carte d'élève (où le nom empêche
+/// de pivoter l'icône) et dans [RoomEditorGrid] (où l'icône pivote déjà) :
+/// le même repère dans les deux onglets, pour rester cohérent.
+Alignment _backrestAlignment(Facing facing) => switch (facing) {
+  Facing.nord => Alignment.topCenter,
+  Facing.est => Alignment.centerLeft,
+  Facing.sud => Alignment.bottomCenter,
+  Facing.ouest => Alignment.centerRight,
+};
+
+/// Petite barre du bord de dossier elle-même, partagée entre [RoomEditorGrid]
+/// et les cartes d'élève de [PlanGrid] pour un rendu identique. [width] est
+/// la largeur de la case (fixe, [kCell], dans l'éditeur ; variable, mise à
+/// l'échelle, dans le plan).
+Widget _backrestBar(Facing facing, {required double width, Key? key}) {
+  final horizontal = facing == Facing.nord || facing == Facing.sud;
+  return Container(
+    key: key,
+    width: horizontal ? width * 0.5 : 3,
+    height: horizontal ? 3 : kCell * 0.5,
+    color: _cornerIconColor,
+  );
+}
+
+/// Angle de rotation (radians) de l'icône de siège pour une orientation
+/// donnée : [Facing.est] tourne vers l'écran-droite, [Facing.ouest] vers
+/// l'écran-gauche — c'est ce qui fait que les deux bras d'un U (gauche en
+/// est, droit en ouest, voir buildULayout) se font face plutôt que de
+/// tourner le dos l'un à l'autre. Négatif car [Transform.rotate] tourne dans
+/// le sens horaire pour un angle positif : sans ce signe, est/ouest étaient
+/// inversés (bug remonté après coup, voir la note de chantier).
+double _facingRotationAngle(Facing facing) => -facing.index * (pi / 2);
+
 // Icônes de coin : affichées seulement quand la valeur sort de l'ordinaire
 // (Moyen / Modéré / Bonne vue restent muets).
 const _cornerIconColor = Color(0xFF3A3A3A);
@@ -331,12 +386,38 @@ class _FittedGrid extends StatelessWidget {
         if (r > 0) _rowGap(context, r - 1),
       ],
     ];
+    final cs = Theme.of(context).colorScheme;
+    // Couloirs de colonne ACTIFS : une grande barre continue par couloir,
+    // superposée à la grille plutôt que peinte à chaque rang — symétrique du
+    // traitement déjà fait pour les couloirs de rang (voir _rowGap). Une
+    // simple Container non interactive : elle ne vole aucun tap aux
+    // GestureDetector de _colGap qui restent dessous, dans la grille.
+    final seatingHeight = _seatingAreaHeight(room, editor: _editor);
+    final seatingArea = Stack(
+      children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows),
+        for (final c in room.colAisles)
+          if (c >= 0 && c < room.cols - 1)
+            Positioned(
+              left: _colGapCenterX(room, c, cell, editor: _editor) - 2,
+              top: 0,
+              width: 4,
+              height: seatingHeight,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+      ],
+    );
     final grid = Padding(
       padding: const EdgeInsets.all(4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ...rows,
+          seatingArea,
           _FrontBanner(gridWidth(room, editor: _editor, cell: cell)),
         ],
       ),
@@ -355,27 +436,21 @@ class _FittedGrid extends StatelessWidget {
 
   Widget _colGap(BuildContext context, int c) {
     final cs = Theme.of(context).colorScheme;
-    final aisle = room.hasColAisleAfter(c);
+    // Le trait d'un couloir ACTIF est peint une seule fois, en une grande
+    // barre verticale qui traverse toute la salle (voir le Stack dans
+    // build()) — pas ici, ce qui donnerait un pointillé par rang plutôt
+    // qu'une seule barre continue, comme pour les couloirs de rang.
     final gap = SizedBox(
       width: _colGapWidth(room, c, editor: _editor),
       height: kCell,
       child: Center(
-        child: aisle
+        child: (!room.hasColAisleAfter(c) && _editor)
             ? Container(
-                width: 4,
-                height: kCell * 0.82,
-                decoration: BoxDecoration(
-                  color: cs.primary,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                width: 2,
+                height: kCell * 0.5,
+                color: cs.outlineVariant,
               )
-            : (_editor
-                  ? Container(
-                      width: 2,
-                      height: kCell * 0.5,
-                      color: cs.outlineVariant,
-                    )
-                  : const SizedBox.shrink()),
+            : const SizedBox.shrink(),
       ),
     );
     if (!_editor) return gap;
@@ -487,16 +562,34 @@ class RoomEditorGrid extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: isSeat
-                ? Transform.rotate(
-                    angle: room.facingOf(r, c).index * (pi / 2),
-                    child: Icon(
-                      Icons.event_seat_outlined,
-                      color: cs.primary,
-                      size: 26,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  isSeat
+                      ? Transform.rotate(
+                          angle: _facingRotationAngle(room.facingOf(r, c)),
+                          child: Icon(
+                            Icons.event_seat_outlined,
+                            color: cs.primary,
+                            size: 26,
+                          ),
+                        )
+                      : Icon(Icons.block, color: cs.outlineVariant, size: 26),
+                  // Même repère que sur les cartes du Plan (_seatContent),
+                  // pour rester cohérent entre les deux onglets — même si
+                  // l'icône pivotée donne déjà l'orientation ici.
+                  if (isSeat)
+                    Positioned.fill(
+                      child: Align(
+                        alignment: _backrestAlignment(room.facingOf(r, c)),
+                        child: _backrestBar(room.facingOf(r, c), width: kCell),
+                      ),
                     ),
-                  )
-                : Icon(Icons.block, color: cs.outlineVariant, size: 26),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -554,6 +647,7 @@ class PlanGrid extends StatelessWidget {
             }
             final seatKey = Room.keyOf(r, c);
             final student = cls.studentById(cls.assignment[seatKey]);
+            final facing = cls.room.facingOf(r, c);
 
             return DragTarget<String>(
               onWillAcceptWithDetails: (d) => d.data != seatKey,
@@ -566,6 +660,7 @@ class PlanGrid extends StatelessWidget {
                   hovering,
                   labels: labels,
                   metrics: m,
+                  facing: facing,
                   result: result,
                   onTapSeat: onTapSeat,
                 );
@@ -578,11 +673,12 @@ class PlanGrid extends StatelessWidget {
                     false,
                     labels: labels,
                     metrics: m,
+                    facing: facing,
                     result: result,
                     elevated: true,
                   ),
                 );
-                final placeholder = _emptySeat(cs, false, m.cell);
+                final placeholder = _emptySeat(cs, false, m.cell, facing);
                 // Occupé : rendre l'élève déplaçable. Avec un compteur de
                 // doigts, on passe par SeatDraggable pour qu'un pincement ne
                 // saisisse pas d'élève.
@@ -614,12 +710,13 @@ class PlanGrid extends StatelessWidget {
     bool hovering, {
     required Map<String, String> labels,
     required SeatMetrics metrics,
+    required Facing facing,
     PlanResult? result,
     void Function(Student student)? onTapSeat,
     bool elevated = false,
   }) {
     final cs = Theme.of(context).colorScheme;
-    if (student == null) return _emptySeat(cs, hovering, metrics.cell);
+    if (student == null) return _emptySeat(cs, hovering, metrics.cell, facing);
     final levelIcon = _levelCornerIcon(student.level);
     final energyIcon = _energyCornerIcon(student.energy);
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
@@ -714,6 +811,24 @@ class PlanGrid extends StatelessWidget {
                 ),
               ),
             ),
+          // Bord de dossier : un trait posé sur le cadre de la case, pas
+          // flottant dans son contenu — il ne peut donc pas dériver vers le
+          // texte du nom quel que soit la taille de la carte (contrairement
+          // à un décalage fractionnel, voir la note de chantier). Peint
+          // APRÈS le liseré de genre ci-dessus, pour rester visible même
+          // quand il tombe sur le même bord (facing est) : sans lui,
+          // l'orientation d'un élève genré serait invisible sur sa carte
+          // (remonté après coup — voir la note de chantier).
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Align(
+                alignment: _backrestAlignment(facing),
+                child: _backrestBar(facing,
+                    width: width, key: ValueKey('backrest_${student.id}')),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -793,17 +908,27 @@ class PlanGrid extends StatelessWidget {
 
   /// Place libre. Reçoit la largeur mesurée comme les places occupées : sans
   /// ça, elle resterait carrée au milieu de rectangles et casserait la grille.
-  Widget _emptySeat(ColorScheme cs, bool hovering, double width) => Container(
-    width: width,
-    height: kCell,
-    decoration: BoxDecoration(
-      color: hovering ? cs.primaryContainer : cs.surface,
-      border: Border.all(
-        color: hovering ? cs.primary : cs.outlineVariant,
-        width: hovering ? 2.4 : 1,
-      ),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Icon(Icons.event_seat_outlined, color: cs.outlineVariant, size: 22),
-  );
+  ///
+  /// L'icône est pivotée selon [facing], comme dans [RoomEditorGrid] : c'est
+  /// le seul endroit de ce onglet où l'orientation d'une place se voit
+  /// directement sur une icône plutôt que sur le bord de dossier d'une carte
+  /// (voir [_seatContent]), puisqu'il n'y a pas de nom à préserver ici.
+  Widget _emptySeat(ColorScheme cs, bool hovering, double width, Facing facing) =>
+      Container(
+        width: width,
+        height: kCell,
+        decoration: BoxDecoration(
+          color: hovering ? cs.primaryContainer : cs.surface,
+          border: Border.all(
+            color: hovering ? cs.primary : cs.outlineVariant,
+            width: hovering ? 2.4 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Transform.rotate(
+          angle: _facingRotationAngle(facing),
+          child: Icon(Icons.event_seat_outlined,
+              color: cs.outlineVariant, size: 22),
+        ),
+      );
 }
