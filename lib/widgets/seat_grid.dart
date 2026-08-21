@@ -19,8 +19,8 @@ import '../models/student.dart';
 
 const double kCell = 62;
 const double kGap = 6; // espace normal entre deux colonnes
-const double kAisle = 24; // largeur d'un couloir entre colonnes
-const double kRowGap = 14; // espace entre rangs (toujours un couloir)
+const double kAisle = 24; // largeur/hauteur d'un couloir, colonne ou rang
+const double kRowGap = 14; // espace entre rangs sans couloir
 
 /// Rapport largeur/hauteur maximal d'une place. Au-delà, ce n'est plus une
 /// place mais une barre.
@@ -68,11 +68,27 @@ const double kSeatPadding = 3;
 const double kSeatBorderMax = 2.4;
 const double kTextLineFactor = 1.5;
 
+/// Hauteur de l'espace inter-rangs après le rang [r] (mêmes règles que
+/// [_colGapWidth], sur l'autre axe).
+double _rowGapHeight(Room room, int r, {required bool editor}) {
+  final aisle = room.hasRowAisleAfter(r);
+  return (editor || aisle) ? kAisle : kRowGap;
+}
+
+/// Somme des espaces inter-rangs.
+double _verticalExtras(Room room, {required bool editor}) {
+  var extras = 0.0;
+  for (var r = 0; r < room.rows - 1; r++) {
+    extras += _rowGapHeight(room, r, editor: editor);
+  }
+  return extras;
+}
+
 /// Hauteur totale de la grille, bandeau et marges compris. Indépendante de
 /// l'orientation : seule la LARGEUR d'une case change.
-double gridHeight(Room room) =>
+double gridHeight(Room room, {bool editor = false}) =>
     room.rows * kCell +
-    (room.rows - 1) * kRowGap +
+    _verticalExtras(room, editor: editor) +
     kBannerBlock +
     2 * kGridPadding;
 
@@ -172,7 +188,7 @@ SeatMetrics seatMetrics(
     return SeatMetrics(cell: kCell, scale: 1, zoom: zoom);
   }
 
-  final height = gridHeight(room);
+  final height = gridHeight(room, editor: editor);
   final extras = _horizontalExtras(room, editor: editor);
   final heightScale = viewport.height / height;
 
@@ -279,6 +295,7 @@ class _FittedGrid extends StatelessWidget {
   final Room room;
   final Widget Function(int r, int c) cellBuilder;
   final void Function(int c)? onToggleAisle;
+  final void Function(int r)? onToggleRowAisle;
 
   /// Largeur d'une case, mesurée par [seatMetrics].
   final double cell;
@@ -287,6 +304,7 @@ class _FittedGrid extends StatelessWidget {
     required this.room,
     required this.cellBuilder,
     this.onToggleAisle,
+    this.onToggleRowAisle,
     this.cell = kCell,
   });
 
@@ -294,27 +312,31 @@ class _FittedGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rangs affichés du fond (haut) vers le devant (bas) : le tableau est
+    // en bas, comme le voit le professeur face à sa classe. On conserve
+    // l'index logique r (rang 0 = devant) pour les clés de place et
+    // l'affectation — seul l'ordre d'affichage est inversé. Le couloir
+    // affiché entre deux rangs consécutifs r et r-1 est celui d'indice r-1
+    // ([Room.hasRowAisleAfter]).
+    final rows = <Widget>[
+      for (var r = room.rows - 1; r >= 0; r--) ...[
+        Row(
+          children: [
+            for (var c = 0; c < room.cols; c++) ...[
+              cellBuilder(r, c),
+              if (c < room.cols - 1) _colGap(context, c),
+            ],
+          ],
+        ),
+        if (r > 0) _rowGap(context, r - 1),
+      ],
+    ];
     final grid = Padding(
       padding: const EdgeInsets.all(4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Rangs affichés du fond (haut) vers le devant (bas) : le tableau est
-          // en bas, comme le voit le professeur face à sa classe. On conserve
-          // l'index logique r (rang 0 = devant) pour les clés de place et
-          // l'affectation — seul l'ordre d'affichage est inversé.
-          for (var r = room.rows - 1; r >= 0; r--)
-            Padding(
-              padding: EdgeInsets.only(bottom: r > 0 ? kRowGap : 0),
-              child: Row(
-                children: [
-                  for (var c = 0; c < room.cols; c++) ...[
-                    cellBuilder(r, c),
-                    if (c < room.cols - 1) _colGap(context, c),
-                  ],
-                ],
-              ),
-            ),
+          ...rows,
           _FrontBanner(gridWidth(room, editor: _editor, cell: cell)),
         ],
       ),
@@ -366,6 +388,42 @@ class _FittedGrid extends StatelessWidget {
       child: gap,
     );
   }
+
+  /// Miroir de [_colGap] sur l'axe des rangs : [r] est l'indice du couloir
+  /// (entre les rangs `r` et `r+1`), pas un index d'affichage.
+  Widget _rowGap(BuildContext context, int r) {
+    final cs = Theme.of(context).colorScheme;
+    final aisle = room.hasRowAisleAfter(r);
+    final width = gridWidth(room, editor: _editor, cell: cell);
+    final gap = SizedBox(
+      width: width,
+      height: _rowGapHeight(room, r, editor: _editor),
+      child: Center(
+        child: aisle
+            ? Container(
+                height: 4,
+                width: width * 0.82,
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              )
+            : (_editor
+                  ? Container(
+                      height: 2,
+                      width: cell * 0.5,
+                      color: cs.outlineVariant,
+                    )
+                  : const SizedBox.shrink()),
+      ),
+    );
+    if (!_editor) return gap;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onToggleRowAisle!(r),
+      child: gap,
+    );
+  }
 }
 
 class RoomEditorGrid extends StatelessWidget {
@@ -384,6 +442,10 @@ class RoomEditorGrid extends StatelessWidget {
       room: room,
       onToggleAisle: (c) {
         room.toggleColAisle(c);
+        onChanged();
+      },
+      onToggleRowAisle: (r) {
+        room.toggleRowAisle(r);
         onChanged();
       },
       cellBuilder: (r, c) {

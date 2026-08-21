@@ -198,6 +198,30 @@ void main() {
       expect(cls.room.cols, 1);
       expect(cls.room.hasColAisleAfter(1), isFalse);
     });
+
+    testWidgets(
+        'toucher l\'espace entre deux rangs ajoute puis retire un couloir',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 2);
+      await _pump(t, cls);
+
+      // Icônes rendues du fond vers le devant : index 0 = (r=1,c=0),
+      // index 2 = (r=0,c=0) — même colonne, rangs adjacents. Le couloir entre
+      // les deux est celui d'indice 0 (entre les rangs 0 et 1).
+      final back = t.getCenter(find.byIcon(Icons.event_seat_outlined).at(0));
+      final front = t.getCenter(find.byIcon(Icons.event_seat_outlined).at(2));
+      final gap = Offset(back.dx, (back.dy + front.dy) / 2);
+
+      expect(cls.room.hasRowAisleAfter(0), isFalse);
+
+      await t.tapAt(gap);
+      await t.pumpAndSettle();
+      expect(cls.room.hasRowAisleAfter(0), isTrue);
+
+      await t.tapAt(gap);
+      await t.pumpAndSettle();
+      expect(cls.room.hasRowAisleAfter(0), isFalse);
+    });
   });
 
   group('Objectifs d\'équilibre', () {
