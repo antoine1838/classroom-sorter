@@ -174,6 +174,16 @@ void main() {
 
       expect(cls.room.facingOf(0, 0), Facing.est);
       expect(cls.room.capacity, 1, reason: 'le tap tourne, il ne retire pas');
+
+      // Même repère que sur les cartes du Plan (bord de dossier), affiché en
+      // plus de l'icône pivotée — pour rester cohérent entre les deux
+      // onglets.
+      expect(
+          t
+              .widgetList<Align>(find.byType(Align))
+              .where((a) => a.alignment == Alignment.centerLeft),
+          isNotEmpty,
+          reason: 'facing est => dossier au bord gauche de la case');
     });
 
     testWidgets(
@@ -254,6 +264,58 @@ void main() {
       await t.tapAt(gap);
       await t.pumpAndSettle();
       expect(cls.room.hasRowAisleAfter(0), isFalse);
+    });
+
+    testWidgets(
+        'un couloir de colonne actif est une seule grande barre, pas un '
+        'trait par rang', (t) async {
+      final cls = _cls(rows: 3, cols: 2)..room.toggleColAisle(0);
+      await _pump(t, cls);
+
+      // Repérée par la largeur (4) posée sur le Positioned lui-même, pas sur
+      // son enfant — seule la grande barre de couloir la déclare ainsi.
+      final bars = t
+          .widgetList<Positioned>(find.byType(Positioned))
+          .where((p) => p.width == 4)
+          .toList();
+      expect(bars, hasLength(1),
+          reason: 'une seule barre continue, pas ${cls.room.rows} segments');
+    });
+
+    testWidgets(
+        'un couloir de rang actif va d\'un bord à l\'autre des places, comme '
+        'un couloir de colonne', (t) async {
+      final cls = _cls(rows: 3, cols: 2)..room.toggleRowAisle(0);
+      await _pump(t, cls);
+
+      final bar = t.widgetList<Container>(find.byType(Container)).firstWhere(
+          (c) => c.constraints?.maxHeight == 4 && c.decoration != null);
+      final size = t.getSize(find.byWidgetPredicate((w) => identical(w, bar)));
+
+      // 2 colonnes en mode éditeur : couloirs élargis (kAisle) partout, donc
+      // largeur attendue = 2 cases + 1 espace inter-colonnes.
+      expect(size.width, closeTo(2 * kCell + kAisle, 0.5),
+          reason: 'doit couvrir toute la largeur des places, pas 82% d\'un '
+              'total incluant la marge de la grille');
+    });
+
+    testWidgets(
+        'sans couloir de rang, le repère éditeur est un par colonne, pas un '
+        'pour toute la ligne', (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      await _pump(t, cls);
+
+      // Le repère (2px de haut, sans décoration) doit apparaître une fois
+      // par colonne entre les deux rangs, comme le fait déjà le repère de
+      // couloir de colonne une fois par rang.
+      final hints = t
+          .widgetList<Container>(find.byType(Container))
+          .where((c) =>
+              c.constraints?.maxHeight == 2 && c.decoration == null)
+          .toList();
+      expect(hints, hasLength(cls.room.cols),
+          reason: 'un repère par colonne (${cls.room.cols}), pas un seul '
+              'pour toute la ligne');
     });
 
     testWidgets('le sélecteur de disposition applique le modèle U choisi',
