@@ -1722,8 +1722,7 @@ class _RulesTab extends StatelessWidget {
     final base = switch (r.type) {
       RuleType.fixedSeat =>
         '$a → place ligne ${(r.seatRow ?? 0) + 1}, colonne ${(r.seatCol ?? 0) + 1}',
-      RuleType.frontZone =>
-        '$a doit être dans les ${r.frontRows} premier(s) rang(s)',
+      RuleType.frontZone => '$a doit être à ${r.frontRows} rang(s) du tableau',
       RuleType.separate => 'Séparer $a et $b',
       RuleType.keepTogether => 'Rapprocher $a et $b',
     };
@@ -1788,9 +1787,9 @@ class _RulesTab extends StatelessWidget {
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.height),
-                title: const Text('Éviter un grand juste devant un petit'),
+                title: const Text('Éviter qu\'un grand gêne la vue d\'un petit'),
                 subtitle: const Text(
-                    'Un élève grand ne doit pas bloquer la vue de celui placé juste derrière'),
+                    'Un élève grand ne doit pas bloquer la vue de celui placé juste plus près du tableau — devant, ou à côté sur un bras de U'),
                 value: cls.balance.avoidTallInFrontOfShort,
                 onChanged: (v) {
                   cls.balance.avoidTallInFrontOfShort = v;
@@ -1968,7 +1967,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
             if (_type == RuleType.frontZone) ...[
               const SizedBox(height: 12),
               _Stepper(
-                label: 'Premiers rangs',
+                label: 'Rangs du tableau',
                 value: _frontRows,
                 onMinus: () =>
                     setState(() => _frontRows = (_frontRows - 1).clamp(1, room.rows)),

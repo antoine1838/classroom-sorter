@@ -1,7 +1,7 @@
 /// Une règle/contrainte d'affectation.
 ///
 /// - [fixedSeat]    : un élève doit occuper une place précise.
-/// - [frontZone]    : un élève doit être dans les premiers rangs.
+/// - [frontZone]    : un élève doit être placé près du tableau.
 /// - [separate]     : deux élèves ne doivent PAS être voisins.
 /// - [keepTogether] : deux élèves doivent être voisins.
 ///
@@ -21,7 +21,7 @@ extension RuleTypeInfo on RuleType {
   String get description => switch (this) {
         RuleType.fixedSeat => 'Assigner un élève à une place précise',
         RuleType.frontZone =>
-          'Placer un élève dans les premiers rangs (vue, audition, PMR…)',
+          'Placer un élève près du tableau (vue, audition, PMR…)',
         RuleType.separate => "Empêcher deux élèves d'être voisins",
         RuleType.keepTogether => 'Garder deux élèves voisins',
       };
@@ -38,7 +38,7 @@ class Rule {
   String? studentBId; // pour separate / keepTogether
   int? seatRow; // pour fixedSeat
   int? seatCol; // pour fixedSeat
-  int frontRows; // pour frontZone : dans les N premiers rangs
+  int frontRows; // pour frontZone : à N rangs du tableau (0 = au premier)
   bool hard; // true = obligatoire, false = préférence
 
   Rule({

@@ -12,7 +12,7 @@ class BalanceSettings {
   bool mixLevel; // alterner les niveaux dans le voisinage
   bool separateAgites; // éviter deux élèves agités voisins
   bool frontForPoorEyesight; // rapprocher du tableau les élèves à mauvaise vue
-  bool avoidTallInFrontOfShort; // éviter un grand juste devant un petit
+  bool avoidTallInFrontOfShort; // éviter qu'un grand gêne la vue d'un petit
 
   BalanceSettings({
     this.mixGender = false,

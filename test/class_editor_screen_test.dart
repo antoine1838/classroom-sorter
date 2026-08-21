@@ -456,7 +456,7 @@ void main() {
         'Mélanger les niveaux': () => cls.balance.mixLevel,
         'Séparer les élèves agités': () => cls.balance.separateAgites,
         'Rapprocher du tableau': () => cls.balance.frontForPoorEyesight,
-        'Éviter un grand juste devant un petit': () =>
+        'Éviter qu\'un grand gêne la vue d\'un petit': () =>
             cls.balance.avoidTallInFrontOfShort,
       }.entries) {
         final before = entry.value();
@@ -586,7 +586,7 @@ void main() {
       await _pickDropdown(t, 'Type de règle', 'Doit être devant');
 
       // Deux rangs au lieu d'un.
-      await _step(t, 'Premiers rangs', Icons.add);
+      await _step(t, 'Rangs du tableau', Icons.add);
 
       // Et une simple préférence.
       await t.tap(find.text('Obligatoire'));
@@ -599,8 +599,7 @@ void main() {
       expect(rule.type, RuleType.frontZone);
       expect(rule.frontRows, 2);
       expect(rule.hard, isFalse);
-      expect(find.textContaining('dans les 2 premier(s) rang(s)'),
-          findsOneWidget);
+      expect(find.textContaining('à 2 rang(s) du tableau'), findsOneWidget);
       expect(find.textContaining('Préférence'), findsOneWidget);
     });
 

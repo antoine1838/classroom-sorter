@@ -147,7 +147,7 @@ void main() {
 
       expect(_flagged(res), {'a'},
           reason: 'une règle à un seul élève ne doit pas marquer le voisin');
-      expect(res.reasonsFor('a').single, contains('premiers rangs'));
+      expect(res.reasonsFor('a').single, contains('près du tableau'));
     });
 
     test('« place imposée » non honorée : l\'élève est marqué', () {
