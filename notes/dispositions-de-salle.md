@@ -168,6 +168,26 @@ entrerait en concurrence.
 onglets touchés. Le rendu final — icône pivotée à 180°, lisibilité du bord de dossier — demande un
 coup d'œil dans l'app Windows. Pas de reformatage au passage : `dart format` reste un commit dédié.
 
+## Écarts entre ce qui était prévu et ce qui a été livré
+
+Les 9 commits ont tous été livrés tels que découpés ci-dessus (5 et 6 regroupés en un seul, la
+zone de l'onglet Salle qu'ils touchent étant imbriquée). Deux écarts découverts en cours de route,
+notés ici parce qu'ils ne se relisent pas dans le diff :
+
+- **Le libellé « Rapprocher du tableau » était déjà pris.** La règle `frontZone` (par élève) devait
+  initialement se renommer « Doit être devant » → « Rapprocher du tableau ». En relisant le code, ce
+  libellé exact désigne déjà l'objectif d'équilibre `frontForPoorEyesight` (préférence de classe,
+  différente d'une règle par élève). Les deux mécanismes sous le même texte auraient été une
+  régression de lisibilité, pas une amélioration : `frontZone` a gardé son libellé « Doit être
+  devant », seule sa description et les textes qui citaient « rangs » ont été reformulés en distance
+  au tableau.
+- **Les générateurs de disposition (`lib/models/room_layouts.dart`) fixent des paramètres non
+  discutés en grilling**, par nécessité d'implémentation : le U a un creux central de 3 colonnes
+  (`centerGap`, purement esthétique) et des bras de profondeur/largeur réglables ; les Îlots
+  s'alignent sur une seule bande de deux rangs, les tables séparées par un couloir de colonne — pas
+  de second paramètre de nombre de rangs d'îlots. Si l'usage réel demande plus (îlots sur plusieurs
+  bandes, U asymétrique), ce sera une extension de ces fonctions, pas une réécriture.
+
 ## Ce qui ferait tomber le raisonnement
 
 Le constat 1 (le rang est la distance au tableau) tient parce que le tableau occupe **tout** le mur

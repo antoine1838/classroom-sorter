@@ -9,9 +9,15 @@ sur Internet — adapté aux données élèves).
 
 ## Fonctionnalités
 
-- **Salle** : grille de places modifiable ; on peut retirer des cases pour
-  dessiner les allées. Le rang 0 est le « devant » (côté tableau), **affiché en
-  bas** de la grille (vue du professeur).
+- **Salle** : grille de places modifiable. Le rang 0 est le « devant » (côté
+  tableau), **affiché en bas** de la grille (vue du professeur). Sur une case
+  vide, toucher pose une place ; sur une place, toucher la fait **tourner**
+  (nord/est/sud/ouest — l'orientation est purement visuelle, elle n'influence
+  pas les plans générés) et l'**appui long** (ou le clic droit) la retire.
+  Toucher l'espace entre deux cases ajoute un **couloir**, horizontal ou
+  vertical : les élèves de part et d'autre ne sont plus voisins. Un bouton
+  **Disposition** propose trois modèles prêts à composer — *Rangées*, *U*,
+  *Îlots* — ou une page blanche, à retoucher ensuite case par case.
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
   (faible/moyen/fort), énergie (calme/modéré/agité), taille
   (petit/moyen/grand), mauvaise vue, notes libres. Deux vues au choix (bouton
@@ -22,7 +28,7 @@ sur Internet — adapté aux données élèves).
 - **Règles** (par élève ou par binôme) — chacune *obligatoire* (dure) ou
   *préférence* (souple) :
   - *Place imposée* — un élève sur une place précise ;
-  - *Doit être devant* — dans les N premiers rangs (vue, audition, PMR…) ;
+  - *Doit être devant* — à N rangs du tableau (vue, audition, PMR…) ;
   - *Séparer* — deux élèves jamais voisins ;
   - *Rapprocher* — deux élèves voisins.
 - **Objectifs d'équilibre** (souples, appliqués à toute la classe) :
@@ -30,8 +36,8 @@ sur Internet — adapté aux données élèves).
   - *Mélanger les niveaux* — ne pas créer 2 voisins Faibles ni 2 voisins Forts ;
   - *Séparer les élèves agités* — éviter les voisins agités ;
   - *Mauvaise vue* — rapprocher du tableau (moitié avant) les élèves concernés ;
-  - *Éviter un grand devant un petit* — un élève grand ne bloque pas la vue de
-    celui placé juste derrière.
+  - *Éviter qu'un grand gêne la vue d'un petit* — devant, ou à côté sur un
+    bras de U.
 - **Plan** : génération automatique, rapport des contraintes respectées /
   violées (dur en rouge, perfectible en orange), et **glisser-déposer** pour
   ajuster à la main. Bouton *Régénérer* pour une autre proposition, bouton
@@ -130,6 +136,7 @@ comble ce trou côté Dart.
 ```
 lib/
 ├── models/        Student, Room/Seat, Rule, ClassGroup   (+ (dé)sérialisation JSON)
+│               room_layouts.dart — générateurs de disposition (Rangées, U, Îlots, page blanche)
 ├── engine/        seating_engine.dart — moteur d'affectation
 │               plan_issue.dart — problèmes rapportés + élèves concernés
 ├── data/          repository.dart — stockage local (shared_preferences)
@@ -146,7 +153,7 @@ assets/demo/       demo_class_6emeb.json — classe de démo embarquée (voir
 test/              moteur : engine_test, seating_neighbors_test, room_orientation_test,
                    balance_objectives_test, plan_issues_test
                    modèles / stockage : models_test, repository_test, app_state_test,
-                   demo_class_test
+                   demo_class_test, room_layouts_test
                    écrans : home_screen_test, settings_screen_test,
                    class_editor_screen_test, layout_responsive_test,
                    plan_landscape_test, students_grid_cycle_test,
