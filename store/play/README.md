@@ -31,6 +31,12 @@ magique dans l'AppBar), plus besoin d'injecter la classe à la main dans les
 prefs Windows pour préparer ces captures : un clic dans l'appli suffit à
 obtenir la même « 6ème B » à 20 élèves (voir `test/fixtures/README.md`).
 
+> **À refaire** : `02-salle` a été prise avant l'ajout du bouton
+> **Disposition** (modèles Rangées/U/Îlots) et de la rotation des places —
+> elle ne montre plus l'état réel de l'onglet Salle. Une capture avec une
+> disposition en U ou en îlots appliquée illustrerait aussi mieux la
+> fonctionnalité que la grille rectangulaire d'origine.
+
 ## Textes — `metadata/<locale>/`
 
 Un champ = un fichier (convention *fastlane*). Langue par défaut : `fr-FR`.
