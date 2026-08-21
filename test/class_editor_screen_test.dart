@@ -255,6 +255,119 @@ void main() {
       await t.pumpAndSettle();
       expect(cls.room.hasRowAisleAfter(0), isFalse);
     });
+
+    testWidgets('le sélecteur de disposition applique le modèle U choisi',
+        (t) async {
+      final cls = _cls(rows: 3, cols: 3);
+      await _pump(t, cls);
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('U'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      // Défauts du modèle U : armDepth = 3, bras simples.
+      expect(cls.room.rows, 4);
+      expect(cls.room.cols, 5);
+      expect(cls.room.facingOf(1, 0), Facing.est);
+      expect(cls.room.facingOf(1, 4), Facing.ouest);
+    });
+
+    testWidgets(
+        'le sélecteur de disposition applique plusieurs bandes d\'îlots',
+        (t) async {
+      final cls = _cls(rows: 3, cols: 3);
+      await _pump(t, cls);
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Îlots'));
+      await t.pumpAndSettle();
+      await _step(t, 'Nombre de rangs d\'îlots', Icons.add);
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      // Défauts : tables de 4, 3 îlots, 2 bandes (1 + 1 après le tap).
+      expect(cls.room.rows, 4);
+      expect(cls.room.cols, 6);
+      expect(cls.room.rowAisleBetween(1, 2), isTrue,
+          reason: 'les deux bandes ne doivent pas être voisines');
+    });
+
+    testWidgets(
+        'appliquer une disposition sur une salle occupée demande confirmation',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 2)
+        ..assignment[Room.keyOf(0, 0)] = 'stu0';
+      await _pump(t, cls);
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Vide'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Remplacer la disposition ?'), findsOneWidget);
+
+      // Annuler : la salle et le plan restent intacts.
+      await t.tap(find.text('Annuler'));
+      await t.pumpAndSettle();
+      expect(cls.room.capacity, 4);
+      expect(cls.assignment, isNotEmpty);
+
+      // On refait le même choix, cette fois on confirme le remplacement.
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Vide'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Remplacer'));
+      await t.pumpAndSettle();
+
+      expect(cls.room.capacity, 0);
+      expect(cls.assignment, isEmpty);
+    });
+
+    testWidgets(
+        'appliquer une disposition sur une salle vide ne demande rien',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 2);
+      await _pump(t, cls);
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Vide'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Remplacer la disposition ?'), findsNothing);
+      expect(cls.room.capacity, 0);
+    });
+
+    testWidgets(
+        'le bandeau de capacité apparaît quand la salle manque de places',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 2, students: 3);
+      await _pump(t, cls);
+
+      expect(
+          find.textContaining('2 place(s) pour 3 élève(s)'), findsOneWidget);
+      expect(find.textContaining('1 élève(s) ne seront pas placé(s)'),
+          findsOneWidget);
+    });
+
+    testWidgets(
+        'le bandeau de capacité disparaît quand la salle suffit', (t) async {
+      final cls = _cls(rows: 2, cols: 2, students: 3);
+      await _pump(t, cls);
+
+      expect(find.textContaining('ne seront pas placé(s)'), findsNothing);
+    });
   });
 
   group('Objectifs d\'équilibre', () {

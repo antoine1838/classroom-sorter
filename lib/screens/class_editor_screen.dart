@@ -10,6 +10,7 @@ import '../engine/plan_issue.dart';
 import '../engine/seating_engine.dart';
 import '../models/classroom.dart';
 import '../models/room.dart';
+import '../models/room_layouts.dart';
 import '../models/rule.dart';
 import '../models/student.dart';
 import '../widgets/plan_viewport.dart';
@@ -339,9 +340,56 @@ class _RoomTab extends StatelessWidget {
     state.touch();
   }
 
+  /// Ouvre le sélecteur de disposition, demande confirmation si la salle
+  /// actuelle porte déjà un plan (la perte peut être totale, contrairement à
+  /// un simple -1 rang/colonne), puis remplace la salle et nettoie le plan
+  /// des places devenues hors grille — comme le fait déjà [_resize].
+  Future<void> _pickLayout(BuildContext context) async {
+    final layout = await showDialog<Room>(
+      context: context,
+      builder: (_) => _RoomLayoutDialog(
+        initialRows: cls.room.rows,
+        initialCols: cls.room.cols,
+      ),
+    );
+    if (layout == null || !context.mounted) return;
+
+    if (cls.assignment.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Remplacer la disposition ?'),
+          content: Text(
+            '${cls.assignment.length} élève(s) sont placé(s) sur le plan '
+            'actuel. Appliquer cette disposition les retirera du plan.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Remplacer'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    cls.room = layout;
+    cls.assignment.removeWhere((k, v) {
+      final (r, c) = Room.parse(k);
+      return !cls.room.isSeat(r, c);
+    });
+    state.touch();
+  }
+
   @override
   Widget build(BuildContext context) {
     final room = cls.room;
+    final missing = cls.students.length - room.capacity;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -368,9 +416,43 @@ class _RoomTab extends StatelessWidget {
                 avatar: const Icon(Icons.event_seat, size: 18),
                 label: Text('${room.capacity} places'),
               ),
+              OutlinedButton.icon(
+                onPressed: () => _pickLayout(context),
+                icon: const Icon(Icons.dashboard_customize_outlined, size: 18),
+                label: const Text('Disposition'),
+              ),
             ],
           ),
         ),
+        if (missing > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onErrorContainer),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${room.capacity} place(s) pour ${cls.students.length} '
+                      'élève(s) — $missing élève(s) ne seront pas placé(s).',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
@@ -387,6 +469,142 @@ class _RoomTab extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: RoomEditorGrid(room: room, onChanged: state.touch),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Sélecteur de modèle de disposition : Rangées, U, Îlots, ou une page
+/// blanche. Renvoie la [Room] choisie via `Navigator.pop`, ou `null` si
+/// annulé — ne modifie jamais la salle en cours, c'est à l'appelant de
+/// l'appliquer (voir [_RoomTab._pickLayout]).
+class _RoomLayoutDialog extends StatefulWidget {
+  final int initialRows;
+  final int initialCols;
+  const _RoomLayoutDialog({required this.initialRows, required this.initialCols});
+
+  @override
+  State<_RoomLayoutDialog> createState() => _RoomLayoutDialogState();
+}
+
+class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
+  RoomLayoutKind _kind = RoomLayoutKind.rangees;
+  int _armDepth = 3;
+  bool _doubleArm = false;
+  int _islandSize = 4;
+  int _islandCount = 3;
+  int _islandRows = 1;
+
+  Room _build() => switch (_kind) {
+        RoomLayoutKind.rangees => buildRangeesLayout(
+            rows: widget.initialRows, cols: widget.initialCols),
+        RoomLayoutKind.blanche => buildBlancheLayout(
+            rows: widget.initialRows, cols: widget.initialCols),
+        RoomLayoutKind.u =>
+          buildULayout(armDepth: _armDepth, doubleArm: _doubleArm),
+        RoomLayoutKind.ilots => buildIlotsLayout(
+            islandSize: _islandSize,
+            islandCount: _islandCount,
+            islandRows: _islandRows),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Disposition de la salle'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SegmentedButton<RoomLayoutKind>(
+              segments: const [
+                ButtonSegment(
+                    value: RoomLayoutKind.rangees, label: Text('Rangées')),
+                ButtonSegment(value: RoomLayoutKind.u, label: Text('U')),
+                ButtonSegment(
+                    value: RoomLayoutKind.ilots, label: Text('Îlots')),
+                ButtonSegment(
+                    value: RoomLayoutKind.blanche, label: Text('Vide')),
+              ],
+              selected: {_kind},
+              onSelectionChanged: (s) => setState(() => _kind = s.first),
+            ),
+            const SizedBox(height: 16),
+            switch (_kind) {
+              RoomLayoutKind.rangees ||
+              RoomLayoutKind.blanche =>
+                Text(
+                  'Conserve la taille actuelle de la salle '
+                  '(${widget.initialRows} × ${widget.initialCols}).',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              RoomLayoutKind.u => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Stepper(
+                      label: 'Profondeur des bras',
+                      value: _armDepth,
+                      onMinus: () => setState(
+                          () => _armDepth = (_armDepth - 1).clamp(1, 10)),
+                      onPlus: () => setState(
+                          () => _armDepth = (_armDepth + 1).clamp(1, 10)),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Bras doubles'),
+                      value: _doubleArm,
+                      onChanged: (v) => setState(() => _doubleArm = v),
+                    ),
+                  ],
+                ),
+              RoomLayoutKind.ilots => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SegmentedButton<int>(
+                      segments: const [
+                        ButtonSegment(value: 4, label: Text('Tables de 4')),
+                        ButtonSegment(value: 6, label: Text('Tables de 6')),
+                      ],
+                      selected: {_islandSize},
+                      onSelectionChanged: (s) =>
+                          setState(() => _islandSize = s.first),
+                    ),
+                    const SizedBox(height: 8),
+                    _Stepper(
+                      label: 'Nombre d\'îlots par rang',
+                      value: _islandCount,
+                      onMinus: () => setState(
+                          () => _islandCount = (_islandCount - 1).clamp(1, 8)),
+                      onPlus: () => setState(
+                          () => _islandCount = (_islandCount + 1).clamp(1, 8)),
+                    ),
+                    const SizedBox(height: 8),
+                    _Stepper(
+                      label: 'Nombre de rangs d\'îlots',
+                      value: _islandRows,
+                      onMinus: () => setState(
+                          () => _islandRows = (_islandRows - 1).clamp(1, 4)),
+                      onPlus: () => setState(
+                          () => _islandRows = (_islandRows + 1).clamp(1, 4)),
+                    ),
+                  ],
+                ),
+            },
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _build()),
+          child: const Text('Appliquer'),
         ),
       ],
     );
