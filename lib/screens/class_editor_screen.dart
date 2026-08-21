@@ -332,8 +332,10 @@ class _RoomTab extends StatelessWidget {
       final (r, c) = Room.parse(k);
       return !cls.room.isSeat(r, c);
     });
-    // Retirer les couloirs devenus hors grille.
+    // Retirer les couloirs et orientations devenus hors grille.
     cls.room.pruneColAisles();
+    cls.room.pruneRowAisles();
+    cls.room.pruneFacing();
     state.touch();
   }
 

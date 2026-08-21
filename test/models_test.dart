@@ -215,6 +215,67 @@ void main() {
       room.toggleColAisle(0);
       expect(room.hasColAisleAfter(0), isFalse);
     });
+
+    test('toggleRowAisle ajoute puis retire un couloir, miroir de colAisle',
+        () {
+      final room = Room(rows: 3, cols: 2);
+      expect(room.hasRowAisleAfter(0), isFalse);
+
+      room.toggleRowAisle(0);
+      expect(room.hasRowAisleAfter(0), isTrue);
+      expect(room.rowAisleBetween(0, 1), isTrue);
+      expect(room.rowAisleBetween(1, 0), isTrue,
+          reason: 'ordre indifférent, comme colAisleBetween');
+
+      room.toggleRowAisle(0);
+      expect(room.hasRowAisleAfter(0), isFalse);
+    });
+
+    test('rotateFacing cycle nord → est → sud → ouest → nord', () {
+      final room = Room(rows: 1, cols: 1);
+      expect(room.facingOf(0, 0), Facing.nord);
+
+      room.rotateFacing(0, 0);
+      expect(room.facingOf(0, 0), Facing.est);
+      room.rotateFacing(0, 0);
+      expect(room.facingOf(0, 0), Facing.sud);
+      room.rotateFacing(0, 0);
+      expect(room.facingOf(0, 0), Facing.ouest);
+      room.rotateFacing(0, 0);
+      expect(room.facingOf(0, 0), Facing.nord,
+          reason: 'retour à nord => stocké de façon creuse (retiré de la map)');
+    });
+
+    test('toggle retire l\'orientation quand la place est désactivée', () {
+      final room = Room(rows: 1, cols: 1);
+      room.rotateFacing(0, 0);
+      expect(room.facingOf(0, 0), Facing.est);
+
+      room.toggle(0, 0);
+      room.toggle(0, 0);
+      expect(room.facingOf(0, 0), Facing.nord,
+          reason: 'une place remise naît orientée vers le tableau');
+    });
+
+    test('toJson/fromJson conservent rowAisles et facing', () {
+      final room = Room(rows: 2, cols: 2);
+      room.toggleRowAisle(0);
+      room.rotateFacing(1, 1);
+
+      final restored = Room.fromJson(room.toJson());
+
+      expect(restored.hasRowAisleAfter(0), isTrue);
+      expect(restored.facingOf(1, 1), Facing.est);
+      expect(restored.facingOf(0, 0), Facing.nord);
+    });
+
+    test('fromJson relit une salle enregistrée avant l\'orientation', () {
+      final room = Room.fromJson({'rows': 2, 'cols': 2, 'disabled': []});
+
+      expect(room.rowAisles, isEmpty);
+      expect(room.facingOf(0, 0), Facing.nord);
+      expect(room.facingOf(1, 1), Facing.nord);
+    });
   });
 
   group('ClassGroup', () {
