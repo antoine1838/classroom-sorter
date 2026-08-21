@@ -16,8 +16,11 @@ sur Internet — adapté aux données élèves).
   pas les plans générés) et l'**appui long** (ou le clic droit) la retire.
   Toucher l'espace entre deux cases ajoute un **couloir**, horizontal ou
   vertical : les élèves de part et d'autre ne sont plus voisins. Un bouton
-  **Disposition** propose trois modèles prêts à composer — *Rangées*, *U*,
-  *Îlots* — ou une page blanche, à retoucher ensuite case par case.
+  **Disposition** propose trois modèles prêts à composer — *Rangées*, *U*
+  (profondeur et largeur des bras réglables) et *Îlots* (tables de 4 ou 6,
+  sur un ou plusieurs rangs) — ou une page blanche, à retoucher ensuite case
+  par case. Un bandeau prévient (sans bloquer) quand la salle manque de
+  places pour l'effectif de la classe.
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
   (faible/moyen/fort), énergie (calme/modéré/agité), taille
   (petit/moyen/grand), mauvaise vue, notes libres. Deux vues au choix (bouton
@@ -43,8 +46,9 @@ sur Internet — adapté aux données élèves).
   ajuster à la main. Bouton *Régénérer* pour une autre proposition, bouton
   *Valider* pour recontrôler règles et équilibre après un ajustement manuel.
   Lisible à toute taille d'écran : la salle s'affiche en entier en **portrait**
-  (avec **zoom** à deux doigts) comme en **paysage** (cases plus larges, chrome
-  qui se replie en rail au besoin), avec le **prénom** en clair dès que la place
+  (avec **zoom** à deux doigts, ou à la molette de souris sur bureau/web) comme
+  en **paysage** (cases plus larges, chrome qui se replie en rail au besoin),
+  avec le **prénom** en clair dès que la place
   le permet, sinon des **initiales désambiguïsées** (deux élèves aux mêmes
   initiales sont distingués). Les élèves concernés par un problème sont
   **marqués directement sur leur place** (fond rouge pâle pour une contrainte

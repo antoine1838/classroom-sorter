@@ -5,8 +5,10 @@ Tout fonctionne HORS-LIGNE, directement sur votre appareil. Aucune donnée n'est
 CE QUE VOUS POUVEZ FAIRE
 
 Concevoir votre salle
-• Dessinez la disposition des tables sur une grille modifiable.
-• Retirez des cases pour créer les allées et reproduire votre vraie salle.
+• Partez d'un modèle prêt à l'emploi — Rangées, U ou Îlots (tables de 4 ou 6, sur un ou plusieurs rangs) — ou d'une page blanche, puis ajustez case par case.
+• Ajoutez des couloirs, horizontaux ou verticaux, pour séparer deux places qui se touchent sur la grille.
+• Faites pivoter chaque place pour représenter fidèlement l'orientation des tables (îlots, U…) — un repère purement visuel, sans effet sur les plans générés.
+• Un message prévient, sans jamais bloquer, si la salle manque de places pour l'effectif de la classe.
 • Le premier rang correspond au « devant », côté tableau.
 
 Gérer vos élèves
@@ -15,7 +17,7 @@ Gérer vos élèves
 
 Définir vos règles (par élève ou par binôme)
 • Place imposée : fixez un élève à une place précise.
-• Devant : gardez un élève dans les premiers rangs (vue, audition, mobilité…).
+• Devant : gardez un élève près du tableau, à N rangs près (vue, audition, mobilité…).
 • Séparer : deux élèves ne seront jamais voisins.
 • Rapprocher : deux élèves placés voisins.
 • Chaque règle est au choix obligatoire ou simple préférence.
@@ -25,7 +27,7 @@ Viser l'équilibre sur toute la classe
 • Mélanger les niveaux : ne pas créer 2 voisins Faibles ni 2 voisins Forts.
 • Séparer les élèves agités : éviter les voisins agités.
 • Mauvaise vue : rapprocher du tableau (moitié avant) les élèves concernés.
-• Éviter un grand devant un petit : un élève grand ne bloque pas la vue de celui placé juste derrière.
+• Éviter qu'un grand gêne la vue d'un petit : devant lui, ou à côté sur un bras de U.
 
 Générer et ajuster
 • Le plan est calculé automatiquement pour respecter au mieux vos contraintes.
@@ -35,7 +37,7 @@ Générer et ajuster
 • Pas satisfait ? « Régénérer » propose une nouvelle disposition.
 
 Lisible sur tout écran
-• La salle s'affiche entière, aussi bien en portrait (avec zoom à deux doigts) qu'en paysage.
+• La salle s'affiche entière, aussi bien en portrait (avec zoom à deux doigts, ou à la molette de souris sur ordinateur) qu'en paysage.
 • Le prénom de chaque élève s'affiche dès que la place le permet, sinon des initiales non ambiguës (deux élèves aux mêmes initiales restent distingués).
 
 RESPECT DE LA VIE PRIVÉE
