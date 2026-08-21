@@ -636,8 +636,8 @@ class SeatingEngine {
         'Mauvaise vue : tous dans la moitié avant (près du tableau).',
         'Mauvaise vue : ${eyesight.count} élève(s) hors moitié avant.');
     _addBalanceNote(notes, b.avoidTallInFrontOfShort, size,
-        'Tailles : aucun grand directement devant un petit.',
-        'Tailles : ${size.count} grand(s) directement devant un petit.');
+        'Tailles : aucun grand ne gêne la vue d\'un petit.',
+        'Tailles : ${size.count} grand(s) qui gênent la vue d\'un petit.');
     return notes;
   }
 
@@ -732,7 +732,7 @@ class SeatingEngine {
     final ka = seatOf[rule.studentAId];
     if (ka != null && Room.parse(ka).$1 < rule.frontRows) return null;
     return (
-      label: "${name(rule.studentAId)} n'est pas dans les premiers rangs.",
+      label: "${name(rule.studentAId)} n'est pas assez près du tableau.",
       studentIds: [rule.studentAId],
     );
   }

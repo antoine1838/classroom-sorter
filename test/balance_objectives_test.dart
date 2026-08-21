@@ -58,7 +58,7 @@ void main() {
       'Mélanger les niveaux': Icons.swap_vert,
       'Séparer les élèves agités': Icons.bolt,
       'Rapprocher du tableau': Icons.visibility_off,
-      'Éviter un grand juste devant un petit': Icons.height,
+      'Éviter qu\'un grand gêne la vue d\'un petit': Icons.height,
     };
     for (final entry in expected.entries) {
       expect(iconFor(entry.key), entry.value, reason: entry.key);
