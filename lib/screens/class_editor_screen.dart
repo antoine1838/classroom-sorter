@@ -374,9 +374,10 @@ class _RoomTab extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'Touchez une case pour retirer/remettre une place. '
-            'Touchez l\'espace entre deux colonnes pour ajouter un couloir : '
-            'les élèves de part et d\'autre ne seront plus voisins.',
+            'Touchez une case vide pour y poser une place, une place pour la '
+            'faire tourner. Appui long ou clic droit sur une place pour la '
+            'retirer. Touchez l\'espace entre deux cases pour ajouter un '
+            'couloir : les élèves de part et d\'autre ne seront plus voisins.',
             style: TextStyle(fontSize: 12),
           ),
         ),

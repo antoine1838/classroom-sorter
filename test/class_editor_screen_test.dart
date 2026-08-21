@@ -1,6 +1,7 @@
 // Écran d'édition d'une classe : les quatre onglets, le renommage, les
 // objectifs d'équilibre, la création et la suppression de règles, et le cycle
 // génération / validation du plan.
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -161,13 +162,29 @@ void main() {
       expect(cls.room.rows, 1, reason: 'on ne descend pas sous un rang');
     });
 
-    testWidgets('toucher une case retire la place, puis la remet', (t) async {
+    testWidgets('toucher une place la fait tourner, sans la retirer',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 1);
+      await _pump(t, cls);
+
+      expect(cls.room.facingOf(0, 0), Facing.nord);
+
+      await t.tap(find.byIcon(Icons.event_seat_outlined).first);
+      await t.pumpAndSettle();
+
+      expect(cls.room.facingOf(0, 0), Facing.est);
+      expect(cls.room.capacity, 1, reason: 'le tap tourne, il ne retire pas');
+    });
+
+    testWidgets(
+        'appui long sur une place la retire ; toucher la case vide la remet',
+        (t) async {
       final cls = _cls(rows: 2, cols: 2);
       await _pump(t, cls);
 
       expect(find.text('4 places'), findsOneWidget);
 
-      await t.tap(find.byIcon(Icons.event_seat_outlined).first);
+      await t.longPress(find.byIcon(Icons.event_seat_outlined).first);
       await t.pumpAndSettle();
       expect(cls.room.capacity, 3);
       expect(find.text('3 places'), findsOneWidget);
@@ -176,6 +193,22 @@ void main() {
       await t.tap(find.byIcon(Icons.block).first);
       await t.pumpAndSettle();
       expect(cls.room.capacity, 4);
+    });
+
+    testWidgets('clic droit sur une place la retire (équivalent Windows)',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 1);
+      await _pump(t, cls);
+
+      final gesture = await t.startGesture(
+        t.getCenter(find.byIcon(Icons.event_seat_outlined).first),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryButton,
+      );
+      await gesture.up();
+      await t.pumpAndSettle();
+
+      expect(cls.room.capacity, 0);
     });
 
     testWidgets('réduire la salle nettoie le plan et les couloirs', (t) async {

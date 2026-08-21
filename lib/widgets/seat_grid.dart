@@ -450,11 +450,31 @@ class RoomEditorGrid extends StatelessWidget {
       },
       cellBuilder: (r, c) {
         final isSeat = room.isSeat(r, c);
+        // Case vide : le seul geste est d'y poser une place. Place existante :
+        // le tap la fait tourner (geste répété après avoir posé un modèle),
+        // l'appui long ou le clic droit (équivalent souris sur Windows) la
+        // retire — le geste destructeur est délibérément le moins accessible.
         return InkWell(
           onTap: () {
-            room.toggle(r, c);
+            if (isSeat) {
+              room.rotateFacing(r, c);
+            } else {
+              room.toggle(r, c);
+            }
             onChanged();
           },
+          onLongPress: isSeat
+              ? () {
+                  room.toggle(r, c);
+                  onChanged();
+                }
+              : null,
+          onSecondaryTap: isSeat
+              ? () {
+                  room.toggle(r, c);
+                  onChanged();
+                }
+              : null,
           borderRadius: BorderRadius.circular(8),
           child: Container(
             width: kCell,
@@ -467,11 +487,16 @@ class RoomEditorGrid extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              isSeat ? Icons.event_seat_outlined : Icons.block,
-              color: isSeat ? cs.primary : cs.outlineVariant,
-              size: 26,
-            ),
+            child: isSeat
+                ? Transform.rotate(
+                    angle: room.facingOf(r, c).index * (pi / 2),
+                    child: Icon(
+                      Icons.event_seat_outlined,
+                      color: cs.primary,
+                      size: 26,
+                    ),
+                  )
+                : Icon(Icons.block, color: cs.outlineVariant, size: 26),
           ),
         );
       },
