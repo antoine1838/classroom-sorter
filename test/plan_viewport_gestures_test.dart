@@ -8,6 +8,7 @@
 // le décalage réel entre la pose des deux doigts, le rejet de paume et le seuil
 // de déplacement du système ne sont pas reproduits ici. La validation finale se
 // fait sur l'appareil (voir notes/refonte-ecran-plan.md).
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -346,5 +347,40 @@ void main() {
 
     expect(state(t).dragStarts, 1,
         reason: 'le glisser-déposer doit survivre au zoom');
+  });
+
+  testWidgets('la molette de souris zoome, centrée sur le curseur',
+      (t) async {
+    final key = GlobalKey<PlanViewportState>();
+    await t.pumpWidget(_Harness(viewportKey: key));
+    final center = t.getCenter(find.byType(PlanViewport));
+
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await t.sendEventToBinding(pointer.hover(center));
+    // dy négatif = molette « vers le haut » = zoom avant, convention courante
+    // des applications de dessin/cartes (pas besoin d'appui sur Ctrl : la
+    // fenêtre du plan n'est pas imbriquée dans un défilement de page).
+    await t.sendEventToBinding(pointer.scroll(const Offset(0, -300)));
+    await t.pumpAndSettle();
+
+    expect(key.currentState!.isZoomed, isTrue);
+    expect(state(t).scale, greaterThan(1));
+  });
+
+  testWidgets('la molette de souris dézoome et reste bornée à la vue d\'ensemble',
+      (t) async {
+    final key = GlobalKey<PlanViewportState>();
+    await t.pumpWidget(_Harness(viewportKey: key));
+    final center = t.getCenter(find.byType(PlanViewport));
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await t.sendEventToBinding(pointer.hover(center));
+
+    // dy positif = molette « vers le bas » = zoom arrière, déjà à la vue
+    // d'ensemble : ne doit jamais descendre sous l'échelle minimale.
+    await t.sendEventToBinding(pointer.scroll(const Offset(0, 300)));
+    await t.pumpAndSettle();
+
+    expect(key.currentState!.isZoomed, isFalse);
+    expect(state(t).scale, 1);
   });
 }

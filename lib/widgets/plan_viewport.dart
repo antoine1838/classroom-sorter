@@ -15,6 +15,8 @@
 /// zoom vient par-dessus.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -205,6 +207,34 @@ class PlanViewportState extends State<PlanViewport> {
     widget.onDiagnostic?.call('zoom fin (×${_scale.toStringAsFixed(2)})');
   }
 
+  /// Molette de souris / défilement à deux doigts sur pavé tactile (souris,
+  /// bureau, web) : sans équivalent tactile, donc sans risque de concurrence
+  /// avec le pincement à deux doigts ci-dessus. Enregistré auprès du
+  /// [PointerSignalResolver] plutôt que traité directement, pour bien se
+  /// comporter si jamais un ancêtre scrollable veut aussi ce signal.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      GestureBinding.instance.pointerSignalResolver.register(event, _onScroll);
+    }
+  }
+
+  void _onScroll(PointerSignalEvent event) {
+    final scroll = event as PointerScrollEvent;
+    // Facteur exponentiel : chaque cran de molette multiplie l'échelle par un
+    // ratio constant, plutôt que de lui retirer un pas fixe — un zoom déjà
+    // élevé continue de réagir proportionnellement, pas de moins en moins.
+    final factor = math.exp(-scroll.scrollDelta.dy * 0.0015);
+    final next =
+        (_scale * factor).clamp(widget.minScale, widget.maxScale).toDouble();
+    if (next == _scale) return;
+    final focal = (scroll.localPosition - _translation) / _scale;
+    setState(() {
+      _scale = next;
+      _translation = _clampTranslation(scroll.localPosition - focal * next, next);
+    });
+    widget.onScaleChanged?.call(next);
+  }
+
   /// Garde le contenu couvrant la fenêtre : pas de bande vide sur les bords.
   /// À l'échelle 1 la seule translation possible est nulle.
   Offset _clampTranslation(Offset t, double scale) {
@@ -229,6 +259,7 @@ class PlanViewportState extends State<PlanViewport> {
             onPointerDown: (_) => widget.tracker.down(),
             onPointerUp: (_) => widget.tracker.up(),
             onPointerCancel: (_) => widget.tracker.up(),
+            onPointerSignal: _onPointerSignal,
             child: RawGestureDetector(
               behavior: HitTestBehavior.opaque,
               gestures: <Type, GestureRecognizerFactory>{
