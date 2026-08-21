@@ -1,7 +1,11 @@
 /// Vérifie la sémantique du voisinage après l'ajout des couloirs :
 ///   - voisins = places orthogonalement adjacentes (gauche/droite/devant/derrière) ;
 ///   - pas de voisin en diagonale ;
-///   - un couloir de colonne coupe le voisinage horizontal (jamais le vertical).
+///   - un couloir de colonne coupe le voisinage horizontal (jamais le vertical) ;
+///   - un couloir de rang coupe le voisinage vertical (jamais l'horizontal),
+///     mais ne coupe PAS la ligne de vue vers le tableau : une allée d'un
+///     mètre n'empêche pas un grand élève de gêner la vue de celui situé
+///     juste après elle.
 ///
 /// On teste via le résultat du moteur sur des salles minuscules où l'issue est
 /// déterministe quel que soit l'aléatoire : une règle « dure » satisfiable
@@ -19,13 +23,14 @@ ClassGroup _group({
   required int rows,
   required int cols,
   Set<int>? colAisles,
+  Set<int>? rowAisles,
   required RuleType ruleType,
 }) {
   final a = Student(id: 'a', firstName: 'A');
   final b = Student(id: 'b', firstName: 'B');
   return ClassGroup(
     id: 'c',
-    room: Room(rows: rows, cols: cols, colAisles: colAisles),
+    room: Room(rows: rows, cols: cols, colAisles: colAisles, rowAisles: rowAisles),
     students: [a, b],
     rules: [
       Rule(id: 'r', type: ruleType, studentAId: 'a', studentBId: 'b', hard: true),
@@ -82,6 +87,62 @@ void main() {
     test('séparer échoue entre deux rangs contigus', () {
       final res = _run(_group(rows: 2, cols: 1, ruleType: RuleType.separate));
       expect(res.violations, isNotEmpty);
+    });
+  });
+
+  group('Couloir entre rangs', () {
+    test('un couloir de rang coupe le voisinage (séparer réussit)', () {
+      // 2x1 avec un couloir entre le rang 0 et 1.
+      final res = _run(_group(
+          rows: 2, cols: 1, rowAisles: {0}, ruleType: RuleType.separate));
+      expect(res.violations, isEmpty,
+          reason: 'avec un couloir de rang, les places ne sont plus voisines');
+    });
+
+    test('rapprocher échoue à travers un couloir de rang', () {
+      final res = _run(_group(
+          rows: 2, cols: 1, rowAisles: {0}, ruleType: RuleType.keepTogether));
+      expect(res.violations, isNotEmpty);
+    });
+
+    test('un couloir de rang ne coupe pas la ligne de vue vers le tableau',
+        () {
+      // Deux places, un couloir de rang entre elles : la grande élève A,
+      // épinglée devant, gêne quand même la vue de B derrière elle — l'allée
+      // n'y change rien, seul le voisinage (séparer/rapprocher) en dépend.
+      final a = Student(id: 'a', firstName: 'A', size: StudentSize.grand);
+      final b = Student(id: 'b', firstName: 'B', size: StudentSize.petit);
+      final cls = ClassGroup(
+        id: 'c',
+        room: Room(rows: 2, cols: 1, rowAisles: {0}),
+        students: [a, b],
+        rules: [
+          Rule(
+              id: 'pa',
+              type: RuleType.fixedSeat,
+              studentAId: 'a',
+              seatRow: 0,
+              seatCol: 0,
+              hard: true),
+          Rule(
+              id: 'pb',
+              type: RuleType.fixedSeat,
+              studentAId: 'b',
+              seatRow: 1,
+              seatCol: 0,
+              hard: true),
+        ],
+        balance: BalanceSettings(avoidTallInFrontOfShort: true),
+      );
+
+      final res = SeatingEngine(cls, seed: 1).generate(restarts: 1, iterations: 1);
+
+      expect(res.violations, isEmpty,
+          reason: 'les places imposées ne sont pas voisines : aucune règle dure ne porte dessus');
+      expect(
+          res.balance.any((n) => n.label.contains('Tailles') && !n.ok),
+          isTrue,
+          reason: 'le couloir coupe le voisinage mais pas la gêne de vue');
     });
   });
 

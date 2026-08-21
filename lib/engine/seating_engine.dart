@@ -158,7 +158,11 @@ class SeatingEngine {
     _frontHalfRows = (cls.room.rows / 2).ceil();
     // « Voisins » = places orthogonalement adjacentes (gauche, droite, devant,
     // derrière). Pas de diagonale. Un couloir de colonne coupe le lien
-    // horizontal (mais jamais le lien devant/derrière).
+    // horizontal, un couloir de rang coupe le lien devant/derrière — mais ni
+    // l'un ni l'autre ne coupe la ligne de vue vers le tableau (une allée
+    // d'un mètre n'empêche pas un grand élève de gêner la vue de celui situé
+    // juste après elle) : voir [_tallInFrontOfShortCount], qui ignore
+    // volontairement les couloirs.
     const dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)];
     _neighbors = {};
     for (final k in _seats) {
@@ -167,9 +171,10 @@ class SeatingEngine {
       for (final (dr, dc) in dirs) {
         final nr = r + dr;
         final nc = c + dc;
-        if (cls.room.isSeat(nr, nc) && !cls.room.colAisleBetween(c, nc)) {
-          set.add(Room.keyOf(nr, nc));
-        }
+        if (!cls.room.isSeat(nr, nc)) continue;
+        if (dc != 0 && cls.room.colAisleBetween(c, nc)) continue;
+        if (dr != 0 && cls.room.rowAisleBetween(r, nr)) continue;
+        set.add(Room.keyOf(nr, nc));
       }
       _neighbors[k] = set;
     }
