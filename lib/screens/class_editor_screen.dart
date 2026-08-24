@@ -2204,6 +2204,10 @@ class _PlanTabState extends State<_PlanTab> {
   final _tracker = PointerTracker();
   final _viewport = GlobalKey<PlanViewportState>();
 
+  /// Échelle courante du zoom à deux doigts, répercutée sur [PlanGrid] pour
+  /// qu'une case zoomée bascule des initiales vers le prénom.
+  double _zoom = 1;
+
   ClassGroup get cls => widget.cls;
 
   void _generate() {
@@ -2474,13 +2478,14 @@ class _PlanTabState extends State<_PlanTab> {
     return PlanViewport(
       key: _viewport,
       tracker: _tracker,
-      onScaleChanged: (_) => setState(() {}),
+      onScaleChanged: (scale) => setState(() => _zoom = scale),
       child: PlanGrid(
         cls: cls,
         onSwap: _swap,
         tracker: _tracker,
         result: _result,
         onTapSeat: (student) => _showSeatDetail(context, student),
+        zoom: _zoom,
       ),
     );
   }

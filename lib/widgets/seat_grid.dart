@@ -664,6 +664,12 @@ class PlanGrid extends StatelessWidget {
   /// Tap sur une place occupée : ouvre la feuille de détail de l'élève.
   final void Function(Student student)? onTapSeat;
 
+  /// Échelle courante de [PlanViewport], au-dessus : sans elle, un pincement
+  /// grossit les places visuellement (Transform) mais ne fait jamais basculer
+  /// des initiales vers le prénom, puisque [seatMetrics] la croirait toujours
+  /// à 1.
+  final double zoom;
+
   const PlanGrid({
     super.key,
     required this.cls,
@@ -671,6 +677,7 @@ class PlanGrid extends StatelessWidget {
     this.tracker,
     this.result,
     this.onTapSeat,
+    this.zoom = 1,
   });
 
   @override
@@ -684,7 +691,7 @@ class PlanGrid extends StatelessWidget {
       builder: (context, constraints) {
         // Tout dépend de la place réellement disponible ici : la largeur des
         // cases, l'échelle, donc la police et le choix prénom / initiales.
-        final m = seatMetrics(cls.room, constraints.biggest);
+        final m = seatMetrics(cls.room, constraints.biggest, zoom: zoom);
 
         return _FittedGrid(
           room: cls.room,
