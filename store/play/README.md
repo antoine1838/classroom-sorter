@@ -57,6 +57,17 @@ Le contenu des descriptions reflète les fonctionnalités réelles (attributs
 `1.8.0+10`. Texte orienté utilisateur (pas un changelog technique), à copier
 dans le champ « Notes de version » de la Play Console à chaque publication.
 
+Les fichiers déjà publiés ne se modifient pas : ce sont les archives de ce qui
+a réellement été envoyé, erreurs comprises. Une phrase fautive se corrige en ne
+la reprenant pas dans le fichier suivant — elle disparaît de la fiche Play dès
+que le nouveau texte y est collé.
+
+> **À ne pas reprendre en `12.txt`** : la dernière puce de `11.txt` (1.9.0)
+> annonce des « prénoms et noms mis en majuscule automatiquement ». C'est faux —
+> l'application se contente d'indiquer au clavier virtuel de proposer une
+> majuscule, et un clavier dont l'option correspondante est désactivée l'ignore.
+> Voir l'issue #25 pour le diagnostic complet.
+
 ## Politique de confidentialité
 
 URL (champ obligatoire de la Play Console) :

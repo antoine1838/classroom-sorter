@@ -453,4 +453,44 @@ void main() {
           reason: 'la note complète est lisible au survol');
     });
   });
+
+  // Garde-fou de refactor, rien de plus (issue #25).
+  //
+  // `textCapitalization` est une *indication au clavier virtuel* : celui-ci
+  // propose une majuscule en début de chaque mot, l'utilisateur restant libre
+  // de la refuser avec la touche Maj. Ces tests vérifient donc uniquement que
+  // la propriété est déclarée, jamais qu'une majuscule apparaît :
+  //   - `enterText` court-circuite l'IME, exactement comme un collage ;
+  //   - sur bureau et web, un clavier physique ignore l'indication ;
+  //   - un clavier dont la mise en majuscule automatique est désactivée
+  //     l'ignore aussi (constaté sur SwiftKey, c'est l'objet de l'issue).
+  //
+  // Leur seul rôle est d'empêcher qu'on supprime ces trois lignes en les
+  // prenant pour du code mort : leur absence ne casse aucun autre test.
+  group('Majuscule proposée par le clavier', () {
+    TextCapitalization capitalizationOf(WidgetTester t, Finder f) =>
+        t.widget<TextField>(f).textCapitalization;
+
+    testWidgets('les champs Prénom et Nom la demandent', (t) async {
+      await _pumpStudents(t, _cls());
+
+      await t.tap(find.widgetWithText(FilledButton, 'Ajouter'));
+      await t.pumpAndSettle();
+
+      expect(capitalizationOf(t, find.widgetWithText(TextField, 'Prénom')),
+          TextCapitalization.words);
+      expect(capitalizationOf(t, find.widgetWithText(TextField, 'Nom')),
+          TextCapitalization.words);
+    });
+
+    testWidgets('le champ d\'import la demande aussi', (t) async {
+      await _pumpStudents(t, _cls());
+
+      await t.tap(find.widgetWithText(FilledButton, 'Importer une liste'));
+      await t.pumpAndSettle();
+
+      expect(capitalizationOf(t, find.byType(TextField).last),
+          TextCapitalization.words);
+    });
+  });
 }
