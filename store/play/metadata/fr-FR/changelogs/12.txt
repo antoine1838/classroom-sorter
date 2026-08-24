@@ -1,0 +1,6 @@
+Nouveautés 1.10.0 :
+• Salle : bouton « Disposition » et trois modèles prêts à l'emploi — Rangées, U (bras réglables) et Îlots (tables de 4 ou 6) — à retoucher case par case. Un bandeau prévient si les places manquent.
+• Couloirs entre les places : les élèves de part et d'autre ne sont plus voisins.
+• Toucher une place la fait tourner ; l'orientation apparaît dans Salle et Plan.
+• Zoom à la molette sur le plan (PC).
+• Corrections d'affichage sur petits écrans et en paysage.
