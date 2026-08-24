@@ -204,6 +204,14 @@ bool planUsesRail(BuildContext context) {
   return size.width >= size.height * _kWideRatio;
 }
 
+/// Vrai si la fenêtre ressemble à un téléphone tourné en paysage — pas juste
+/// « plus large que haut », ce qu'une fenêtre de bureau est presque
+/// toujours : il faut aussi une hauteur franchement réduite, celle où les
+/// boutons virtuels Android (One UI notamment) peuvent réellement se
+/// retrouver sur le côté plutôt qu'en bas (voir #11, et la même mise en garde
+/// pour [planUsesRail]).
+bool _looksLikeLandscapePhone(Size size) =>
+    size.width > size.height && size.height < 500;
 
 class ClassEditorScreen extends StatelessWidget {
   final AppState state;
@@ -234,10 +242,25 @@ class ClassEditorScreen extends StatelessWidget {
     // la classe vit sur sa barre fine, permanente, et le retour à gauche des
     // onglets — l'arrangement retenu après essai. 56 dp rendus à la grille
     // sur tous les formats, y compris le bureau.
+    // Plancher = hauteur d'une barre de navigation Android standard. Sur
+    // certains Samsung (One UI, boutons transparents), l'inset système remonté
+    // par l'OS est nul ou sous-évalué : le SafeArea seul laisse alors le
+    // dernier élève sous les boutons logiciels (issue #11). `minimum` ne mord
+    // que si l'inset réel est plus petit que lui — un appareil qui remonte un
+    // inset correct n'y perd donc rien.
+    //
+    // Ces boutons suivent la rotation physique de l'écran : en paysage ils se
+    // retrouvent sur le bord gauche ou droit, pas en bas — réserver `bottom`
+    // dans ce cas ne protège rien et vole en pure perte la hauteur, déjà rare
+    // en paysage (constaté : régression du test du Plan en paysage téléphone).
+    final navBarMinimum = _looksLikeLandscapePhone(MediaQuery.sizeOf(context))
+        ? const EdgeInsets.only(left: 48, right: 48)
+        : const EdgeInsets.only(bottom: 48);
     return DefaultTabController(
       length: 4,
       child: Scaffold(
         body: SafeArea(
+          minimum: navBarMinimum,
           child: Column(
             children: [
               _ClassNameBar(
