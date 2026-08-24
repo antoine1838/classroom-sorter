@@ -552,79 +552,99 @@ class RoomEditorGrid extends StatelessWidget {
         room.toggleRowAisle(r);
         onChanged();
       },
-      cellBuilder: (r, c) {
-        final isSeat = room.isSeat(r, c);
-        // Case vide : le seul geste est d'y poser une place. Place existante :
-        // le tap la fait tourner (geste répété après avoir posé un modèle),
-        // l'appui long ou le clic droit (équivalent souris sur Windows) la
-        // retire — le geste destructeur est délibérément le moins accessible.
-        return InkWell(
-          onTap: () {
-            if (isSeat) {
-              room.rotateFacing(r, c);
-            } else {
-              room.toggle(r, c);
-            }
-            onChanged();
-          },
-          onLongPress: isSeat
-              ? () {
-                  room.toggle(r, c);
-                  onChanged();
-                }
-              : null,
-          onSecondaryTap: isSeat
-              ? () {
-                  room.toggle(r, c);
-                  onChanged();
-                }
-              : null,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: kCell,
-            height: kCell,
-            decoration: BoxDecoration(
-              color: isSeat ? cs.surface : cs.surfaceContainerLow,
-              border: Border.all(
-                color: isSeat ? cs.primary : cs.outlineVariant,
-                width: isSeat ? 1.4 : 1,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  isSeat
-                      ? Transform.rotate(
-                          angle: _facingRotationAngle(room.facingOf(r, c)),
-                          child: Icon(
-                            Icons.event_seat_outlined,
-                            color: cs.primary,
-                            size: 26,
-                          ),
-                        )
-                      : Icon(Icons.block, color: cs.outlineVariant, size: 26),
-                  // Même repère que sur les cartes du Plan (_seatContent),
-                  // pour rester cohérent entre les deux onglets — même si
-                  // l'icône pivotée donne déjà l'orientation ici.
-                  if (isSeat)
-                    Positioned.fill(
-                      child: Align(
-                        alignment: _backrestAlignment(room.facingOf(r, c)),
-                        child: _backrestBar(room.facingOf(r, c), width: kCell),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
+      cellBuilder: (r, c) => _buildCell(cs, r, c),
+    );
+  }
+
+  /// Une case de l'éditeur : gestes (voir le commentaire sur `onTap`
+  /// ci-dessous) et rendu (icône pivotée + bord de dossier, voir
+  /// [_facingRotationAngle] / [_backrestBar]). Extrait de [build] pour rester
+  /// sous la limite de complexité cognitive (S3776) : la case a son propre
+  /// niveau d'imbrication, plutôt que d'empiler ses conditions sur celles du
+  /// `cellBuilder` qui l'appelait en ligne.
+  Widget _buildCell(ColorScheme cs, int r, int c) {
+    final isSeat = room.isSeat(r, c);
+    // Case vide : le seul geste est d'y poser une place. Place existante :
+    // le tap la fait tourner (geste répété après avoir posé un modèle),
+    // l'appui long ou le clic droit (équivalent souris sur Windows) la
+    // retire — le geste destructeur est délibérément le moins accessible.
+    return InkWell(
+      onTap: () {
+        if (isSeat) {
+          room.rotateFacing(r, c);
+        } else {
+          room.toggle(r, c);
+        }
+        onChanged();
       },
+      onLongPress: isSeat
+          ? () {
+              room.toggle(r, c);
+              onChanged();
+            }
+          : null,
+      onSecondaryTap: isSeat
+          ? () {
+              room.toggle(r, c);
+              onChanged();
+            }
+          : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: kCell,
+        height: kCell,
+        decoration: BoxDecoration(
+          color: isSeat ? cs.surface : cs.surfaceContainerLow,
+          border: Border.all(
+            color: isSeat ? cs.primary : cs.outlineVariant,
+            width: isSeat ? 1.4 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              isSeat
+                  ? Transform.rotate(
+                      angle: _facingRotationAngle(room.facingOf(r, c)),
+                      child: Icon(
+                        Icons.event_seat_outlined,
+                        color: cs.primary,
+                        size: 26,
+                      ),
+                    )
+                  : Icon(Icons.block, color: cs.outlineVariant, size: 26),
+              // Même repère que sur les cartes du Plan (_seatContent),
+              // pour rester cohérent entre les deux onglets — même si
+              // l'icône pivotée donne déjà l'orientation ici.
+              if (isSeat)
+                Positioned.fill(
+                  child: Align(
+                    alignment: _backrestAlignment(room.facingOf(r, c)),
+                    child: _backrestBar(room.facingOf(r, c), width: kCell),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
+
+/// Ce qu'il faut à [PlanGrid] pour rendre une place occupée, en dehors de
+/// l'élève lui-même et de l'état transitoire (survol, élévation) : identique
+/// aux deux endroits où `_seatContent` est appelé (la case et son retour de
+/// glisser-déposer), donc regroupé plutôt que passé quatre fois de suite —
+/// c'est aussi ce qui garde `_seatContent` sous la limite de paramètres.
+typedef _SeatRenderContext = ({
+  Map<String, String> labels,
+  SeatMetrics metrics,
+  Facing facing,
+  PlanResult? result,
+});
 
 class PlanGrid extends StatelessWidget {
   final ClassGroup cls;
@@ -677,35 +697,24 @@ class PlanGrid extends StatelessWidget {
             final seatKey = Room.keyOf(r, c);
             final student = cls.studentById(cls.assignment[seatKey]);
             final facing = cls.room.facingOf(r, c);
+            // Regroupé pour ne pas repasser individuellement labels/metrics/
+            // facing/result à chacun des deux appels ci-dessous, identiques
+            // sur ce point (voir _SeatRenderContext).
+            final ctx =
+                (labels: labels, metrics: m, facing: facing, result: result);
 
             return DragTarget<String>(
               onWillAcceptWithDetails: (d) => d.data != seatKey,
               onAcceptWithDetails: (d) => onSwap(d.data, seatKey),
               builder: (context, candidate, rejected) {
                 final hovering = candidate.isNotEmpty;
-                final cell = _seatContent(
-                  context,
-                  student,
-                  hovering,
-                  labels: labels,
-                  metrics: m,
-                  facing: facing,
-                  result: result,
-                  onTapSeat: onTapSeat,
-                );
+                final cell = _seatContent(context, student, hovering, ctx,
+                    onTapSeat: onTapSeat);
                 if (student == null) return cell;
                 final feedback = Material(
                   color: Colors.transparent,
-                  child: _seatContent(
-                    context,
-                    student,
-                    false,
-                    labels: labels,
-                    metrics: m,
-                    facing: facing,
-                    result: result,
-                    elevated: true,
-                  ),
+                  child: _seatContent(context, student, false, ctx,
+                      elevated: true),
                 );
                 final placeholder = _emptySeat(cs, false, m.cell, facing);
                 // Occupé : rendre l'élève déplaçable. Avec un compteur de
@@ -736,21 +745,20 @@ class PlanGrid extends StatelessWidget {
   Widget _seatContent(
     BuildContext context,
     Student? student,
-    bool hovering, {
-    required Map<String, String> labels,
-    required SeatMetrics metrics,
-    required Facing facing,
-    PlanResult? result,
+    bool hovering,
+    _SeatRenderContext ctx, {
     void Function(Student student)? onTapSeat,
     bool elevated = false,
   }) {
     final cs = Theme.of(context).colorScheme;
-    if (student == null) return _emptySeat(cs, hovering, metrics.cell, facing);
+    if (student == null) {
+      return _emptySeat(cs, hovering, ctx.metrics.cell, ctx.facing);
+    }
     final levelIcon = _levelCornerIcon(student.level);
     final energyIcon = _energyCornerIcon(student.energy);
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
-    final width = metrics.cell;
-    final severity = result?.severityFor(student.id);
+    final width = ctx.metrics.cell;
+    final severity = ctx.result?.severityFor(student.id);
     final stripeColor = _genderStripeColor(student.gender);
     final outline = hovering ? cs.primary : cs.outline;
     final outlineWidth = hovering ? 2.4 : 1.0;
@@ -768,7 +776,7 @@ class PlanGrid extends StatelessWidget {
       padding: const EdgeInsets.all(kSeatPadding),
       child: Stack(
         children: [
-          Center(child: _seatLabel(student, labels, metrics)),
+          Center(child: _seatLabel(student, ctx.labels, ctx.metrics)),
           if (levelIcon != null)
             Positioned(
               top: 0,
@@ -852,8 +860,8 @@ class PlanGrid extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Align(
-                alignment: _backrestAlignment(facing),
-                child: _backrestBar(facing,
+                alignment: _backrestAlignment(ctx.facing),
+                child: _backrestBar(ctx.facing,
                     width: width, key: ValueKey('backrest_${student.id}')),
               ),
             ),
