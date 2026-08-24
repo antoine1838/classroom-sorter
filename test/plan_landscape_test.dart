@@ -58,11 +58,9 @@ Future<void> _pump(WidgetTester t, ClassGroup cls, Size size) async {
       MaterialApp(home: ClassEditorScreen(state: state, cls: cls)));
   await t.pumpAndSettle();
 
-  // On monte sur l'onglet Salle : tout débordement constaté ici appartient à un
-  // AUTRE onglet que le Plan, hors périmètre de #8. Mesuré : à 700 x 250, Salle
-  // déborde de 14 px et Élèves de 51 px. On purge donc avant de basculer, sinon
-  // les tests du Plan échoueraient pour des défauts qui ne sont pas les siens.
-  t.takeException();
+  // On monte sur l'onglet Salle avant de basculer sur Plan : Salle et Élèves
+  // (le voisin construit par TabBarView) ne débordent plus depuis #17 — voir
+  // test/room_students_overflow_test.dart pour leur propre couverture.
   // Par l'icône et non par le texte : les onglets passent en icônes seules
   // quand leurs libellés ne tiennent plus. Restreint à la barre d'onglets, car
   // Icons.event_seat sert aussi d'avatar au chip « n places » de l'onglet Salle.

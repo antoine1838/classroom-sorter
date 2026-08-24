@@ -162,6 +162,23 @@ double _labelledWidth(BuildContext context, String label) {
   return painter.width + _kButtonOverhead;
 }
 
+/// Hauteur qu'occuperait [text] replié sur [maxWidth] : mesurée avec un
+/// [TextPainter], comme [_labelledWidth] le fait pour une largeur — un
+/// paragraphe fixe n'a pas une hauteur fixe, elle dépend de la place restante.
+double _wrappedTextHeight(
+  BuildContext context,
+  String text,
+  TextStyle? style,
+  double maxWidth,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout(maxWidth: maxWidth < 0 ? 0 : maxWidth);
+  return painter.height;
+}
+
 /// Ce que coûte chaque élément de chrome vertical, au-dessus de la grille.
 ///
 /// Il n'y a plus d'app bar : le nom de la classe vit sur sa propre barre fine,
@@ -172,7 +189,9 @@ const double _kTabsHeight = 72;
 const double _kButtonRowHeight = 64;
 const double _kPlanPadding = 24;
 
-/// Hauteur en dessous de laquelle la grille cesse d'être lisible.
+/// Hauteur en dessous de laquelle la grille — ou, par réutilisation, le
+/// tableau des élèves — cesse d'être lisible. Sert de seuil de dégradation
+/// pour les onglets Plan, Salle et Élèves (voir #17).
 const double _kMinGridHeight = 320;
 
 /// Rapport largeur/hauteur à partir duquel la largeur est franchement l'axe
@@ -409,91 +428,156 @@ class _RoomTab extends StatelessWidget {
     state.touch();
   }
 
+  static const _helpText =
+      'Touchez une case vide pour y poser une place, une place pour la '
+      'faire tourner. Appui long ou clic droit sur une place pour la '
+      'retirer. Touchez l\'espace entre deux cases pour ajouter un '
+      'couloir : les élèves de part et d\'autre ne seront plus voisins.';
+  static const _helpStyle = TextStyle(fontSize: 12);
+
+  /// Hauteur intrinsèque de la rangée de compteurs (Rangs/Colonnes/places/
+  /// disposition) : 48 dp est la cible tactile minimale Material 3 des
+  /// [IconButton] des steppers (déjà utilisée ailleurs, voir [_kIconMinW]) ;
+  /// le libellé au-dessus, lui, est mesuré plutôt qu'estimé.
+  double _controlsRowHeight(BuildContext context) {
+    final labelH = _wrappedTextHeight(context, 'Colonnes',
+        Theme.of(context).textTheme.labelMedium, double.infinity);
+    return labelH + 48 + 24; // + Padding.all(12) haut/bas
+  }
+
+  /// Hauteur du bandeau d'alerte (icône + texte replié), mesurée sur la
+  /// largeur réellement disponible une fois icône et paddings déduits.
+  double _warningHeight(BuildContext context, String text, double maxWidth) {
+    const innerReserved = 12 * 2 /* padding externe L/R */ +
+        12 * 2 /* padding interne container L/R */ +
+        18 /* icône */ +
+        8 /* espace icône-texte */;
+    final textH =
+        _wrappedTextHeight(context, text, _helpStyle, maxWidth - innerReserved);
+    final rowH = textH < 18 ? 18.0 : textH;
+    return rowH + 16 /* padding interne haut/bas */ + 8 /* padding externe bas */;
+  }
+
   @override
   Widget build(BuildContext context) {
     final room = cls.room;
     final missing = cls.students.length - room.capacity;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _Stepper(
-                label: 'Rangs',
-                value: room.rows,
-                onMinus: () => _resize(rows: room.rows - 1),
-                onPlus: () => _resize(rows: room.rows + 1),
-              ),
-              _Stepper(
-                label: 'Colonnes',
-                value: room.cols,
-                onMinus: () => _resize(cols: room.cols - 1),
-                onPlus: () => _resize(cols: room.cols + 1),
-              ),
-              Chip(
-                avatar: const Icon(Icons.event_seat, size: 18),
-                label: Text('${room.capacity} places'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _pickLayout(context),
-                icon: const Icon(Icons.dashboard_customize_outlined, size: 18),
-                label: const Text('Disposition'),
-              ),
-            ],
-          ),
-        ),
-        if (missing > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
+    final warningText = missing > 0
+        ? '${room.capacity} place(s) pour ${cls.students.length} '
+            'élève(s) — $missing élève(s) ne seront pas placé(s).'
+        : null;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        var fixed = _controlsRowHeight(context) + 8; // + spacer avant la grille
+        if (warningText != null) {
+          fixed += _warningHeight(context, warningText, constraints.maxWidth);
+        }
+        final helpH = _wrappedTextHeight(
+            context, _helpText, _helpStyle, constraints.maxWidth - 24);
+        final showHelp =
+            constraints.maxHeight - fixed - helpH >= _kMinGridHeight;
+
+        // Le chrome (compteurs, alerte, aide) vit dans un sliver ordinaire et
+        // la grille dans un SliverFillRemaining : la grille occupe tout
+        // l'espace restant quand il y en a (comme l'Expanded précédent), mais
+        // si la fenêtre est trop courte même une fois l'aide masquée (#17), on
+        // défile plutôt que de déborder — un filet, pas la stratégie
+        // principale, qui reste la dégradation par paliers ci-dessus.
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.onErrorContainer),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${room.capacity} place(s) pour ${cls.students.length} '
-                      'élève(s) — $missing élève(s) ne seront pas placé(s).',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _Stepper(
+                          label: 'Rangs',
+                          value: room.rows,
+                          onMinus: () => _resize(rows: room.rows - 1),
+                          onPlus: () => _resize(rows: room.rows + 1),
+                        ),
+                        _Stepper(
+                          label: 'Colonnes',
+                          value: room.cols,
+                          onMinus: () => _resize(cols: room.cols - 1),
+                          onPlus: () => _resize(cols: room.cols + 1),
+                        ),
+                        Chip(
+                          avatar: const Icon(Icons.event_seat, size: 18),
+                          label: Text('${room.capacity} places'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _pickLayout(context),
+                          icon: const Icon(Icons.dashboard_customize_outlined,
+                              size: 18),
+                          label: const Text('Disposition'),
+                        ),
+                      ],
                     ),
                   ),
+                  if (warningText != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                size: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onErrorContainer),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                warningText,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Premier palier de dégradation (#17) : sur fenêtre courte,
+                  // ce paragraphe — le moins essentiel du lot, les commandes
+                  // et l'alerte de capacité restent visibles — cède la place
+                  // à la grille plutôt que de la faire déborder.
+                  if (showHelp)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(_helpText, style: _helpStyle),
+                    ),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
-          ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'Touchez une case vide pour y poser une place, une place pour la '
-            'faire tourner. Appui long ou clic droit sur une place pour la '
-            'retirer. Touchez l\'espace entre deux cases pour ajouter un '
-            'couloir : les élèves de part et d\'autre ne seront plus voisins.',
-            style: TextStyle(fontSize: 12),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: RoomEditorGrid(room: room, onChanged: state.touch),
-          ),
-        ),
-      ],
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: RoomEditorGrid(room: room, onChanged: state.touch),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -875,7 +959,8 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
   String get _instructions;
   Widget get _viewToggle;
   void _computeWidths(double maxWidth);
-  Widget _buildHeader(ColorScheme cs);
+  Widget _buildHeader(ColorScheme cs, {required bool compact});
+  double _headerHeightFor(bool compact);
   Widget _buildAttrRow(ColorScheme cs, Student s, int i);
 
   @override
@@ -921,7 +1006,7 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     _computeWidths(constraints.maxWidth);
-                    return _buildMatrix(cs);
+                    return _buildMatrix(cs, constraints);
                   },
                 ),
         ),
@@ -929,21 +1014,51 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
     );
   }
 
-  Widget _buildMatrix(ColorScheme cs) {
+  Widget _buildMatrix(ColorScheme cs, BoxConstraints constraints) {
     final students = _orderedStudents();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          child: Text(
-            _instructions,
-            style: Theme.of(context).textTheme.bodySmall,
+    final instrStyle = Theme.of(context).textTheme.bodySmall;
+    final instrH =
+        _wrappedTextHeight(context, _instructions, instrStyle, constraints.maxWidth - 24) +
+            8; // + Padding.fromLTRB bas
+    const dividerH = 1.0;
+
+    // Dégradation par paliers (#17) : sur fenêtre courte, on sacrifie
+    // d'abord les instructions (le moins essentiel), puis, si ça ne suffit
+    // toujours pas, le libellé de groupe de l'en-tête (vue Complète — la vue
+    // Compacte n'a qu'une seule rangée d'en-tête, déjà minimale).
+    var showInstructions = true;
+    var fixed = instrH + _headerHeightFor(false) + dividerH;
+    if (constraints.maxHeight - fixed < _kMinGridHeight) {
+      showInstructions = false;
+      fixed = _headerHeightFor(false) + dividerH;
+    }
+    final compactHeader = constraints.maxHeight - fixed < _kMinGridHeight;
+
+    // Comme pour l'onglet Salle (#17) : le chrome (instructions, en-tête) va
+    // dans un sliver ordinaire et le corps du tableau dans un
+    // SliverFillRemaining — il occupe tout l'espace restant s'il y en a
+    // (comme l'Expanded précédent), et devient un filet de sécurité plutôt
+    // qu'un débordement si la fenêtre est trop courte même après les paliers
+    // ci-dessus. `hasScrollBody: true` : le corps gère déjà son propre défilement
+    // (vertical et horizontal, `_vBody`/`_hBody`).
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showInstructions)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  child: Text(_instructions, style: instrStyle),
+                ),
+              _buildHeader(cs, compact: compactHeader),
+              const Divider(height: 1),
+            ],
           ),
         ),
-        _buildHeader(cs),
-        const Divider(height: 1),
-        Expanded(
+        SliverFillRemaining(
+          hasScrollBody: true,
           child: SingleChildScrollView(
             controller: _vBody,
             child: Row(
@@ -1236,8 +1351,13 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
   // Matrice élèves × attributs
   // -------------------------------------------------------------------------
 
+  // Une seule rangée d'en-tête, déjà minimale (_kHeaderH = 34) : rien à
+  // sacrifier de plus au palier 2, contrairement à la vue Complète.
   @override
-  Widget _buildHeader(ColorScheme cs) {
+  double _headerHeightFor(bool compact) => _kHeaderH;
+
+  @override
+  Widget _buildHeader(ColorScheme cs, {required bool compact}) {
     final headStyle = Theme.of(context)
         .textTheme
         .labelSmall
@@ -1423,13 +1543,16 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
   // -------------------------------------------------------------------------
 
   @override
-  Widget _buildHeader(ColorScheme cs) {
+  double _headerHeightFor(bool compact) => compact ? _kValueH : _kGroupH + _kValueH;
+
+  @override
+  Widget _buildHeader(ColorScheme cs, {required bool compact}) {
     final headStyle = Theme.of(context)
         .textTheme
         .labelSmall
         ?.copyWith(fontWeight: FontWeight.w600);
     return SizedBox(
-      height: _kGroupH + _kValueH,
+      height: _headerHeightFor(compact),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1441,13 +1564,18 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: _kGroupH,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _groupHeaderCells(cs, headStyle),
+                  // Deuxième palier de dégradation (#17) : le libellé de
+                  // groupe (« Vue », « Taille »…) cède le premier — la
+                  // rangée de valeurs, elle, reste seule à porter
+                  // l'information utile pour placer les élèves.
+                  if (!compact)
+                    SizedBox(
+                      height: _kGroupH,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: _groupHeaderCells(cs, headStyle),
+                      ),
                     ),
-                  ),
                   SizedBox(
                     height: _kValueH,
                     child: Row(

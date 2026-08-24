@@ -471,19 +471,29 @@ de disposition à un pixel de différence, ce qui donnait une impression d'arbit
 **Le rail est défilable** : sur une fenêtre très plate, quatre contrôles de 48 dp demandent plus de
 hauteur qu'il n'en a. Le `minHeight` conserve le centrage tant que la place suffit.
 
-### Débordements préexistants, hors périmètre (issue #17)
+### Débordements préexistants, hors périmètre (issue #17) — corrigés depuis
 
 Mesurés en construisant le balayage de formats, et **antérieurs à ce chantier** :
 
-- **onglet Salle** : déborde de 14 px à 700 × 250 (rangée de compteurs + paragraphe d'aide de hauteur
-  fixe, au-dessus de la grille) ;
-- **onglet Élèves** : déborde de 51 px à 700 × 250, et sous ~320 dp de large (plancher connu des deux
-  vues Élèves).
+- **onglet Salle** : débordait de 14 px à 700 × 250 (rangée de compteurs + paragraphe d'aide de
+  hauteur fixe, au-dessus de la grille) ;
+- **onglet Élèves** : débordait de 51 px à 700 × 250, et sous ~320 dp de large (plancher connu des
+  deux vues Élèves, toujours ouvert).
 
-Comme `TabBarView` construit les onglets voisins, ces débordements existent même quand on regarde le
-Plan. Le balayage de formats purge donc l'exception du montage — qui a lieu sur l'onglet Salle — avant
-de basculer sur le Plan, sinon les tests du Plan échoueraient pour des défauts qui ne sont pas les
-siens.
+Comme `TabBarView` construit les onglets voisins, ces débordements existaient même quand on regardait
+le Plan — d'où la purge de l'exception du montage (sur l'onglet Salle) avant de basculer sur le Plan
+dans le balayage de formats, pour ne pas faire échouer ses tests pour des défauts qui n'étaient pas
+les siens.
+
+**Corrigé par #17.** À la reprise, le débordement réel mesuré était bien plus large que ci-dessus (139
+px pour Salle, 103 px pour Élèves à 700 × 250) : les chiffres d'origine dataient d'avant la marge de
+sécurité `SafeArea` ajoutée par #11 (48 dp toujours réservés en bas). Le correctif combine une
+dégradation par paliers (le paragraphe d'aide de Salle, puis les instructions et le libellé de groupe
+de l'en-tête d'Élèves cèdent la place quand la hauteur manque) avec un filet structurel — le contenu
+fixe et la grille/le tableau vivent dans un `CustomScrollView` (`SliverToBoxAdapter` + `SliverFillRemaining`)
+plutôt qu'un `Column` + `Expanded` — pour qu'un format encore plus serré défile au lieu de déborder.
+Voir `test/room_students_overflow_test.dart`. Le plancher ~320 dp de large d'Élèves reste, lui, hors
+périmètre.
 
 
 #### Septième tour : l'app bar disparaît, et le plafond des cases monte à 3:1
