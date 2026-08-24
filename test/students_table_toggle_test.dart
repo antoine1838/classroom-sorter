@@ -97,4 +97,33 @@ void main() {
         'Vue', 'Mauvaise vue (objectif : rapprocher du tableau)');
     expect(s.poorEyesight, isFalse);
   });
+
+  testWidgets(
+      'la bascule de l\'onglet change de vue dans les deux sens, sans passer '
+      'par les Réglages', (tester) async {
+    final cls = ClassGroup(
+      id: 'c1',
+      name: 'Test',
+      room: Room(rows: 2, cols: 2),
+      students: [Student(id: 's1', firstName: 'Ana', lastName: 'Test')],
+    );
+    // L'état est gardé ici, contrairement à _pumpEditor : c'est lui que la
+    // bascule doit modifier (le mode de vue est global, pas local à l'onglet).
+    final state = AppState()..studentsViewMode = StudentsViewMode.complete;
+    await tester.pumpWidget(MaterialApp(
+      home: ClassEditorScreen(state: state, cls: cls),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Élèves'));
+    await tester.pumpAndSettle();
+
+    // Depuis la vue Complète, la bascule propose la Compacte — et l'inverse.
+    await tester.tap(find.byTooltip('Passer à la vue compacte'));
+    await tester.pumpAndSettle();
+    expect(state.studentsViewMode, StudentsViewMode.compact);
+
+    await tester.tap(find.byTooltip('Passer à la vue complète'));
+    await tester.pumpAndSettle();
+    expect(state.studentsViewMode, StudentsViewMode.complete);
+  });
 }

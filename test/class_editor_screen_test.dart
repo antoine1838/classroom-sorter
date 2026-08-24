@@ -137,6 +137,34 @@ void main() {
     });
   });
 
+  testWidgets('le bouton retour quitte l\'éditeur', (t) async {
+    final cls = _cls();
+    final state = AppState()..classes.add(cls);
+    // Deux routes : sans pile, Navigator.maybePop n'aurait rien à dépiler et
+    // le test passerait sans rien prouver.
+    await t.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => ClassEditorScreen(state: state, cls: cls),
+            )),
+            child: const Text('ouvrir'),
+          ),
+        ),
+      ),
+    ));
+    await t.tap(find.text('ouvrir'));
+    await t.pumpAndSettle();
+    expect(find.byKey(kClassBackKey), findsOneWidget);
+
+    await t.tap(find.byKey(kClassBackKey));
+    await t.pumpAndSettle();
+
+    expect(find.byKey(kClassBackKey), findsNothing);
+    expect(find.text('ouvrir'), findsOneWidget, reason: 'retour à l\'écran précédent');
+  });
+
   group('Onglet Salle', () {
     testWidgets('les compteurs redimensionnent la salle', (t) async {
       final cls = _cls(rows: 3, cols: 3);
@@ -151,6 +179,10 @@ void main() {
       await _step(t, 'Colonnes', Icons.remove);
       expect(cls.room.cols, 2);
       expect(find.text('8 places'), findsOneWidget);
+
+      await _step(t, 'Colonnes', Icons.add);
+      expect(cls.room.cols, 3);
+      expect(find.text('12 places'), findsOneWidget);
     });
 
     testWidgets('la taille reste bornée à 1 au minimum', (t) async {
@@ -338,6 +370,90 @@ void main() {
     });
 
     testWidgets(
+        'le modèle Rangées conserve la taille ; annuler ne change rien',
+        (t) async {
+      final cls = _cls(rows: 3, cols: 3)..room.toggle(1, 1);
+      await _pump(t, cls);
+      expect(cls.room.capacity, 8, reason: 'une place retirée au départ');
+
+      // Annuler : ni la salle ni la place retirée ne bougent.
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('U'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(TextButton, 'Annuler'));
+      await t.pumpAndSettle();
+      expect(cls.room.capacity, 8);
+
+      // Rangées : remet une grille pleine, à la taille courante.
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Rangées'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      expect(cls.room.rows, 3);
+      expect(cls.room.cols, 3);
+      expect(cls.room.capacity, 9, reason: 'la place retirée est rétablie');
+    });
+
+    testWidgets('les paramètres du modèle U changent ses dimensions',
+        (t) async {
+      final cls = _cls(rows: 3, cols: 3);
+      await _pump(t, cls);
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('U'));
+      await t.pumpAndSettle();
+
+      // Défauts : bras de profondeur 3, simples => 4 rangs, 5 colonnes.
+      // Aller-retour sur le compteur : les deux sens sont exercés, et la
+      // valeur finale (4) reste celle attendue plus bas.
+      await _step(t, 'Profondeur des bras', Icons.remove);
+      await _step(t, 'Profondeur des bras', Icons.add);
+      await _step(t, 'Profondeur des bras', Icons.add);
+      await t.tap(find.text('Bras doubles'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      expect(cls.room.rows, 5, reason: 'profondeur 4 + la rangée de devant');
+      expect(cls.room.cols, 7, reason: 'bras de 2 colonnes + creux de 3');
+      expect(cls.room.facingOf(1, 1), Facing.est,
+          reason: 'la 2e colonne appartient au bras gauche');
+    });
+
+    testWidgets('les paramètres du modèle Îlots changent ses dimensions',
+        (t) async {
+      final cls = _cls(rows: 3, cols: 3);
+      await _pump(t, cls);
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Îlots'));
+      await t.pumpAndSettle();
+
+      // Défauts : tables de 4, 3 îlots par rang, 1 rang => 6 colonnes.
+      // Aller-retour sur les deux compteurs, valeur finale : 2 îlots, 1 rang.
+      await t.tap(find.text('Tables de 6'));
+      await t.pumpAndSettle();
+      await _step(t, 'Nombre d\'îlots par rang', Icons.add);
+      await _step(t, 'Nombre d\'îlots par rang', Icons.remove);
+      await _step(t, 'Nombre d\'îlots par rang', Icons.remove);
+      await _step(t, 'Nombre de rangs d\'îlots', Icons.add);
+      await _step(t, 'Nombre de rangs d\'îlots', Icons.remove);
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      expect(cls.room.cols, 6, reason: '2 îlots de 3 colonnes');
+      expect(cls.room.colAisles, {2}, reason: 'un couloir entre les deux îlots');
+      expect(cls.room.facingOf(0, 1), Facing.nord,
+          reason: 'colonne centrale d\'une table de 6 : face au tableau');
+    });
+
+    testWidgets(
         'le sélecteur de disposition applique plusieurs bandes d\'îlots',
         (t) async {
       final cls = _cls(rows: 3, cols: 3);
@@ -507,12 +623,17 @@ void main() {
       await t.pumpAndSettle();
       expect(find.text('Nouvelle règle'), findsOneWidget);
 
+      // Le premier élève est présélectionné ; on le change explicitement pour
+      // vérifier que le choix est bien pris en compte, et pas seulement le
+      // défaut.
+      await _pickDropdown(t, 'Élève', 'Prenom2 Nom2');
       await t.tap(find.text('Ajouter'));
       await t.pumpAndSettle();
 
       expect(cls.rules, hasLength(1));
       expect(cls.rules.single.type, RuleType.separate);
-      expect(find.textContaining('Séparer Prenom0 Nom0 et Prenom1 Nom1'),
+      expect(cls.rules.single.studentAId, 'stu2');
+      expect(find.textContaining('Séparer Prenom2 Nom2 et Prenom1 Nom1'),
           findsOneWidget);
       expect(find.textContaining('Obligatoire'), findsOneWidget);
     });
@@ -585,7 +706,17 @@ void main() {
       await t.pumpAndSettle();
       await _pickDropdown(t, 'Type de règle', 'Doit être devant');
 
-      // Deux rangs au lieu d'un.
+      // Deux rangs au lieu d'un. Le passage par 3 puis retour à 2 vérifie au
+      // passage que le compteur descend aussi, et qu'il est borné à 1.
+      await _step(t, 'Rangs du tableau', Icons.add);
+      await _step(t, 'Rangs du tableau', Icons.add);
+      await _step(t, 'Rangs du tableau', Icons.remove);
+      for (var i = 0; i < 4; i++) {
+        await _step(t, 'Rangs du tableau', Icons.remove);
+      }
+      expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('1')),
+          findsOneWidget,
+          reason: 'borné à 1, il ne descend pas à 0');
       await _step(t, 'Rangs du tableau', Icons.add);
 
       // Et une simple préférence.
@@ -881,6 +1012,63 @@ void main() {
       await t.tap(find.byKey(const ValueKey('seat_stu0')));
       await t.pumpAndSettle();
       expect(find.text('Changé Nom0'), findsOneWidget);
+    });
+
+    testWidgets('la note libre de l\'élève apparaît dans la feuille',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 1, students: 1);
+      cls.students.first.notes = 'PAI, lunettes';
+      cls.assignment[Room.keyOf(0, 0)] = 'stu0';
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.byKey(const ValueKey('seat_stu0')));
+      await t.pumpAndSettle();
+
+      expect(find.text('PAI, lunettes'), findsOneWidget);
+    });
+
+    testWidgets(
+        'supprimer depuis la feuille retire l\'élève, sa place et le rapport',
+        (t) async {
+      final cls = _cls(rows: 1, cols: 2, students: 2, rules: [
+        Rule(
+            id: 'r',
+            type: RuleType.separate,
+            studentAId: 'stu0',
+            studentBId: 'stu1'),
+      ]);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      // Un plan généré d'abord : la suppression doit aussi invalider le
+      // rapport affiché, pas seulement le modèle.
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+      expect(cls.assignment, hasLength(2));
+
+      await t.tap(find.byKey(const ValueKey('seat_stu0')));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Modifier l\'élève'));
+      await t.pumpAndSettle();
+      await t.tap(find.byIcon(Icons.delete_outline));
+      await t.pumpAndSettle();
+
+      // « Supprimer » du dialogue de confirmation, pas l'infobulle de l'icône
+      // du formulaire resté ouvert derrière.
+      await t.tap(find.descendant(
+        of: find.ancestor(
+          of: find.text('Supprimer cet élève ?'),
+          matching: find.byType(AlertDialog),
+        ),
+        matching: find.text('Supprimer'),
+      ));
+      await t.pumpAndSettle();
+
+      expect(cls.students.map((s) => s.id), ['stu1']);
+      expect(cls.rules, isEmpty, reason: 'la règle visait l\'élève supprimé');
+      expect(cls.assignment.values, isNot(contains('stu0')),
+          reason: 'sa place est libérée');
     });
   });
 }

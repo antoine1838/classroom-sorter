@@ -2076,6 +2076,11 @@ class _PlanTabState extends State<_PlanTab> {
       } else {
         cls.assignment[seatA] = b;
       }
+      // `a == null` est défensif : seule une place OCCUPÉE est déplaçable
+      // (voir PlanGrid, qui n'enveloppe dans un Draggable que les places
+      // ayant un élève), donc l'interface ne peut pas produire ce cas. Il
+      // reste par symétrie avec `b`, et parce qu'un appelant futur (glisser
+      // depuis la liste des non-placés, par exemple) pourrait le produire.
       if (a == null) {
         cls.assignment.remove(seatB);
       } else {
