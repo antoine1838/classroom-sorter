@@ -32,7 +32,9 @@ des places. Deux ajouts :
 2. **Des couloirs en Y** (`rowAisles`), miroir exact des couloirs en X existants.
 
 Une salle en U s'exprime alors sans structure supplémentaire : bras gauche en colonne 0 orienté Est,
-bras droit en dernière colonne orienté Ouest, rangée de devant orientée Nord, centre en cases vides.
+bras droit en dernière colonne orienté Ouest, rangée du fond orientée Nord, centre en cases vides.
+L'ouverture du U fait face au tableau — c'est la rangée du fond, la plus loin du tableau, qui referme
+le U (issue #29 ; la première version fermait le U côté tableau, un fer à cheval à l'envers).
 Un îlot de 4 est un carré 2×2 dont la colonne gauche est orientée Est et la droite Ouest : les deux
 places d'une même colonne partagent l'orientation, et chacune fait face à son vis-à-vis de l'autre
 colonne. Autrement dit la disposition en rangées tournée de 90° dans son ensemble — les élèves sont

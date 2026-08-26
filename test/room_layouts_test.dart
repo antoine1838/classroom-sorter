@@ -40,21 +40,24 @@ void main() {
   group('U simple', () {
     final room = buildULayout(armDepth: 2);
 
-    test('dimensions : armWidth 1, creux de 3, armDepth + rangée de devant',
+    test('dimensions : armWidth 1, creux de 3, armDepth + rangée du fond',
         () {
       expect(room.cols, 5); // 1 + 3 + 1
-      expect(room.rows, 3); // armDepth (2) + rangée de devant
+      expect(room.rows, 3); // armDepth (2) + rangée du fond
     });
 
-    test('rangée de devant pleine, orientée vers le tableau (nord)', () {
+    test('rangée du fond pleine, orientée vers le tableau (nord)', () {
+      final backRow = room.rows - 1;
       for (var c = 0; c < room.cols; c++) {
-        expect(room.isSeat(0, c), isTrue);
-        expect(room.facingOf(0, c), Facing.nord);
+        expect(room.isSeat(backRow, c), isTrue);
+        expect(room.facingOf(backRow, c), Facing.nord);
       }
     });
 
-    test('bras gauche vers l\'est, bras droit vers l\'ouest, creux vide', () {
-      for (var r = 1; r < room.rows; r++) {
+    test(
+        'bras gauche vers l\'est, bras droit vers l\'ouest, creux vide, '
+        'ouverture côté tableau', () {
+      for (var r = 0; r < room.rows - 1; r++) {
         expect(room.facingOf(r, 0), Facing.est);
         expect(room.facingOf(r, room.cols - 1), Facing.ouest);
         for (var c = 1; c < room.cols - 1; c++) {
@@ -64,22 +67,29 @@ void main() {
       }
     });
 
-    test('capacité : rangée de devant + un siège par bras et par rang', () {
+    test('capacité : rangée du fond + un siège par bras et par rang', () {
       expect(room.capacity, room.cols + 2 * 2);
     });
   });
 
   group('U double', () {
-    test('bras deux fois plus larges', () {
+    test('bras deux fois plus larges, rangée du fond doublée', () {
       final room = buildULayout(armDepth: 1, doubleArm: true);
 
       expect(room.cols, 7); // 2 + 3 + 2
-      expect(room.facingOf(1, 0), Facing.est);
-      expect(room.facingOf(1, 1), Facing.est);
-      expect(room.facingOf(1, 5), Facing.ouest);
-      expect(room.facingOf(1, 6), Facing.ouest);
+      expect(room.rows, 3); // armDepth (1) + rangée du fond doublée (2)
+      expect(room.facingOf(0, 0), Facing.est);
+      expect(room.facingOf(0, 1), Facing.est);
+      expect(room.facingOf(0, 5), Facing.ouest);
+      expect(room.facingOf(0, 6), Facing.ouest);
       for (var c = 2; c < 5; c++) {
-        expect(room.isSeat(1, c), isFalse);
+        expect(room.isSeat(0, c), isFalse);
+      }
+      for (final r in [1, 2]) {
+        for (var c = 0; c < room.cols; c++) {
+          expect(room.facingOf(r, c), Facing.nord,
+              reason: 'rangée du fond doublée : rang $r');
+        }
       }
     });
   });

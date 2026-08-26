@@ -26,22 +26,25 @@ Room buildBlancheLayout({required int rows, required int cols}) => Room(
       },
     );
 
-/// Salle en U : une rangée de devant pleine (rang 0, orientée vers le
-/// tableau), puis deux bras qui remontent vers le fond, orientés l'un vers
-/// l'autre — bras gauche vers l'est, bras droit vers l'ouest, comme décrit
-/// dans la note de chantier. Le creux entre les bras reste vide.
+/// Salle en U : deux bras partant du devant (rangs proches du tableau),
+/// orientés l'un vers l'autre — bras gauche vers l'est, bras droit vers
+/// l'ouest — refermés au fond par une rangée pleine orientée vers le
+/// tableau (nord), comme un fer à cheval dont l'ouverture fait face au
+/// tableau. Le creux entre les bras reste vide.
 ///
-/// [armDepth] est le nombre de rangs de chaque bras, DERRIÈRE la rangée de
-/// devant. [doubleArm] double la largeur de chaque bras (2 colonnes au lieu
-/// d'1), pour des bras à deux élèves de front.
+/// [armDepth] est le nombre de rangs de chaque bras, DEVANT la rangée du
+/// fond. [doubleArm] double la largeur de chaque bras (2 colonnes au lieu
+/// d'1) et la profondeur de la rangée du fond (2 rangs au lieu d'1), pour
+/// une disposition à deux élèves de front partout.
 Room buildULayout({int armDepth = 3, bool doubleArm = false}) {
   final armWidth = doubleArm ? 2 : 1;
+  final backRows = doubleArm ? 2 : 1;
   const centerGap = 3; // largeur du creux du U, purement esthétique
   final cols = armWidth * 2 + centerGap;
-  final rows = armDepth + 1; // + la rangée de devant (rang 0)
+  final rows = armDepth + backRows;
   final disabled = <String>{};
   final facing = <String, Facing>{};
-  for (var r = 1; r < rows; r++) {
+  for (var r = 0; r < armDepth; r++) {
     for (var c = 0; c < cols; c++) {
       if (c < armWidth) {
         facing[Room.keyOf(r, c)] = Facing.est; // bras gauche, vers le centre
@@ -52,6 +55,8 @@ Room buildULayout({int armDepth = 3, bool doubleArm = false}) {
       }
     }
   }
+  // La (ou les deux) rangée(s) du fond referme(nt) le U, pleine largeur,
+  // orientée(s) vers le tableau : c'est la valeur par défaut, rien à poser.
   return Room(rows: rows, cols: cols, disabled: disabled, facing: facing);
 }
 

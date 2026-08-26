@@ -365,8 +365,12 @@ void main() {
       // Défauts du modèle U : armDepth = 3, bras simples.
       expect(cls.room.rows, 4);
       expect(cls.room.cols, 5);
-      expect(cls.room.facingOf(1, 0), Facing.est);
-      expect(cls.room.facingOf(1, 4), Facing.ouest);
+      expect(cls.room.facingOf(0, 0), Facing.est, reason: 'bras gauche');
+      expect(cls.room.facingOf(0, 4), Facing.ouest, reason: 'bras droit');
+      // La rangée du fond (dernier rang) referme le U, face au tableau.
+      for (var c = 0; c < cls.room.cols; c++) {
+        expect(cls.room.facingOf(3, c), Facing.nord);
+      }
     });
 
     testWidgets(
@@ -441,10 +445,17 @@ void main() {
       await t.tap(find.text('Appliquer'));
       await t.pumpAndSettle();
 
-      expect(cls.room.rows, 5, reason: 'profondeur 4 + la rangée de devant');
+      expect(cls.room.rows, 6,
+          reason: 'profondeur 4 + rangée du fond doublée (2 rangs)');
       expect(cls.room.cols, 7, reason: 'bras de 2 colonnes + creux de 3');
       expect(cls.room.facingOf(1, 1), Facing.est,
           reason: 'la 2e colonne appartient au bras gauche');
+      for (var c = 0; c < cls.room.cols; c++) {
+        expect(cls.room.facingOf(4, c), Facing.nord,
+            reason: 'rangée du fond doublée : rang 4');
+        expect(cls.room.facingOf(5, c), Facing.nord,
+            reason: 'rangée du fond doublée : rang 5');
+      }
     });
 
     testWidgets('les paramètres du modèle Îlots changent ses dimensions',
