@@ -12,6 +12,11 @@ on:
     - cron: '0 6 * * 1'   # tous les lundis à 6h UTC
   workflow_dispatch:
 
+# Moindre privilège : le job ne fait que checkout + comparer des versions et
+# écrire dans GITHUB_STEP_SUMMARY -> lecture seule.
+permissions:
+  contents: read
+
 jobs:
   check-drift:
     runs-on: ubuntu-latest
