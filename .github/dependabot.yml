@@ -16,9 +16,11 @@ updates:
           - "patch"
 
   # NB : l'écosystème "gradle" est volontairement EXCLU. Sur un projet Flutter,
-  # les versions AGP / Kotlin / Gradle sont gérées par Flutter et doivent rester
-  # alignées avec la version du SDK -> les bumps isolés de Dependabot cassent le
-  # build sans apport sécurité réel. On laisse Flutter gérer la toolchain Android.
+  # les versions AGP / Kotlin / Gradle doivent rester dans la matrice que le
+  # SDK Flutter valide -> les bumps isolés de Dependabot vers les toutes
+  # dernières versions upstream peuvent casser le build sans apport sécurité
+  # réel. La dérive par rapport à cette matrice est surveillée à la place par
+  # le workflow .github/workflows/toolchain-drift.yml (hebdomadaire).
 
   # Actions GitHub utilisées dans .github/workflows/*.yml
   - package-ecosystem: "github-actions"

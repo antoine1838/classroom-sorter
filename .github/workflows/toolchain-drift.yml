@@ -1,0 +1,70 @@
+name: Dérive toolchain Android
+
+# Dependabot exclut volontairement l'écosystème "gradle" (voir dependabot.yml) :
+# les versions Gradle / AGP / Kotlin doivent rester dans la matrice que Flutter
+# valide, pas suivre les toutes dernières versions upstream. Ce workflow vérifie
+# à la place que le repo reste aligné sur ce que le Flutter stable du moment
+# recommande, en comparant à un projet généré à la volée (source de vérité
+# publique, plutôt que de lire les constantes internes de flutter_tools).
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # tous les lundis à 6h UTC
+  workflow_dispatch:
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Installer Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Générer un projet neuf de référence
+        run: flutter create --project-name toolchain_probe /tmp/toolchain_probe
+
+      - name: Comparer les versions Gradle / AGP / Kotlin
+        run: |
+          extract() {
+            grep -oP "$2" "$1" | head -1
+          }
+
+          REPO=android
+          PROBE=/tmp/toolchain_probe/android
+
+          repo_agp=$(extract "$REPO/settings.gradle.kts" '(?<=com\.android\.application"\) version ")[^"]+')
+          repo_kotlin=$(extract "$REPO/settings.gradle.kts" '(?<=org\.jetbrains\.kotlin\.android"\) version ")[^"]+')
+          repo_gradle=$(extract "$REPO/gradle/wrapper/gradle-wrapper.properties" '(?<=gradle-)[0-9.]+(?=-all\.zip)')
+
+          probe_agp=$(extract "$PROBE/settings.gradle.kts" '(?<=com\.android\.application"\) version ")[^"]+')
+          probe_kotlin=$(extract "$PROBE/settings.gradle.kts" '(?<=org\.jetbrains\.kotlin\.android"\) version ")[^"]+')
+          probe_gradle=$(extract "$PROBE/gradle/wrapper/gradle-wrapper.properties" '(?<=gradle-)[0-9.]+(?=-all\.zip)')
+
+          echo "AGP    : repo=$repo_agp   recommandé=$probe_agp"
+          echo "Kotlin : repo=$repo_kotlin   recommandé=$probe_kotlin"
+          echo "Gradle : repo=$repo_gradle   recommandé=$probe_gradle"
+
+          drift=0
+          [ "$repo_agp" != "$probe_agp" ] && drift=1
+          [ "$repo_kotlin" != "$probe_kotlin" ] && drift=1
+          [ "$repo_gradle" != "$probe_gradle" ] && drift=1
+
+          if [ "$drift" -eq 1 ]; then
+            {
+              echo "## Dérive de toolchain Android détectée"
+              echo ""
+              echo "| Composant | Repo | Recommandé par Flutter stable |"
+              echo "|---|---|---|"
+              echo "| AGP | $repo_agp | $probe_agp |"
+              echo "| Kotlin | $repo_kotlin | $probe_kotlin |"
+              echo "| Gradle | $repo_gradle | $probe_gradle |"
+              echo ""
+              echo "Mettre à jour android/settings.gradle.kts et android/gradle/wrapper/gradle-wrapper.properties."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
