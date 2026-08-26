@@ -370,6 +370,28 @@ void main() {
     });
 
     testWidgets(
+        'le sélecteur de disposition reste lisible sur un écran de '
+        'téléphone étroit (issue #26)',
+        (t) async {
+      final cls = _cls(rows: 3, cols: 3);
+      await _pump(t, cls);
+
+      // Largeur d'un téléphone en portrait : avant le correctif, le
+      // SegmentedButton comprimait ses 4 segments dans la largeur du
+      // dialogue et « Rangées » s'éclatait lettre par lettre sur 7 lignes.
+      await t.binding.setSurfaceSize(const Size(320, 690));
+      await t.pumpAndSettle();
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+
+      final size = t.getSize(find.text('Rangées'));
+      expect(size.height, lessThan(30),
+          reason: 'le mot ne doit pas être éclaté lettre par lettre sur '
+              'plusieurs lignes');
+    });
+
+    testWidgets(
         'le modèle Rangées conserve la taille ; annuler ne change rien',
         (t) async {
       final cls = _cls(rows: 3, cols: 3)..room.toggle(1, 1);

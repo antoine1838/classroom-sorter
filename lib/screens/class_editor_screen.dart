@@ -616,6 +616,27 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
             islandRows: _islandRows),
       };
 
+  /// Choix exclusif à puces qui se répartissent sur plusieurs lignes selon
+  /// la largeur disponible, plutôt que de comprimer leur texte (issue #26).
+  Widget _choiceWrap<T>({
+    required List<(T value, String label)> options,
+    required T selected,
+    required ValueChanged<T> onChanged,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final (value, label) in options)
+          ChoiceChip(
+            label: Text(label),
+            selected: selected == value,
+            onSelected: (_) => onChanged(value),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -625,18 +646,15 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SegmentedButton<RoomLayoutKind>(
-              segments: const [
-                ButtonSegment(
-                    value: RoomLayoutKind.rangees, label: Text('Rangées')),
-                ButtonSegment(value: RoomLayoutKind.u, label: Text('U')),
-                ButtonSegment(
-                    value: RoomLayoutKind.ilots, label: Text('Îlots')),
-                ButtonSegment(
-                    value: RoomLayoutKind.blanche, label: Text('Vide')),
+            _choiceWrap<RoomLayoutKind>(
+              options: const [
+                (RoomLayoutKind.rangees, 'Rangées'),
+                (RoomLayoutKind.u, 'U'),
+                (RoomLayoutKind.ilots, 'Îlots'),
+                (RoomLayoutKind.blanche, 'Vide'),
               ],
-              selected: {_kind},
-              onSelectionChanged: (s) => setState(() => _kind = s.first),
+              selected: _kind,
+              onChanged: (v) => setState(() => _kind = v),
             ),
             const SizedBox(height: 16),
             switch (_kind) {
@@ -661,7 +679,8 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Bras doubles'),
+                      title: Text('Bras doubles',
+                          style: Theme.of(context).textTheme.labelMedium),
                       value: _doubleArm,
                       onChanged: (v) => setState(() => _doubleArm = v),
                     ),
@@ -671,14 +690,13 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SegmentedButton<int>(
-                      segments: const [
-                        ButtonSegment(value: 4, label: Text('Tables de 4')),
-                        ButtonSegment(value: 6, label: Text('Tables de 6')),
+                    _choiceWrap<int>(
+                      options: const [
+                        (4, 'Tables de 4'),
+                        (6, 'Tables de 6'),
                       ],
-                      selected: {_islandSize},
-                      onSelectionChanged: (s) =>
-                          setState(() => _islandSize = s.first),
+                      selected: _islandSize,
+                      onChanged: (v) => setState(() => _islandSize = v),
                     ),
                     const SizedBox(height: 8),
                     _Stepper(
