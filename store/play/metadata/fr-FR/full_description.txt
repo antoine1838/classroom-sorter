@@ -10,6 +10,7 @@ Concevoir votre salle
 • Faites pivoter chaque place pour représenter fidèlement l'orientation des tables (îlots, U…) — un repère purement visuel, sans effet sur les plans générés.
 • Un message prévient, sans jamais bloquer, si la salle manque de places pour l'effectif de la classe.
 • Le premier rang correspond au « devant », côté tableau.
+• Enregistrez une disposition sous un nom pour la réutiliser dans une autre classe ; une salle déjà enregistrée peut aussi être mise à jour. Une disposition est proposée dès la création d'une classe.
 
 Gérer vos élèves
 • Ajoutez-les un par un ou importez une liste.
@@ -39,6 +40,7 @@ Générer et ajuster
 Lisible sur tout écran
 • La salle s'affiche entière, aussi bien en portrait (avec zoom à deux doigts, ou à la molette de souris sur ordinateur) qu'en paysage.
 • Le prénom de chaque élève s'affiche dès que la place le permet, sinon des initiales non ambiguës (deux élèves aux mêmes initiales restent distingués).
+• Les couleurs du repère garçon/fille affiché sur chaque place se personnalisent (5 palettes au choix) dans les réglages.
 
 RESPECT DE LA VIE PRIVÉE
 • 100 % hors-ligne, données stockées uniquement sur l'appareil.

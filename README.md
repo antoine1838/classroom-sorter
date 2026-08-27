@@ -61,7 +61,9 @@ sur Internet — adapté aux données élèves).
   dure, orange pâle pour un objectif souple non atteint) ; un **tap** sur
   n'importe quelle place ouvre une feuille de détail (nom complet, tous les
   attributs en clair, motifs du problème s'il y en a) avec un accès direct au
-  formulaire d'édition.
+  formulaire d'édition. Le genre est indiqué par un liseré coloré sur le bord
+  gauche de la carte (muet pour « non précisé ») ; sa palette (5 au choix) se
+  règle dans l'écran **Réglages**.
 - **Classe de démo** : bouton (accueil, écran vide ou icône dans l'AppBar)
   pour ajouter en un clic une classe fictive « 6ème B » déjà remplie (20
   élèves, salle, règles, plan) — pratique pour découvrir l'appli sans tout

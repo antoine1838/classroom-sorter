@@ -30,6 +30,12 @@ toutes ses règles. L'onglet Élèves a deux captures, une par vue : Compacte
 (colonne par attribut, tap pour cycler) et Complète (colonne par valeur,
 cases à cocher).
 
+**Refaites partiellement pour la 1.11.0** (4 des 8, les autres inchangées) :
+`05-regles` (texte corrigé des objectifs grand/petit et agité, issue #30) et
+`06-plan`/`07-plan-detail`/`08-plan-paysage` (liseré de genre : nouveau défaut
+vert canard/corail au lieu du bleu/rose d'origine, issue #27 — palette
+réglable en Réglages, voir le sélecteur ajouté à cette version).
+
 ### Contraintes de dimensions (⚠️ vérifié le 2026-08-25)
 
 Les captures servent **deux** slots de la Play Console, téléphone et

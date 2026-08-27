@@ -1,0 +1,5 @@
+Nouveautés 1.11.0 :
+• Réglages : couleurs garçon/fille du plan personnalisables, 5 palettes au choix.
+• Salle : une disposition est proposée dès la création d'une classe, et une salle déjà enregistrée peut être réutilisée depuis le sélecteur.
+• Salle : le U se referme désormais par le fond, ouverture côté tableau.
+• Corrections de texte et d'affichage.
