@@ -92,6 +92,25 @@ class HomeScreen extends StatelessWidget {
     );
     if (name == null) return;
     final c = state.addClass(name);
+
+    if (context.mounted) {
+      // Salle neuve, aucun plan à perdre : la disposition est proposée tout
+      // de suite plutôt que de laisser l'utilisateur la découvrir plus tard
+      // dans l'onglet Salle. Annuler garde la salle par défaut.
+      final result = await pickInitialRoomLayout(
+        context,
+        state: state,
+        initialRows: c.room.rows,
+        initialCols: c.room.cols,
+      );
+      if (result != null) {
+        final (room, savedRoomId) = result;
+        c.room = room;
+        c.savedRoomId = savedRoomId;
+        state.touch();
+      }
+    }
+
     if (context.mounted) _open(context, c);
   }
 

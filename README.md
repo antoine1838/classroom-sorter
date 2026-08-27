@@ -23,7 +23,10 @@ sur Internet — adapté aux données élèves).
   places pour l'effectif de la classe. Le bouton **Enregistrer la salle**
   garde la disposition actuelle sous un nom (« B204 »…) pour la réutiliser
   dans d'autres classes via **Mes salles**, dans ce même sélecteur ; une
-  classe issue d'une salle enregistrée peut la mettre à jour en un geste.
+  classe issue d'une salle enregistrée peut la mettre à jour en un geste. Ce
+  sélecteur s'ouvre aussi juste après avoir nommé une nouvelle classe, pour
+  choisir sa disposition dès la création plutôt que de la découvrir plus
+  tard dans l'onglet Salle.
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
   (faible/moyen/fort), énergie (calme/modéré/agité), taille
   (petit/moyen/grand), mauvaise vue, notes libres. Deux vues au choix (bouton

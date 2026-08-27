@@ -97,6 +97,12 @@ void main() {
       await t.tap(find.text('Créer'));
       await t.pumpAndSettle();
 
+      // Le sélecteur de disposition s'enchaîne aussitôt (issue #28) ;
+      // Annuler garde la salle par défaut avant d'ouvrir l'éditeur.
+      expect(find.text('Disposition de la salle'), findsOneWidget);
+      await t.tap(find.widgetWithText(TextButton, 'Annuler'));
+      await t.pumpAndSettle();
+
       expect(state.classes.map((c) => c.name), ['5ème A']);
       expect(find.byType(ClassEditorScreen), findsOneWidget,
           reason: 'on enchaîne directement sur l\'édition de la classe');
@@ -152,6 +158,70 @@ void main() {
       await t.pumpAndSettle();
 
       expect(state.classes.single.name, 'Nouvelle classe');
+    });
+  });
+
+  group('Disposition proposée à la création (#28)', () {
+    Future<AppState> createUpTo(WidgetTester t) async {
+      final state = await _pump(t);
+      await t.tap(find.widgetWithText(FloatingActionButton, 'Nouvelle classe'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), '5ème A');
+      await t.tap(find.text('Créer'));
+      await t.pumpAndSettle();
+      return state;
+    }
+
+    testWidgets('Annuler garde la salle par défaut (5 × 7)', (t) async {
+      final state = await createUpTo(t);
+
+      await t.tap(find.widgetWithText(TextButton, 'Annuler'));
+      await t.pumpAndSettle();
+
+      final cls = state.classes.single;
+      expect(cls.room.rows, 5);
+      expect(cls.room.cols, 7);
+      expect(cls.savedRoomId, isNull);
+      expect(find.byType(ClassEditorScreen), findsOneWidget);
+    });
+
+    testWidgets('choisir un modèle applique sa géométrie à la classe créée',
+        (t) async {
+      final state = await createUpTo(t);
+
+      await t.tap(find.text('U'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      // Défauts du modèle U : armDepth = 3, bras simples => 4 rangs, 5 colonnes.
+      final cls = state.classes.single;
+      expect(cls.room.rows, 4);
+      expect(cls.room.cols, 5);
+      expect(find.byType(ClassEditorScreen), findsOneWidget);
+    });
+
+    testWidgets('Mes salles est proposée dès la création', (t) async {
+      final state = await _pump(t);
+      final saved = state.addSavedRoom('B204', Room(rows: 4, cols: 6));
+
+      await t.tap(find.widgetWithText(FloatingActionButton, 'Nouvelle classe'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), '5ème A');
+      await t.tap(find.text('Créer'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.text('Mes salles'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('B204'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Appliquer'));
+      await t.pumpAndSettle();
+
+      final cls = state.classes.single;
+      expect(cls.room.rows, 4);
+      expect(cls.room.cols, 6);
+      expect(cls.savedRoomId, saved.id);
     });
   });
 

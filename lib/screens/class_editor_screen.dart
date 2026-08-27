@@ -709,12 +709,32 @@ class _RoomTab extends StatelessWidget {
   }
 }
 
+/// Ouvre le même sélecteur de disposition que l'onglet Salle, pour une salle
+/// neuve sans aucun plan à perdre — utilisé à la création d'une classe.
+/// Renvoie `null` si annulé, auquel cas l'appelant garde la salle par
+/// défaut.
+Future<(Room, String?)?> pickInitialRoomLayout(
+  BuildContext context, {
+  required AppState state,
+  required int initialRows,
+  required int initialCols,
+}) {
+  return showDialog<(Room, String?)>(
+    context: context,
+    builder: (_) => _RoomLayoutDialog(
+      state: state,
+      initialRows: initialRows,
+      initialCols: initialCols,
+    ),
+  );
+}
+
 /// Sélecteur de modèle de disposition : Rangées, U, Îlots, une page blanche,
 /// ou une salle enregistrée par l'utilisateur (« Mes salles »). Renvoie la
 /// [Room] choisie et, si elle vient de « Mes salles », l'id de la salle
 /// enregistrée dont elle est issue — via `Navigator.pop`, ou `null` si
 /// annulé. Ne modifie jamais la salle en cours, c'est à l'appelant de
-/// l'appliquer (voir [_RoomTab._pickLayout]).
+/// l'appliquer (voir [_RoomTab._pickLayout] et [pickInitialRoomLayout]).
 class _RoomLayoutDialog extends StatefulWidget {
   final AppState state;
   final int initialRows;
