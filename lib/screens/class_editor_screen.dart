@@ -2275,7 +2275,8 @@ class _RulesTab extends StatelessWidget {
               SwitchListTile(
                 secondary: const Icon(Icons.bolt),
                 title: const Text('Séparer les élèves agités'),
-                subtitle: const Text('Éviter les voisins agités'),
+                subtitle:
+                    const Text('Éviter que deux élèves agités soient voisins'),
                 value: cls.balance.separateAgites,
                 onChanged: (v) {
                   cls.balance.separateAgites = v;
@@ -2297,7 +2298,7 @@ class _RulesTab extends StatelessWidget {
                 secondary: const Icon(Icons.height),
                 title: const Text('Éviter qu\'un grand gêne la vue d\'un petit'),
                 subtitle: const Text(
-                    'Un élève grand ne doit pas bloquer la vue de celui placé juste plus près du tableau — devant, ou à côté sur un bras de U'),
+                    'Un élève grand ne doit pas être assis juste devant un petit — il lui bloquerait la vue du tableau (devant, ou sur un bras de U)'),
                 value: cls.balance.avoidTallInFrontOfShort,
                 onChanged: (v) {
                   cls.balance.avoidTallInFrontOfShort = v;
