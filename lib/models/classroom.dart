@@ -52,6 +52,14 @@ class ClassGroup {
   /// Dernier plan généré : clé de place "r,c" -> id de l'élève.
   Map<String, String> assignment;
 
+  /// Id de la [SavedRoom] dont [room] est issue, ou `null` si elle vient
+  /// d'une disposition par défaut (Rangées/U/Îlots/Vide) ou d'aucune. Reste
+  /// posé même après une retouche locale de [room] — il indique une
+  /// provenance, pas une synchronisation. Un id ne correspondant plus à
+  /// aucune salle enregistrée (supprimée depuis) doit être traité comme
+  /// absent par l'appelant.
+  String? savedRoomId;
+
   ClassGroup({
     required this.id,
     this.name = '',
@@ -60,6 +68,7 @@ class ClassGroup {
     List<Rule>? rules,
     BalanceSettings? balance,
     Map<String, String>? assignment,
+    this.savedRoomId,
   })  : room = room ?? Room(),
         students = students ?? [],
         rules = rules ?? [],
@@ -89,6 +98,7 @@ class ClassGroup {
         'rules': rules.map((r) => r.toJson()).toList(),
         'balance': balance.toJson(),
         'assignment': assignment,
+        'savedRoomId': savedRoomId,
       };
 
   factory ClassGroup.fromJson(Map<String, dynamic> j) => ClassGroup(
@@ -105,5 +115,6 @@ class ClassGroup {
             (j['balance'] ?? const {}) as Map<String, dynamic>),
         assignment: ((j['assignment'] ?? const {}) as Map)
             .map((k, v) => MapEntry(k as String, v as String)),
+        savedRoomId: j['savedRoomId'] as String?,
       );
 }

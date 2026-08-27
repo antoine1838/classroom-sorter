@@ -7,11 +7,13 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/classroom.dart';
+import '../models/saved_room.dart';
 
 class Repository {
   static const _key = 'plandeclasse_classes_v1';
   static const _viewModeKey = 'plandeclasse_students_view_mode_v1';
   static const _windowBoundsKey = 'plandeclasse_window_bounds_v1';
+  static const _savedRoomsKey = 'plandeclasse_saved_rooms_v1';
 
   Future<List<ClassGroup>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -61,5 +63,26 @@ class Repository {
       double x, double y, double width, double height) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_windowBoundsKey, '$x,$y,$width,$height');
+  }
+
+  /// Salles enregistrées par l'utilisateur (voir [SavedRoom]), indépendantes
+  /// des classes : liste vide si aucune n'a jamais été enregistrée, ou si
+  /// les données stockées sont corrompues plutôt que de planter.
+  Future<List<SavedRoom>> loadSavedRooms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_savedRoomsKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      return list.map(SavedRoom.fromJson).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveSavedRooms(List<SavedRoom> rooms) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonEncode(rooms.map((r) => r.toJson()).toList());
+    await prefs.setString(_savedRoomsKey, raw);
   }
 }

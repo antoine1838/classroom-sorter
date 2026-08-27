@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/rule.dart';
+import 'package:plandeclasse/models/saved_room.dart';
 import 'package:plandeclasse/models/student.dart';
 
 void main() {
@@ -357,6 +358,38 @@ void main() {
       expect(cls.rules, isEmpty);
       expect(cls.assignment, isEmpty);
       expect(cls.room.capacity, greaterThan(0));
+      expect(cls.savedRoomId, isNull);
+    });
+
+    test('savedRoomId survit à l\'aller-retour JSON', () {
+      final cls = ClassGroup(id: 'c', name: 'Test', savedRoomId: 'salle-1');
+      final back = ClassGroup.fromJson(cls.toJson());
+      expect(back.savedRoomId, 'salle-1');
+    });
+
+    test('savedRoomId absent d\'une sauvegarde antérieure : null', () {
+      final json = ClassGroup(id: 'c', name: 'Test').toJson();
+      json.remove('savedRoomId');
+      final back = ClassGroup.fromJson(json);
+      expect(back.savedRoomId, isNull);
+    });
+  });
+
+  group('SavedRoom', () {
+    test('aller-retour JSON conserve id, nom et géométrie', () {
+      final saved = SavedRoom(
+        id: 's1',
+        name: 'B204',
+        room: Room(rows: 3, cols: 4, disabled: {Room.keyOf(0, 0)}),
+      );
+
+      final back = SavedRoom.fromJson(saved.toJson());
+
+      expect(back.id, 's1');
+      expect(back.name, 'B204');
+      expect(back.room.rows, 3);
+      expect(back.room.cols, 4);
+      expect(back.room.isSeat(0, 0), isFalse);
     });
   });
 }
