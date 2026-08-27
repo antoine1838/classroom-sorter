@@ -3,6 +3,26 @@ library;
 
 enum Gender { fille, garcon, autre }
 
+/// Palette du liseré de genre sur la carte de place (voir [Gender]). Plusieurs
+/// choix proposés en Réglages plutôt qu'un unique bleu/rose imposé (issue #27).
+enum GenderColorPalette {
+  tealCorail,
+  violetAmbre,
+  bleuRoseAdouci,
+  bleuOrange,
+  vertRose,
+}
+
+extension GenderColorPaletteLabel on GenderColorPalette {
+  String get label => switch (this) {
+        GenderColorPalette.violetAmbre => 'Violet / ambre',
+        GenderColorPalette.tealCorail => 'Vert canard / corail',
+        GenderColorPalette.bleuRoseAdouci => 'Bleu / rose',
+        GenderColorPalette.bleuOrange => 'Bleu / orange',
+        GenderColorPalette.vertRose => 'Vert / rose',
+      };
+}
+
 enum Level { faible, moyen, fort }
 
 enum Energy { calme, modere, agite }

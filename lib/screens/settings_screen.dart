@@ -4,6 +4,25 @@ library;
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../models/student.dart';
+import '../widgets/seat_grid.dart' show genderPaletteColors;
+
+/// Aperçu d'une palette (garçon, fille) pour le sélecteur ci-dessous. Doit
+/// tenir dans la boîte 20×20 que [ChoiceChip] réserve à son avatar (sinon
+/// débordement, voir issue #27 : plantage constaté sur écran étroit).
+Widget _paletteIcon(GenderColorPalette palette) {
+  final (garcon, fille) = genderPaletteColors(palette);
+  Widget dot(Color color) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+  return Row(mainAxisSize: MainAxisSize.min, children: [
+    dot(garcon),
+    const SizedBox(width: 3),
+    dot(fille),
+  ]);
+}
 
 class SettingsScreen extends StatelessWidget {
   final AppState state;
@@ -42,6 +61,30 @@ class SettingsScreen extends StatelessWidget {
               selected: {state.studentsViewMode},
               onSelectionChanged: (selection) =>
                   state.setStudentsViewMode(selection.first),
+            ),
+            const SizedBox(height: 24),
+            Text('Couleurs garçon / fille',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            const Text(
+              'Choisissez les couleurs du liseré affiché sur la carte de '
+              'chaque élève dans le plan de classe.',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final palette in GenderColorPalette.values)
+                  ChoiceChip(
+                    avatar: _paletteIcon(palette),
+                    showCheckmark: false,
+                    label: Text(palette.label),
+                    selected: state.genderColorPalette == palette,
+                    onSelected: (_) => state.setGenderColorPalette(palette),
+                  ),
+              ],
             ),
           ],
         ),

@@ -16,6 +16,7 @@ import 'data/repository.dart';
 import 'models/classroom.dart';
 import 'models/room.dart';
 import 'models/saved_room.dart';
+import 'models/student.dart' show GenderColorPalette;
 
 /// Classe d'exemple prête à l'emploi, pour découvrir l'appli ou refaire des
 /// captures d'écran sans ressaisir des données à la main.
@@ -37,6 +38,7 @@ class AppState extends ChangeNotifier {
   List<SavedRoom> savedRooms = [];
   bool loading = true;
   StudentsViewMode studentsViewMode = StudentsViewMode.complete;
+  GenderColorPalette genderColorPalette = GenderColorPalette.tealCorail;
 
   Future<void> init() async {
     classes = await _repo.load();
@@ -45,6 +47,11 @@ class AppState extends ChangeNotifier {
     if (rawMode == StudentsViewMode.compact.name) {
       studentsViewMode = StudentsViewMode.compact;
     }
+    final rawPalette = await _repo.loadGenderColorPalette();
+    genderColorPalette = GenderColorPalette.values.firstWhere(
+      (p) => p.name == rawPalette,
+      orElse: () => GenderColorPalette.tealCorail,
+    );
     loading = false;
     notifyListeners();
   }
@@ -54,6 +61,13 @@ class AppState extends ChangeNotifier {
     studentsViewMode = mode;
     notifyListeners();
     _repo.saveStudentsViewMode(mode.name);
+  }
+
+  void setGenderColorPalette(GenderColorPalette palette) {
+    if (genderColorPalette == palette) return;
+    genderColorPalette = palette;
+    notifyListeners();
+    _repo.saveGenderColorPalette(palette.name);
   }
 
   Future<void> _persist() => _repo.save(classes);

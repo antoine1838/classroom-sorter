@@ -14,6 +14,8 @@ class Repository {
   static const _viewModeKey = 'plandeclasse_students_view_mode_v1';
   static const _windowBoundsKey = 'plandeclasse_window_bounds_v1';
   static const _savedRoomsKey = 'plandeclasse_saved_rooms_v1';
+  static const _genderColorPaletteKey =
+      'plandeclasse_gender_color_palette_v1';
 
   Future<List<ClassGroup>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -44,6 +46,19 @@ class Repository {
   Future<void> saveStudentsViewMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_viewModeKey, mode);
+  }
+
+  /// Nom brut de la palette choisie (ex. `'violetAmbre'`), ou `null` si
+  /// jamais réglée. La conversion en [GenderColorPalette] se fait côté
+  /// AppState.
+  Future<String?> loadGenderColorPalette() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_genderColorPaletteKey);
+  }
+
+  Future<void> saveGenderColorPalette(String palette) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_genderColorPaletteKey, palette);
   }
 
   /// Taille/position de la fenêtre desktop (Windows/macOS/Linux), ou `null`

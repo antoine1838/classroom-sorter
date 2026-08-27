@@ -2844,6 +2844,7 @@ class _PlanTabState extends State<_PlanTab> {
         result: _result,
         onTapSeat: (student) => _showSeatDetail(context, student),
         zoom: _zoom,
+        genderPalette: widget.state.genderColorPalette,
       ),
     );
   }

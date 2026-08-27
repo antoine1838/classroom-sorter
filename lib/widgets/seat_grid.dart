@@ -246,14 +246,41 @@ Color _severityBackground(IssueSeverity? severity, ColorScheme cs) =>
       null => cs.surface,
     };
 
+/// Couleurs (garçon, fille) d'une palette. Publique pour l'aperçu affiché
+/// dans le sélecteur de l'onglet Réglages (voir `screens/settings_screen.dart`).
+(Color, Color) genderPaletteColors(GenderColorPalette palette) =>
+    switch (palette) {
+      GenderColorPalette.violetAmbre => (
+          const Color(0xFF534AB7),
+          const Color(0xFFBA7517),
+        ),
+      GenderColorPalette.tealCorail => (
+          const Color(0xFF0F6E56),
+          const Color(0xFFD85A30),
+        ),
+      GenderColorPalette.bleuRoseAdouci => (
+          const Color(0xFF185FA5),
+          const Color(0xFF993556),
+        ),
+      GenderColorPalette.bleuOrange => (
+          const Color(0xFF1F6FB2),
+          const Color(0xFFC2660D),
+        ),
+      GenderColorPalette.vertRose => (
+          const Color(0xFF3B6D11),
+          const Color(0xFF99244B),
+        ),
+    };
+
 /// Le genre, replié sur un liseré au bord gauche : le fond n'est plus
 /// disponible, pris par [_severityBackground]. Muet pour « autre », comme les
-/// autres indicateurs de coin.
-Color? _genderStripeColor(Gender gender) => switch (gender) {
-  Gender.fille => const Color(0xFFD6478F),
-  Gender.garcon => const Color(0xFF3B82C4),
-  Gender.autre => null,
-};
+/// autres indicateurs de coin. Couleurs dépendantes de [palette], réglable
+/// dans l'onglet Réglages (issue #27 : bleu/rose non modifiable à l'origine).
+Color? _genderStripeColor(Gender gender, GenderColorPalette palette) {
+  if (gender == Gender.autre) return null;
+  final (garcon, fille) = genderPaletteColors(palette);
+  return gender == Gender.garcon ? garcon : fille;
+}
 
 /// Bord de la place opposé au regard (le dossier), pour signaler son
 /// orientation. [Facing.nord] (par défaut) place ce bord en haut, donc sans
@@ -670,6 +697,10 @@ class PlanGrid extends StatelessWidget {
   /// à 1.
   final double zoom;
 
+  /// Palette du liseré de genre (réglable en Réglages, voir
+  /// [GenderColorPalette]).
+  final GenderColorPalette genderPalette;
+
   const PlanGrid({
     super.key,
     required this.cls,
@@ -678,6 +709,7 @@ class PlanGrid extends StatelessWidget {
     this.result,
     this.onTapSeat,
     this.zoom = 1,
+    this.genderPalette = GenderColorPalette.tealCorail,
   });
 
   @override
@@ -766,7 +798,7 @@ class PlanGrid extends StatelessWidget {
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
     final width = ctx.metrics.cell;
     final severity = ctx.result?.severityFor(student.id);
-    final stripeColor = _genderStripeColor(student.gender);
+    final stripeColor = _genderStripeColor(student.gender, genderPalette);
     final outline = hovering ? cs.primary : cs.outline;
     final outlineWidth = hovering ? 2.4 : 1.0;
     final box = Container(
