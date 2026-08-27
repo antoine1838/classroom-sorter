@@ -12,8 +12,10 @@ import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/room_layouts.dart';
 import '../models/rule.dart';
+import '../models/saved_room.dart';
 import '../models/student.dart';
 import '../widgets/plan_viewport.dart';
+import '../widgets/room_thumbnail.dart';
 import '../widgets/seat_grid.dart';
 
 /// Le contrôle qui ouvre le rapport, quelle que soit la disposition.
@@ -362,6 +364,8 @@ class ClassEditorScreen extends StatelessWidget {
 // Onglet SALLE
 // ---------------------------------------------------------------------------
 
+enum _SaveRoomChoice { update, asNew }
+
 class _RoomTab extends StatelessWidget {
   final AppState state;
   final ClassGroup cls;
@@ -387,14 +391,16 @@ class _RoomTab extends StatelessWidget {
   /// un simple -1 rang/colonne), puis remplace la salle et nettoie le plan
   /// des places devenues hors grille — comme le fait déjà [_resize].
   Future<void> _pickLayout(BuildContext context) async {
-    final layout = await showDialog<Room>(
+    final result = await showDialog<(Room, String?)>(
       context: context,
       builder: (_) => _RoomLayoutDialog(
+        state: state,
         initialRows: cls.room.rows,
         initialCols: cls.room.cols,
       ),
     );
-    if (layout == null || !context.mounted) return;
+    if (result == null || !context.mounted) return;
+    final (layout, savedRoomId) = result;
 
     if (cls.assignment.isNotEmpty) {
       final confirmed = await showDialog<bool>(
@@ -421,10 +427,118 @@ class _RoomTab extends StatelessWidget {
     }
 
     cls.room = layout;
+    cls.savedRoomId = savedRoomId;
     cls.assignment.removeWhere((k, v) {
       final (r, c) = Room.parse(k);
       return !cls.room.isSeat(r, c);
     });
+    state.touch();
+  }
+
+  /// Enregistre la salle actuelle de la classe. Si elle provient déjà d'une
+  /// salle enregistrée ([ClassGroup.savedRoomId]), propose de la mettre à
+  /// jour plutôt que d'en créer une nouvelle sans y être invité.
+  Future<void> _saveRoom(BuildContext context) async {
+    final origin = state.savedRoomById(cls.savedRoomId);
+
+    if (origin != null) {
+      final choice = await showDialog<_SaveRoomChoice>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Enregistrer la salle'),
+          content: Text('Cette salle provient de « ${origin.name} ».'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(ctx, _SaveRoomChoice.asNew),
+              child: const Text('Enregistrer comme nouvelle salle'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(ctx, _SaveRoomChoice.update),
+              child: Text('Mettre à jour « ${origin.name} »'),
+            ),
+          ],
+        ),
+      );
+      if (choice == null || !context.mounted) return;
+      if (choice == _SaveRoomChoice.update) {
+        state.updateSavedRoom(origin.id, cls.room);
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
+    await _saveRoomAsNew(context);
+  }
+
+  /// Demande un nom et enregistre la salle actuelle comme une nouvelle
+  /// entrée — en remplaçant une salle existante du même nom si l'utilisateur
+  /// le confirme.
+  Future<void> _saveRoomAsNew(BuildContext context) async {
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Enregistrer la salle'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Ex. B204'),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || !context.mounted) return;
+
+    SavedRoom? existing;
+    for (final r in state.savedRooms) {
+      if (r.name == name) {
+        existing = r;
+        break;
+      }
+    }
+    if (existing != null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Remplacer la salle ?'),
+          content: Text(
+              'Une salle nommée « $name » existe déjà. La remplacer par '
+              'celle-ci ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Remplacer'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      state.updateSavedRoom(existing.id, cls.room);
+      cls.savedRoomId = existing.id;
+    } else {
+      final saved = state.addSavedRoom(name, cls.room);
+      cls.savedRoomId = saved.id;
+    }
     state.touch();
   }
 
@@ -513,11 +627,24 @@ class _RoomTab extends StatelessWidget {
                           avatar: const Icon(Icons.event_seat, size: 18),
                           label: Text('${room.capacity} places'),
                         ),
+                        if (state.savedRoomById(cls.savedRoomId) != null)
+                          Chip(
+                            avatar: const Icon(Icons.bookmark_outlined,
+                                size: 18),
+                            label: Text(
+                                state.savedRoomById(cls.savedRoomId)!.name),
+                          ),
                         OutlinedButton.icon(
                           onPressed: () => _pickLayout(context),
                           icon: const Icon(Icons.dashboard_customize_outlined,
                               size: 18),
                           label: const Text('Disposition'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _saveRoom(context),
+                          icon: const Icon(Icons.bookmark_add_outlined,
+                              size: 18),
+                          label: const Text('Enregistrer la salle'),
                         ),
                       ],
                     ),
@@ -582,14 +709,21 @@ class _RoomTab extends StatelessWidget {
   }
 }
 
-/// Sélecteur de modèle de disposition : Rangées, U, Îlots, ou une page
-/// blanche. Renvoie la [Room] choisie via `Navigator.pop`, ou `null` si
-/// annulé — ne modifie jamais la salle en cours, c'est à l'appelant de
+/// Sélecteur de modèle de disposition : Rangées, U, Îlots, une page blanche,
+/// ou une salle enregistrée par l'utilisateur (« Mes salles »). Renvoie la
+/// [Room] choisie et, si elle vient de « Mes salles », l'id de la salle
+/// enregistrée dont elle est issue — via `Navigator.pop`, ou `null` si
+/// annulé. Ne modifie jamais la salle en cours, c'est à l'appelant de
 /// l'appliquer (voir [_RoomTab._pickLayout]).
 class _RoomLayoutDialog extends StatefulWidget {
+  final AppState state;
   final int initialRows;
   final int initialCols;
-  const _RoomLayoutDialog({required this.initialRows, required this.initialCols});
+  const _RoomLayoutDialog({
+    required this.state,
+    required this.initialRows,
+    required this.initialCols,
+  });
 
   @override
   State<_RoomLayoutDialog> createState() => _RoomLayoutDialogState();
@@ -602,8 +736,11 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
   int _islandSize = 4;
   int _islandCount = 3;
   int _islandRows = 1;
+  String? _selectedSavedRoomId;
 
-  Room _build() => switch (_kind) {
+  /// `null` uniquement pour « Mes salles » sans sélection, ou sans aucune
+  /// salle enregistrée — les autres branches produisent toujours une salle.
+  Room? _build() => switch (_kind) {
         RoomLayoutKind.rangees => buildRangeesLayout(
             rows: widget.initialRows, cols: widget.initialCols),
         RoomLayoutKind.blanche => buildBlancheLayout(
@@ -614,7 +751,19 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
             islandSize: _islandSize,
             islandCount: _islandCount,
             islandRows: _islandRows),
+        // Copie : appliquer une salle enregistrée ne doit jamais faire de
+        // cls.room et de la SavedRoom stockée le même objet — sinon une
+        // retouche locale se propagerait silencieusement à la salle
+        // enregistrée (et à toute autre classe qui l'utilise plus tard).
+        RoomLayoutKind.mesSalles => switch (
+              widget.state.savedRoomById(_selectedSavedRoomId)) {
+            null => null,
+            final saved => Room.fromJson(saved.room.toJson()),
+          },
       };
+
+  List<SavedRoom> get _sortedSavedRooms => [...widget.state.savedRooms]
+    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   /// Choix exclusif à puces qui se répartissent sur plusieurs lignes selon
   /// la largeur disponible, plutôt que de comprimer leur texte (issue #26).
@@ -637,8 +786,154 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
     );
   }
 
+  /// Aperçu centré, à taille fixe, de la salle que produirait la sélection
+  /// courante — même pour les quatre modèles par défaut, par symétrie avec
+  /// « Mes salles ».
+  Widget _preview(Room room) => Center(
+        child: roomThumbnailBox(room, width: 120, height: 72),
+      );
+
+  Future<void> _renameSavedRoom(SavedRoom saved) async {
+    final ctrl = TextEditingController(text: saved.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Renommer la salle'),
+        content: TextField(controller: ctrl, autofocus: true),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+    widget.state.renameSavedRoom(saved.id, name);
+    setState(() {});
+  }
+
+  Future<void> _deleteSavedRoom(SavedRoom saved) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer la salle ?'),
+        content: Text('« ${saved.name} » sera définitivement supprimée.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    widget.state.deleteSavedRoom(saved.id);
+    setState(() {
+      if (_selectedSavedRoomId == saved.id) _selectedSavedRoomId = null;
+    });
+  }
+
+  /// Menu Renommer/Supprimer ouvert par l'appui long ou le clic droit sur
+  /// une salle — le tap simple reste réservé à la sélection.
+  Future<void> _showSavedRoomMenu(SavedRoom saved) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(saved.name),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'renommer'),
+            child: const Text('Renommer'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'supprimer'),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'renommer':
+        await _renameSavedRoom(saved);
+      case 'supprimer':
+        await _deleteSavedRoom(saved);
+    }
+  }
+
+  Widget _savedRoomsList() {
+    final rooms = _sortedSavedRooms;
+    if (rooms.isEmpty) {
+      return Text(
+        'Aucune salle enregistrée. Utilisez « Enregistrer la salle » dans '
+        'l\'onglet Salle.',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final saved in rooms)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () =>
+                  setState(() => _selectedSavedRoomId = saved.id),
+              onLongPress: () => _showSavedRoomMenu(saved),
+              onSecondaryTap: () => _showSavedRoomMenu(saved),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _selectedSavedRoomId == saved.id
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                    width: _selectedSavedRoomId == saved.id ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    roomThumbnailBox(saved.room, width: 48, height: 36),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(saved.name),
+                          Text('${saved.room.capacity} places',
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Text(
+          'Appui long ou clic droit sur une salle pour la renommer ou la '
+          'supprimer.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final room = _build();
     return AlertDialog(
       title: const Text('Disposition de la salle'),
       content: SingleChildScrollView(
@@ -652,6 +947,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                 (RoomLayoutKind.u, 'U'),
                 (RoomLayoutKind.ilots, 'Îlots'),
                 (RoomLayoutKind.blanche, 'Vide'),
+                (RoomLayoutKind.mesSalles, 'Mes salles'),
               ],
               selected: _kind,
               onChanged: (v) => setState(() => _kind = v),
@@ -660,15 +956,25 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
             switch (_kind) {
               RoomLayoutKind.rangees ||
               RoomLayoutKind.blanche =>
-                Text(
-                  'Conserve la taille actuelle de la salle '
-                  '(${widget.initialRows} × ${widget.initialCols}).',
-                  style: Theme.of(context).textTheme.bodySmall,
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _preview(room!),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Conserve la taille actuelle de la salle '
+                      '(${widget.initialRows} × ${widget.initialCols}).',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               RoomLayoutKind.u => Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _preview(room!),
+                    const SizedBox(height: 8),
                     _Stepper(
                       label: 'Profondeur des bras',
                       value: _armDepth,
@@ -690,6 +996,8 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _preview(room!),
+                    const SizedBox(height: 8),
                     _choiceWrap<int>(
                       options: const [
                         (4, 'Tables de 4'),
@@ -718,6 +1026,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                     ),
                   ],
                 ),
+              RoomLayoutKind.mesSalles => _savedRoomsList(),
             },
           ],
         ),
@@ -728,7 +1037,17 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
           child: const Text('Annuler'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _build()),
+          onPressed: room == null
+              ? null
+              : () => Navigator.pop(
+                    context,
+                    (
+                      room,
+                      _kind == RoomLayoutKind.mesSalles
+                          ? _selectedSavedRoomId
+                          : null,
+                    ),
+                  ),
           child: const Text('Appliquer'),
         ),
       ],

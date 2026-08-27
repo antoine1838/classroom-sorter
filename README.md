@@ -20,7 +20,10 @@ sur Internet — adapté aux données élèves).
   (profondeur et largeur des bras réglables) et *Îlots* (tables de 4 ou 6,
   sur un ou plusieurs rangs) — ou une page blanche, à retoucher ensuite case
   par case. Un bandeau prévient (sans bloquer) quand la salle manque de
-  places pour l'effectif de la classe.
+  places pour l'effectif de la classe. Le bouton **Enregistrer la salle**
+  garde la disposition actuelle sous un nom (« B204 »…) pour la réutiliser
+  dans d'autres classes via **Mes salles**, dans ce même sélecteur ; une
+  classe issue d'une salle enregistrée peut la mettre à jour en un geste.
 - **Élèves** : ajout un par un ou import d'une liste ; genre, niveau
   (faible/moyen/fort), énergie (calme/modéré/agité), taille
   (petit/moyen/grand), mauvaise vue, notes libres. Deux vues au choix (bouton

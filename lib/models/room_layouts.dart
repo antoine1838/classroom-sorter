@@ -8,7 +8,9 @@ library;
 
 import 'room.dart';
 
-enum RoomLayoutKind { rangees, u, ilots, blanche }
+/// `mesSalles` ne génère rien elle-même : elle sélectionne une salle déjà
+/// enregistrée par l'utilisateur, dans le sélecteur de disposition.
+enum RoomLayoutKind { rangees, u, ilots, blanche, mesSalles }
 
 /// Salle en rangées classique : rows × cols places, sans forme particulière.
 /// C'est la disposition par défaut de [Room] elle-même.

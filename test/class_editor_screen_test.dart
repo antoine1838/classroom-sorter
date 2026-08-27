@@ -581,6 +581,174 @@ void main() {
     });
   });
 
+  group('Onglet Salle — salles enregistrées (#28)', () {
+    testWidgets(
+        'Enregistrer la salle crée une entrée et affiche la provenance',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      final state = await _pump(t, cls);
+
+      await t.tap(find.text('Enregistrer la salle'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), 'B204');
+      await t.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
+      await t.pumpAndSettle();
+
+      expect(state.savedRooms, hasLength(1));
+      expect(state.savedRooms.single.name, 'B204');
+      expect(cls.savedRoomId, state.savedRooms.single.id);
+      expect(find.widgetWithText(Chip, 'B204'), findsOneWidget);
+    });
+
+    testWidgets('un nom déjà pris propose de remplacer', (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      final state = await _pump(t, cls);
+      state.addSavedRoom('B204', Room(rows: 5, cols: 5));
+
+      await t.tap(find.text('Enregistrer la salle'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), 'B204');
+      await t.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Remplacer la salle ?'), findsOneWidget);
+      await t.tap(find.widgetWithText(FilledButton, 'Remplacer'));
+      await t.pumpAndSettle();
+
+      expect(state.savedRooms, hasLength(1),
+          reason: 'remplace l\'existante plutôt que d\'en ajouter une');
+      expect(state.savedRooms.single.room.rows, 2,
+          reason: 'la géométrie vient de la classe, pas de l\'ancienne salle');
+    });
+
+    testWidgets(
+        'une classe déjà liée propose Mettre à jour / Enregistrer comme '
+        'nouvelle',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      final state = await _pump(t, cls);
+      final saved = state.addSavedRoom('B204', Room(rows: 2, cols: 3));
+      cls.savedRoomId = saved.id;
+      cls.room.toggle(0, 0); // retouche locale après le lien
+
+      await t.tap(find.text('Enregistrer la salle'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Mettre à jour « B204 »'), findsOneWidget);
+      await t.tap(find.text('Mettre à jour « B204 »'));
+      await t.pumpAndSettle();
+
+      expect(state.savedRooms, hasLength(1),
+          reason: 'mise à jour, pas de doublon');
+      expect(state.savedRooms.single.room.capacity, 5,
+          reason: 'la retouche (une place retirée) doit être reportée');
+    });
+
+    testWidgets(
+        'Mes salles : liste vide affiche un message explicatif', (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      await _pump(t, cls);
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Mes salles'));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('Aucune salle enregistrée'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Mes salles : Appliquer est désactivé sans sélection, activé après',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      final state = await _pump(t, cls);
+      state.addSavedRoom('B204', Room(rows: 4, cols: 6));
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Mes salles'));
+      await t.pumpAndSettle();
+
+      final applyBefore =
+          t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Appliquer'));
+      expect(applyBefore.onPressed, isNull);
+
+      await t.tap(find.text('B204'));
+      await t.pumpAndSettle();
+      final applyAfter =
+          t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Appliquer'));
+      expect(applyAfter.onPressed, isNotNull);
+
+      await t.tap(find.widgetWithText(FilledButton, 'Appliquer'));
+      await t.pumpAndSettle();
+
+      expect(cls.room.rows, 4);
+      expect(cls.room.cols, 6);
+      expect(cls.savedRoomId, state.savedRooms.single.id);
+    });
+
+    testWidgets(
+        'retoucher la salle d\'une classe après application ne modifie pas '
+        'la salle enregistrée',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      final state = await _pump(t, cls);
+      state.addSavedRoom('B204', Room(rows: 4, cols: 6));
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Mes salles'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('B204'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(FilledButton, 'Appliquer'));
+      await t.pumpAndSettle();
+      expect(cls.room.capacity, 24);
+
+      // Retouche locale, sans repasser par « Enregistrer la salle ».
+      cls.room.toggle(0, 0);
+      state.touch();
+      await t.pumpAndSettle();
+
+      expect(cls.room.capacity, 23,
+          reason: 'la classe garde sa propre place retirée');
+      expect(state.savedRooms.single.room.capacity, 24,
+          reason: 'la salle enregistrée ne doit pas suivre la retouche');
+    });
+
+    testWidgets('appui long : renommer puis supprimer une salle', (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      final state = await _pump(t, cls);
+      state.addSavedRoom('B204', Room(rows: 4, cols: 6));
+
+      await t.tap(find.text('Disposition'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Mes salles'));
+      await t.pumpAndSettle();
+
+      await t.longPress(find.widgetWithText(InkWell, 'B204'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Renommer'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), 'C105');
+      await t.tap(find.widgetWithText(FilledButton, 'OK'));
+      await t.pumpAndSettle();
+
+      expect(find.text('C105'), findsOneWidget);
+      expect(state.savedRooms.single.name, 'C105');
+
+      await t.longPress(find.widgetWithText(InkWell, 'C105'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Supprimer'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(FilledButton, 'Supprimer'));
+      await t.pumpAndSettle();
+
+      expect(state.savedRooms, isEmpty);
+      expect(find.textContaining('Aucune salle enregistrée'), findsOneWidget);
+    });
+  });
+
   group('Objectifs d\'équilibre', () {
     testWidgets('seul « séparer les agités » est actif par défaut', (t) async {
       final cls = _cls();
