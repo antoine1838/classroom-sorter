@@ -371,6 +371,10 @@ class _RoomTab extends StatelessWidget {
   final ClassGroup cls;
   const _RoomTab({required this.state, required this.cls});
 
+  /// Libellé partagé par le bouton et les deux boîtes de dialogue
+  /// d'enregistrement (mise à jour ou nouvelle salle).
+  static const _kSaveRoomLabel = 'Enregistrer la salle';
+
   void _resize({int? rows, int? cols}) {
     if (rows != null) cls.room.rows = rows.clamp(1, 15);
     if (cols != null) cls.room.cols = cols.clamp(1, 15);
@@ -445,7 +449,7 @@ class _RoomTab extends StatelessWidget {
       final choice = await showDialog<_SaveRoomChoice>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Enregistrer la salle'),
+          title: const Text(_kSaveRoomLabel),
           content: Text('Cette salle provient de « ${origin.name} ».'),
           actions: [
             TextButton(
@@ -484,7 +488,7 @@ class _RoomTab extends StatelessWidget {
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Enregistrer la salle'),
+        title: const Text(_kSaveRoomLabel),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -644,7 +648,7 @@ class _RoomTab extends StatelessWidget {
                           onPressed: () => _saveRoom(context),
                           icon: const Icon(Icons.bookmark_add_outlined,
                               size: 18),
-                          label: const Text('Enregistrer la salle'),
+                          label: const Text(_kSaveRoomLabel),
                         ),
                       ],
                     ),
