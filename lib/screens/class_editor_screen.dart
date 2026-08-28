@@ -294,16 +294,8 @@ class ClassEditorScreen extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, constraints) => Row(
                     children: [
-                      // BackButton tire son infobulle de
-                      // MaterialLocalizations, qui répond en anglais faute de
-                      // délégué de localisation configuré pour l'app (aucune
-                      // trace de localizationsDelegates dans main.dart — une
-                      // vraie localisation FR est un chantier à part, hors
-                      // scope ici). On fixe juste ce bouton en français.
-                      IconButton(
+                      BackButton(
                         key: kClassBackKey,
-                        icon: const BackButtonIcon(),
-                        tooltip: 'Retour',
                         onPressed: () => Navigator.maybePop(context),
                       ),
                       Expanded(

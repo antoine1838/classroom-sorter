@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
@@ -93,6 +94,8 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
           colorSchemeSeed: seed,
           useMaterial3: true,
           brightness: Brightness.dark),
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('fr')],
       home: HomeScreen(state: _state),
     );
   }

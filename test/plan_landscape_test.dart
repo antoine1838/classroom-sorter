@@ -6,6 +6,7 @@
 // FittedBox réduisait la salle jusqu'à l'invisible. On vérifie donc ici que la
 // grille reçoit assez de place pour rester lisible.
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -54,8 +55,11 @@ Future<void> _pump(WidgetTester t, ClassGroup cls, Size size) async {
   addTearDown(t.view.resetDevicePixelRatio);
 
   final state = AppState()..classes.add(cls);
-  await t.pumpWidget(
-      MaterialApp(home: ClassEditorScreen(state: state, cls: cls)));
+  await t.pumpWidget(MaterialApp(
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
+    supportedLocales: const [Locale('fr')],
+    home: ClassEditorScreen(state: state, cls: cls),
+  ));
   await t.pumpAndSettle();
 
   // On monte sur l'onglet Salle avant de basculer sur Plan : Salle et Élèves
@@ -501,10 +505,9 @@ void main() {
     testWidgets('le retour porte une infobulle en français', (t) async {
       await _pump(t, _cls(), _landscape);
 
-      final button = t.widget<IconButton>(find.byKey(kClassBackKey));
-      expect(button.tooltip, 'Retour',
-          reason: 'BackButton hérite « Back » de MaterialLocalizations, '
-              'faute de délégué FR configuré pour l\'app');
+      expect(find.byTooltip('Retour'), findsOneWidget,
+          reason: 'localizationsDelegates + supportedLocales fr fournissent '
+              'la traduction de MaterialLocalizations.backButtonTooltip');
     });
 
     testWidgets('en mode icônes, chaque onglet garde son nom en infobulle',
