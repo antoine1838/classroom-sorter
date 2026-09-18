@@ -1,6 +1,7 @@
 /// Éditeur d'une classe : 4 onglets — Salle, Élèves, Règles, Plan.
 library;
 
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -2545,6 +2546,22 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
 // Onglet PLAN
 // ---------------------------------------------------------------------------
 
+/// Empreinte des données dont dépend un [PlanResult].
+///
+/// Le nom de la classe et les préférences globales d'affichage sont
+/// volontairement absents : ils peuvent changer sans rendre le rapport faux.
+String _planEvaluationSignature(ClassGroup cls) {
+  final assignment = cls.assignment.entries.toList()
+    ..sort((a, b) => a.key.compareTo(b.key));
+  return jsonEncode({
+    'room': cls.room.toJson(),
+    'students': [for (final s in cls.students) s.toJson()],
+    'rules': [for (final r in cls.rules) r.toJson()],
+    'balance': cls.balance.toJson(),
+    'assignment': {for (final e in assignment) e.key: e.value},
+  });
+}
+
 class _PlanTab extends StatefulWidget {
   final AppState state;
   final ClassGroup cls;
@@ -2556,6 +2573,7 @@ class _PlanTab extends StatefulWidget {
 
 class _PlanTabState extends State<_PlanTab> {
   PlanResult? _result;
+  String? _resultSignature;
 
   /// Partagé entre la fenêtre de zoom et les places : un pincement posé sur une
   /// place ne doit pas saisir d'élève (voir PlanViewport).
@@ -2568,16 +2586,35 @@ class _PlanTabState extends State<_PlanTab> {
 
   ClassGroup get cls => widget.cls;
 
+  @override
+  void didUpdateWidget(covariant _PlanTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_result != null &&
+        _resultSignature != _planEvaluationSignature(cls)) {
+      _clearResult();
+    }
+  }
+
+  void _setResult(PlanResult result) {
+    _result = result;
+    _resultSignature = _planEvaluationSignature(cls);
+  }
+
+  void _clearResult() {
+    _result = null;
+    _resultSignature = null;
+  }
+
   void _generate() {
     final result = SeatingEngine(cls).generate();
     cls.assignment = result.assignment;
     widget.state.touch();
-    setState(() => _result = result);
+    setState(() => _setResult(result));
   }
 
   void _validate() {
     final result = SeatingEngine(cls).evaluate();
-    setState(() => _result = result);
+    setState(() => _setResult(result));
   }
 
   void _swap(String seatA, String seatB) {
@@ -2599,7 +2636,7 @@ class _PlanTabState extends State<_PlanTab> {
       } else {
         cls.assignment[seatB] = a;
       }
-      _result = null;
+      _clearResult();
     });
     widget.state.touch();
   }
@@ -2928,7 +2965,7 @@ class _PlanTabState extends State<_PlanTab> {
   void _deleteStudentFromPlan(Student s) {
     cls.purgeStudent(s.id);
     cls.students.remove(s);
-    setState(() => _result = null);
+    setState(_clearResult);
     widget.state.touch();
   }
 

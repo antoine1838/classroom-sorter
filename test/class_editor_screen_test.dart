@@ -1067,6 +1067,45 @@ void main() {
       expect(find.text('Toutes les règles sont respectées 🎉'), findsOneWidget);
     });
 
+    testWidgets('modifier un objectif invalide le rapport mais conserve le plan',
+        (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      expect(find.byKey(kReportButtonKey), findsOneWidget);
+      final assignment = Map<String, String>.from(cls.assignment);
+
+      await _tab(t, 'Règles');
+      await t.tap(find.text('Mixer filles / garçons'));
+      await t.pumpAndSettle();
+      await _tab(t, 'Plan');
+
+      expect(cls.assignment, assignment,
+          reason: 'invalider le rapport ne doit déplacer aucun élève');
+      expect(find.byKey(kReportButtonKey), findsNothing);
+      expect(find.text('Valider'), findsOneWidget,
+          reason: 'l’utilisateur peut recalculer le rapport sans régénérer');
+    });
+
+    testWidgets('une préférence visuelle globale conserve le rapport', (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      final state = await _pump(t, cls);
+      await _tab(t, 'Plan');
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      expect(find.byKey(kReportButtonKey), findsOneWidget);
+
+      state.setGenderColorPalette(GenderColorPalette.violetAmbre);
+      await t.pumpAndSettle();
+
+      expect(find.byKey(kReportButtonKey), findsOneWidget,
+          reason: 'la palette ne change ni les règles ni leur évaluation');
+    });
+
     testWidgets('les élèves en trop sont signalés', (t) async {
       final cls = _cls(rows: 1, cols: 2, students: 3);
       await _pump(t, cls);
