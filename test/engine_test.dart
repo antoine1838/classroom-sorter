@@ -72,6 +72,73 @@ void main() {
     expect(res.violations, isEmpty);
   });
 
+  test('place imposée souple honorée quand rien de prioritaire ne s\'y oppose',
+      () {
+    final target = Room.keyOf(0, 1);
+    final cls = _classWith(
+      room: Room(rows: 1, cols: 2),
+      students: [
+        Student(id: 'a', firstName: 'A'),
+        Student(id: 'b', firstName: 'B'),
+      ],
+      rules: [
+        Rule(
+          id: 'r',
+          type: RuleType.fixedSeat,
+          studentAId: 'a',
+          seatRow: 0,
+          seatCol: 1,
+          hard: false,
+        ),
+      ],
+      balance: BalanceSettings(separateAgites: false),
+    );
+
+    final res = SeatingEngine(cls, seed: 1).generate();
+
+    expect(res.assignment[target], 'a');
+    expect(res.issues, isEmpty);
+  });
+
+  test('contrainte dure prioritaire sur une place imposée souple', () {
+    final front = Room.keyOf(0, 0);
+    final back = Room.keyOf(1, 0);
+    final cls = _classWith(
+      room: Room(rows: 2, cols: 1),
+      students: [
+        Student(id: 'a', firstName: 'A'),
+        Student(id: 'b', firstName: 'B'),
+      ],
+      rules: [
+        Rule(
+          id: 'soft-fixed',
+          type: RuleType.fixedSeat,
+          studentAId: 'a',
+          seatRow: 0,
+          seatCol: 0,
+          hard: false,
+        ),
+        Rule(
+          id: 'hard-front',
+          type: RuleType.frontZone,
+          studentAId: 'b',
+          frontRows: 1,
+          hard: true,
+        ),
+      ],
+      balance: BalanceSettings(separateAgites: false),
+    );
+
+    final res = SeatingEngine(cls, seed: 1).generate();
+
+    expect(res.assignment[front], 'b',
+        reason: 'la contrainte dure de B doit primer sur la préférence de A');
+    expect(res.assignment[back], 'a');
+    expect(res.hasHardViolations, isFalse);
+    expect(res.warnings, hasLength(1));
+    expect(res.warnings.single, contains('place imposée'));
+  });
+
   test('contrainte « devant » respectée', () {
     final cls = _classWith(
       room: Room(rows: 4, cols: 4),

@@ -199,6 +199,39 @@ void main() {
       expect(res.reasonsFor('b').single, contains('déjà occupée'));
     });
 
+    test('deux places imposées souples identiques restent des préférences',
+        () {
+      final cls = _cls(
+        students: [_s('a'), _s('b')],
+        rules: [
+          Rule(
+            id: 'r1',
+            type: RuleType.fixedSeat,
+            studentAId: 'a',
+            seatRow: 0,
+            seatCol: 0,
+            hard: false,
+          ),
+          Rule(
+            id: 'r2',
+            type: RuleType.fixedSeat,
+            studentAId: 'b',
+            seatRow: 0,
+            seatCol: 0,
+            hard: false,
+          ),
+        ],
+      );
+
+      final res = SeatingEngine(cls, seed: 1).generate();
+
+      expect(res.hardCount, 0);
+      expect(res.warnings, hasLength(1),
+          reason: 'une préférence impossible ne doit jamais devenir dure');
+      expect(res.warnings.single, contains('place imposée'));
+      expect(_flagged(res), hasLength(1));
+    });
+
     test('plan correct : aucun élève marqué', () {
       final cls = _cls(
         students: [_s('a'), _s('b')],

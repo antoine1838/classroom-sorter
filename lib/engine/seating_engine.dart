@@ -182,8 +182,9 @@ class SeatingEngine {
 
   /// Génère un plan. [seed] non fourni => résultat différent à chaque appel.
   PlanResult generate({int restarts = 40, int iterations = 1000}) {
-    // 1) Places imposées (contrainte dure gérée par « épinglage »).
-    final pinning = _pinFixedSeats();
+    // 1) Places imposées obligatoires, gérées par « épinglage ». Les places
+    // imposées souples restent libres : elles sont optimisées par le recuit.
+    final pinning = _pinHardFixedSeats();
 
     // 2) Élèves et places libres.
     final freeStudents = [
@@ -222,12 +223,12 @@ class SeatingEngine {
     );
   }
 
-  /// Résout les règles [RuleType.fixedSeat] par épinglage : renvoie les
-  /// places imposées, l'ensemble des places ainsi prises, et les conflits
-  /// détectés (place inexistante, déjà prise, ou élève avec plusieurs places
-  /// imposées — seule la première est gardée).
+  /// Résout les règles [RuleType.fixedSeat] obligatoires par épinglage :
+  /// renvoie les places imposées, l'ensemble des places ainsi prises, et les
+  /// conflits détectés (place inexistante, déjà prise, ou élève avec plusieurs
+  /// places imposées — seule la première est gardée).
   ({Map<String, String> pinned, Set<String> takenSeats, List<PlanIssue> issues})
-      _pinFixedSeats() {
+      _pinHardFixedSeats() {
     final pinned = <String, String>{}; // studentId -> seatKey
     final takenSeats = <String>{};
     final issues = <PlanIssue>[];
@@ -240,7 +241,8 @@ class SeatingEngine {
           studentIds: [s.id],
         ));
 
-    for (final rule in cls.rules.where((r) => r.type == RuleType.fixedSeat)) {
+    for (final rule in cls.rules
+        .where((r) => r.type == RuleType.fixedSeat && r.hard)) {
       final s = _byId[rule.studentAId];
       if (s == null || rule.seatRow == null || rule.seatCol == null) continue;
       final k = Room.keyOf(rule.seatRow!, rule.seatCol!);
@@ -339,21 +341,12 @@ class SeatingEngine {
         if (!seatOf.containsKey(s.id)) s.id
     ];
 
-    final issues = [..._report(seatOf, const [], unplaced)];
-
-    for (final rule in cls.rules.where((r) => r.type == RuleType.fixedSeat)) {
-      final s = _byId[rule.studentAId];
-      if (s == null || rule.seatRow == null || rule.seatCol == null) continue;
-      if (!cls.room.isSeat(rule.seatRow!, rule.seatCol!)) continue;
-      final expected = Room.keyOf(rule.seatRow!, rule.seatCol!);
-      if (seatOf[s.id] != expected) {
-        issues.add(PlanIssue(
-          severity: rule.hard ? IssueSeverity.hard : IssueSeverity.soft,
-          label: "${s.fullName} n'est pas à la place imposée.",
-          studentIds: [s.id],
-        ));
-      }
-    }
+    final issues = _report(
+      seatOf,
+      const [],
+      unplaced,
+      includeHardFixedSeats: true,
+    );
 
     return PlanResult(
       assignment: Map<String, String>.from(cls.assignment),
@@ -412,8 +405,9 @@ class SeatingEngine {
     return cost;
   }
 
-  /// Coût des règles explicites (séparer / rapprocher / devant), pondéré par
-  /// [hardPenalty] ou [softPenalty] selon [Rule.hard].
+  /// Coût des règles explicites, pondéré par [hardPenalty] ou [softPenalty]
+  /// selon [Rule.hard]. Les places imposées obligatoires sont déjà épinglées ;
+  /// seules les souples doivent donc influencer le recuit.
   double _ruleCost(Map<String, String> seatOf) {
     double cost = 0;
     for (final rule in cls.rules) {
@@ -422,7 +416,8 @@ class SeatingEngine {
         RuleType.separate => _separateCost(rule, seatOf, p),
         RuleType.keepTogether => _keepTogetherCost(rule, seatOf, p),
         RuleType.frontZone => _frontZoneCost(rule, seatOf, p),
-        RuleType.fixedSeat => 0, // géré par épinglage
+        RuleType.fixedSeat =>
+          rule.hard ? 0 : _fixedSeatCost(rule, seatOf, p),
       };
     }
     return cost;
@@ -442,6 +437,13 @@ class SeatingEngine {
     if (ka == null) return p;
     final (r, _) = Room.parse(ka);
     return r >= rule.frontRows ? p : 0;
+  }
+
+  double _fixedSeatCost(
+      Rule rule, Map<String, String> seatOf, double penalty) {
+    if (rule.seatRow == null || rule.seatCol == null) return penalty;
+    final expected = Room.keyOf(rule.seatRow!, rule.seatCol!);
+    return seatOf[rule.studentAId] == expected ? 0 : penalty;
   }
 
   /// Nombre d'élèves à mauvaise vue placés hors de la moitié avant.
@@ -659,8 +661,9 @@ class SeatingEngine {
   List<PlanIssue> _report(
     Map<String, String> seatOf,
     List<PlanIssue> fixedIssues,
-    List<String> unplaced,
-  ) {
+    List<String> unplaced, {
+    bool includeHardFixedSeats = false,
+  }) {
     final issues = <PlanIssue>[...fixedIssues];
 
     String name(String? id) => _byId[id]?.fullName ?? 'Élève';
@@ -670,7 +673,9 @@ class SeatingEngine {
         RuleType.separate => _separateViolation(rule, seatOf, name),
         RuleType.keepTogether => _keepTogetherViolation(rule, seatOf, name),
         RuleType.frontZone => _frontZoneViolation(rule, seatOf, name),
-        RuleType.fixedSeat => null,
+        RuleType.fixedSeat => !rule.hard || includeHardFixedSeats
+            ? _fixedSeatViolation(rule, seatOf, name)
+            : null,
       };
       if (found != null) {
         issues.add(PlanIssue(
@@ -733,6 +738,23 @@ class SeatingEngine {
     if (ka != null && Room.parse(ka).$1 < rule.frontRows) return null;
     return (
       label: "${name(rule.studentAId)} n'est pas assez près du tableau.",
+      studentIds: [rule.studentAId],
+    );
+  }
+
+  _Violation? _fixedSeatViolation(
+      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    if (rule.seatRow == null || rule.seatCol == null) return null;
+    if (!cls.room.isSeat(rule.seatRow!, rule.seatCol!)) {
+      return (
+        label: "${name(rule.studentAId)} : la place imposée n'existe pas.",
+        studentIds: [rule.studentAId],
+      );
+    }
+    final expected = Room.keyOf(rule.seatRow!, rule.seatCol!);
+    if (seatOf[rule.studentAId] == expected) return null;
+    return (
+      label: "${name(rule.studentAId)} n'est pas à la place imposée.",
       studentIds: [rule.studentAId],
     );
   }
