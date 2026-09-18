@@ -136,7 +136,10 @@ class Repository {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(key);
     if (raw == null || raw.isEmpty) {
-      return RepositoryLoadResult(<T>[], RepositoryLoadStatus.ok);
+      return RepositoryLoadResult(
+        List<T>.empty(growable: true),
+        RepositoryLoadStatus.ok,
+      );
     }
 
     final decoded = _tryDecodeList(raw, fromJson);
@@ -162,7 +165,10 @@ class Repository {
       }
     }
 
-    return RepositoryLoadResult(<T>[], RepositoryLoadStatus.corrupted);
+    return RepositoryLoadResult(
+      List<T>.empty(growable: true),
+      RepositoryLoadStatus.corrupted,
+    );
   }
 
   Future<void> _saveList<T>({

@@ -39,82 +39,85 @@ class HomeScreen extends StatelessWidget {
       ),
       body: ListenableBuilder(
         listenable: state,
-        builder: (context, _) {
-          if (state.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final Widget content;
-          if (state.classes.isEmpty) {
-            content = _EmptyState(
-              onAdd: () => _addClass(context),
-              onAddDemo: () => _addDemoClass(context),
-            );
-          } else {
-            content = ListView.separated(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-              itemCount: state.classes.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, i) {
-                final c = state.classes[i];
-                return Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: ListTile(
-                    leading: CircleAvatar(child: Text('${c.students.length}')),
-                    title: Text(c.name.isEmpty ? 'Classe' : c.name),
-                    subtitle: Text(
-                        '${c.students.length} élève(s) · ${c.room.capacity} place(s)'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: 'Supprimer',
-                      onPressed: () => _confirmDelete(context, c),
-                    ),
-                    onTap: () => _open(context, c),
-                  ),
-                );
-              },
-            );
-          }
-
-          final message = state.persistenceMessage;
-          if (message == null) return content;
-          final isError = state.persistenceMessageIsError;
-          final cs = Theme.of(context).colorScheme;
-          return Column(
-            children: [
-              MaterialBanner(
-                leading: Icon(
-                  isError ? Icons.error_outline : Icons.restore,
-                  color: isError
-                      ? cs.onErrorContainer
-                      : cs.onTertiaryContainer,
-                ),
-                backgroundColor:
-                    isError ? cs.errorContainer : cs.tertiaryContainer,
-                content: Text(
-                  message,
-                  style: TextStyle(
-                    color: isError
-                        ? cs.onErrorContainer
-                        : cs.onTertiaryContainer,
-                  ),
-                ),
-                actions: [
-                  if (state.canRetryPersistence)
-                    TextButton(
-                      onPressed: state.retryPersistence,
-                      child: const Text('Réessayer'),
-                    ),
-                  TextButton(
-                    onPressed: state.dismissPersistenceMessage,
-                    child: const Text('Fermer'),
-                  ),
-                ],
-              ),
-              Expanded(child: content),
-            ],
-          );
-        },
+        builder: _buildBody,
       ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, Widget? _) {
+    if (state.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final content = _buildClassesContent(context);
+    final message = state.persistenceMessage;
+    return message == null
+        ? content
+        : _withPersistenceBanner(context, content, message);
+  }
+
+  Widget _buildClassesContent(BuildContext context) {
+    if (state.classes.isEmpty) {
+      return _EmptyState(
+        onAdd: () => _addClass(context),
+        onAddDemo: () => _addDemoClass(context),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+      itemCount: state.classes.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, i) => _buildClassCard(context, state.classes[i]),
+    );
+  }
+
+  Widget _buildClassCard(BuildContext context, ClassGroup c) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        leading: CircleAvatar(child: Text('${c.students.length}')),
+        title: Text(c.name.isEmpty ? 'Classe' : c.name),
+        subtitle:
+            Text('${c.students.length} élève(s) · ${c.room.capacity} place(s)'),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: 'Supprimer',
+          onPressed: () => _confirmDelete(context, c),
+        ),
+        onTap: () => _open(context, c),
+      ),
+    );
+  }
+
+  Widget _withPersistenceBanner(
+      BuildContext context, Widget content, String message) {
+    final isError = state.persistenceMessageIsError;
+    final cs = Theme.of(context).colorScheme;
+    final foreground =
+        isError ? cs.onErrorContainer : cs.onTertiaryContainer;
+    return Column(
+      children: [
+        MaterialBanner(
+          leading: Icon(
+            isError ? Icons.error_outline : Icons.restore,
+            color: foreground,
+          ),
+          backgroundColor:
+              isError ? cs.errorContainer : cs.tertiaryContainer,
+          content: Text(message, style: TextStyle(color: foreground)),
+          actions: [
+            if (state.canRetryPersistence)
+              TextButton(
+                onPressed: state.retryPersistence,
+                child: const Text('Réessayer'),
+              ),
+            TextButton(
+              onPressed: state.dismissPersistenceMessage,
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+        Expanded(child: content),
+      ],
     );
   }
 

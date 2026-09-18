@@ -31,6 +31,13 @@ String newId() =>
 /// cocher) ou [compact] (une colonne par attribut, tap pour cycler).
 enum StudentsViewMode { complete, compact }
 
+typedef _PersistenceBatch = ({
+  bool saveClasses,
+  bool saveRooms,
+  String? viewMode,
+  String? palette,
+});
+
 class AppState extends ChangeNotifier {
   final Repository _repo;
 
@@ -199,49 +206,61 @@ class AppState extends ChangeNotifier {
   Future<void> _drainPersistence() async {
     try {
       while (_hasPendingPersistence) {
-        final saveClasses = _classesDirty;
-        final saveRooms = _savedRoomsDirty;
-        final viewMode = _pendingStudentsViewMode;
-        final palette = _pendingGenderColorPalette;
-
-        _classesDirty = false;
-        _savedRoomsDirty = false;
-        _pendingStudentsViewMode = null;
-        _pendingGenderColorPalette = null;
-
-        Object? firstError;
-        Future<void> attempt(Future<void> Function() save) async {
-          try {
-            await save();
-          } catch (error) {
-            firstError ??= error;
-          }
-        }
-
-        if (saveClasses) {
-          await attempt(() => _repo.save(classes));
-        }
-        if (saveRooms) {
-          await attempt(() => _repo.saveSavedRooms(savedRooms));
-        }
-        if (viewMode != null) {
-          await attempt(() => _repo.saveStudentsViewMode(viewMode));
-        }
-        if (palette != null) {
-          await attempt(() => _repo.saveGenderColorPalette(palette));
-        }
-
-        if (firstError == null) {
-          _clearSaveError();
-        } else {
-          _setSaveError(firstError!);
-        }
+        final error = await _persistBatch(_takePersistenceBatch());
+        _applyPersistenceResult(error);
       }
     } finally {
       _persistenceLoop = null;
       // Défensif : une nouvelle mutation peut avoir été notifiée pendant la
       // finalisation de la boucle.
       if (_hasPendingPersistence) _startPersistence();
+    }
+  }
+
+  _PersistenceBatch _takePersistenceBatch() {
+    final batch = (
+      saveClasses: _classesDirty,
+      saveRooms: _savedRoomsDirty,
+      viewMode: _pendingStudentsViewMode,
+      palette: _pendingGenderColorPalette,
+    );
+    _classesDirty = false;
+    _savedRoomsDirty = false;
+    _pendingStudentsViewMode = null;
+    _pendingGenderColorPalette = null;
+    return batch;
+  }
+
+  Future<Object?> _persistBatch(_PersistenceBatch batch) async {
+    Object? firstError;
+    Future<void> attempt(Future<void> Function() save) async {
+      try {
+        await save();
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+
+    if (batch.saveClasses) {
+      await attempt(() => _repo.save(classes));
+    }
+    if (batch.saveRooms) {
+      await attempt(() => _repo.saveSavedRooms(savedRooms));
+    }
+    if (batch.viewMode != null) {
+      await attempt(() => _repo.saveStudentsViewMode(batch.viewMode!));
+    }
+    if (batch.palette != null) {
+      await attempt(() => _repo.saveGenderColorPalette(batch.palette!));
+    }
+    return firstError;
+  }
+
+  void _applyPersistenceResult(Object? error) {
+    if (error == null) {
+      _clearSaveError();
+    } else {
+      _setSaveError(error);
     }
   }
 

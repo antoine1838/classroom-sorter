@@ -16,8 +16,13 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('Repository — classes', () {
-    test('aucune donnée : liste vide', () async {
-      expect(await Repository().load(), isEmpty);
+    test('aucune donnée : liste vide et modifiable', () async {
+      final classes = await Repository().load();
+
+      expect(classes, isEmpty);
+      classes.add(ClassGroup(id: 'a', name: '5ème A'));
+      expect(classes, hasLength(1),
+          reason: 'la liste chargée alimente directement AppState');
     });
 
     test('aller-retour save / load', () async {
