@@ -76,6 +76,26 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
+  testWidgets('une corruption des classes est signalée sans être écrasée',
+      (t) async {
+    const raw = 'données illisibles';
+    SharedPreferences.setMockInitialValues(
+        {'plandeclasse_classes_v1': raw});
+
+    final state = await _pump(t);
+
+    expect(state.classes, isEmpty);
+    expect(find.byType(MaterialBanner), findsOneWidget);
+    expect(find.textContaining('aucune sauvegarde valide'), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('plandeclasse_classes_v1_corrupt'), raw);
+
+    await t.tap(find.text('Fermer'));
+    await t.pumpAndSettle();
+    expect(find.byType(MaterialBanner), findsNothing);
+  });
+
   group('Aucune classe', () {
     testWidgets('l\'état vide explique quoi faire', (t) async {
       await _pump(t);

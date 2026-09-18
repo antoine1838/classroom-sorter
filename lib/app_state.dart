@@ -32,7 +32,9 @@ String newId() =>
 enum StudentsViewMode { complete, compact }
 
 class AppState extends ChangeNotifier {
-  final Repository _repo = Repository();
+  final Repository _repo;
+
+  AppState({Repository? repository}) : _repo = repository ?? Repository();
 
   List<ClassGroup> classes = [];
   List<SavedRoom> savedRooms = [];
@@ -40,9 +42,30 @@ class AppState extends ChangeNotifier {
   StudentsViewMode studentsViewMode = StudentsViewMode.complete;
   GenderColorPalette genderColorPalette = GenderColorPalette.tealCorail;
 
+  String? _loadNotice;
+  bool _loadNoticeIsError = false;
+  String? _saveError;
+  Object? _lastPersistenceError;
+
+  bool _classesDirty = false;
+  bool _savedRoomsDirty = false;
+  String? _pendingStudentsViewMode;
+  String? _pendingGenderColorPalette;
+  Future<void>? _persistenceLoop;
+
+  String? get persistenceMessage => _saveError ?? _loadNotice;
+  bool get persistenceMessageIsError =>
+      _saveError != null || _loadNoticeIsError;
+  bool get canRetryPersistence => _saveError != null;
+  Object? get lastPersistenceError => _lastPersistenceError;
+
   Future<void> init() async {
-    classes = await _repo.load();
-    savedRooms = await _repo.loadSavedRooms();
+    final classLoad = await _repo.loadClassesWithStatus();
+    final roomLoad = await _repo.loadSavedRoomsWithStatus();
+    classes = classLoad.data;
+    savedRooms = roomLoad.data;
+    _setLoadNotice(classLoad.status, roomLoad.status);
+
     final rawMode = await _repo.loadStudentsViewMode();
     if (rawMode == StudentsViewMode.compact.name) {
       studentsViewMode = StudentsViewMode.compact;
@@ -59,18 +82,18 @@ class AppState extends ChangeNotifier {
   void setStudentsViewMode(StudentsViewMode mode) {
     if (studentsViewMode == mode) return;
     studentsViewMode = mode;
+    _pendingStudentsViewMode = mode.name;
     notifyListeners();
-    _repo.saveStudentsViewMode(mode.name);
+    _startPersistence();
   }
 
   void setGenderColorPalette(GenderColorPalette palette) {
     if (genderColorPalette == palette) return;
     genderColorPalette = palette;
+    _pendingGenderColorPalette = palette.name;
     notifyListeners();
-    _repo.saveGenderColorPalette(palette.name);
+    _startPersistence();
   }
-
-  Future<void> _persist() => _repo.save(classes);
 
   ClassGroup addClass(String name) {
     final c = ClassGroup(
@@ -101,8 +124,9 @@ class AppState extends ChangeNotifier {
 
   /// À appeler après toute modification d'une classe pour rafraîchir + sauver.
   void touch() {
+    _classesDirty = true;
     notifyListeners();
-    _persist();
+    _startPersistence();
   }
 
   SavedRoom? savedRoomById(String? id) {
@@ -116,11 +140,10 @@ class AppState extends ChangeNotifier {
   bool savedRoomNameExists(String name, {String? excludingId}) => savedRooms
       .any((r) => r.name == name && r.id != excludingId);
 
-  Future<void> _persistSavedRooms() => _repo.saveSavedRooms(savedRooms);
-
   void _touchSavedRooms() {
+    _savedRoomsDirty = true;
     notifyListeners();
-    _persistSavedRooms();
+    _startPersistence();
   }
 
   /// Enregistre [room] (copiée, jamais partagée) comme une nouvelle salle
@@ -157,5 +180,147 @@ class AppState extends ChangeNotifier {
   void deleteSavedRoom(String id) {
     savedRooms.removeWhere((r) => r.id == id);
     _touchSavedRooms();
+  }
+
+  bool get _hasPendingPersistence =>
+      _classesDirty ||
+      _savedRoomsDirty ||
+      _pendingStudentsViewMode != null ||
+      _pendingGenderColorPalette != null;
+
+  /// Une seule boucle d'écriture à la fois. Les modifications reçues pendant
+  /// une sauvegarde sont regroupées dans le passage suivant, avec l'état le
+  /// plus récent, plutôt que de lancer des écritures concurrentes.
+  void _startPersistence() {
+    if (!_hasPendingPersistence) return;
+    _persistenceLoop ??= _drainPersistence();
+  }
+
+  Future<void> _drainPersistence() async {
+    try {
+      while (_hasPendingPersistence) {
+        final saveClasses = _classesDirty;
+        final saveRooms = _savedRoomsDirty;
+        final viewMode = _pendingStudentsViewMode;
+        final palette = _pendingGenderColorPalette;
+
+        _classesDirty = false;
+        _savedRoomsDirty = false;
+        _pendingStudentsViewMode = null;
+        _pendingGenderColorPalette = null;
+
+        Object? firstError;
+        Future<void> attempt(Future<void> Function() save) async {
+          try {
+            await save();
+          } catch (error) {
+            firstError ??= error;
+          }
+        }
+
+        if (saveClasses) {
+          await attempt(() => _repo.save(classes));
+        }
+        if (saveRooms) {
+          await attempt(() => _repo.saveSavedRooms(savedRooms));
+        }
+        if (viewMode != null) {
+          await attempt(() => _repo.saveStudentsViewMode(viewMode));
+        }
+        if (palette != null) {
+          await attempt(() => _repo.saveGenderColorPalette(palette));
+        }
+
+        if (firstError == null) {
+          _clearSaveError();
+        } else {
+          _setSaveError(firstError!);
+        }
+      }
+    } finally {
+      _persistenceLoop = null;
+      // Défensif : une nouvelle mutation peut avoir été notifiée pendant la
+      // finalisation de la boucle.
+      if (_hasPendingPersistence) _startPersistence();
+    }
+  }
+
+  /// Attend que l'état actuellement en attente soit écrit. Utile avant une
+  /// opération qui dépend immédiatement des données persistées et dans les
+  /// tests ; les interactions UI ordinaires restent non bloquantes.
+  Future<void> flushPendingSaves() async {
+    while (_persistenceLoop != null) {
+      final loop = _persistenceLoop;
+      if (loop != null) await loop;
+    }
+  }
+
+  /// Retente une sauvegarde complète après une erreur signalée à l'écran.
+  void retryPersistence() {
+    _classesDirty = true;
+    _savedRoomsDirty = true;
+    _pendingStudentsViewMode = studentsViewMode.name;
+    _pendingGenderColorPalette = genderColorPalette.name;
+    _startPersistence();
+  }
+
+  void dismissPersistenceMessage() {
+    if (_saveError != null) {
+      _saveError = null;
+      _lastPersistenceError = null;
+    } else {
+      _loadNotice = null;
+      _loadNoticeIsError = false;
+    }
+    notifyListeners();
+  }
+
+  void _setLoadNotice(
+    RepositoryLoadStatus classStatus,
+    RepositoryLoadStatus roomStatus,
+  ) {
+    final messages = <String>[];
+    var hasError = false;
+
+    void addStatus(RepositoryLoadStatus status, String label) {
+      switch (status) {
+        case RepositoryLoadStatus.ok:
+          break;
+        case RepositoryLoadStatus.recoveredFromBackup:
+          messages.add(
+              'Les données $label étaient endommagées. La dernière sauvegarde '
+              'valide a été chargée.');
+          break;
+        case RepositoryLoadStatus.corrupted:
+          hasError = true;
+          messages.add(
+              'Les données $label sont illisibles et aucune sauvegarde valide '
+              'n\'a été trouvée. Une copie de récupération a été conservée '
+              'si possible.');
+          break;
+      }
+    }
+
+    addStatus(classStatus, 'des classes');
+    addStatus(roomStatus, 'des salles enregistrées');
+    _loadNotice = messages.isEmpty ? null : messages.join('\n');
+    _loadNoticeIsError = hasError;
+  }
+
+  void _setSaveError(Object error) {
+    _lastPersistenceError = error;
+    const message =
+        'La sauvegarde locale a échoué. Vos dernières modifications ne sont '
+        'peut-être pas enregistrées.';
+    if (_saveError == message) return;
+    _saveError = message;
+    notifyListeners();
+  }
+
+  void _clearSaveError() {
+    if (_saveError == null) return;
+    _saveError = null;
+    _lastPersistenceError = null;
+    notifyListeners();
   }
 }

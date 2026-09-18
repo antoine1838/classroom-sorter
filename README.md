@@ -5,7 +5,10 @@ des places** dans une salle de classe selon différents critères.
 
 Construite avec **Flutter** (un seul code pour Android, iOS, Web, Windows).
 Données **stockées localement** sur l'appareil (hors-ligne, aucune donnée envoyée
-sur Internet — adapté aux données élèves).
+sur Internet — adapté aux données élèves). Les écritures sont sérialisées et
+une copie locale de la dernière sauvegarde valide permet une restauration
+automatique si les données principales deviennent illisibles ; l'application
+prévient alors explicitement l'utilisateur.
 
 ## Fonctionnalités
 
