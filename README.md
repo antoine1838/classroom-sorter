@@ -8,7 +8,9 @@ Données **stockées localement** sur l'appareil (hors-ligne, aucune donnée env
 sur Internet — adapté aux données élèves). Les écritures sont sérialisées et
 une copie locale de la dernière sauvegarde valide permet une restauration
 automatique si les données principales deviennent illisibles ; l'application
-prévient alors explicitement l'utilisateur.
+prévient alors explicitement l'utilisateur. Sur Android, ce stockage — copie de
+secours comprise — est exclu des sauvegardes cloud et des transferts
+automatiques vers un autre appareil.
 
 ## Fonctionnalités
 

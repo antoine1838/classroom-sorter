@@ -105,4 +105,5 @@ URL (champ obligatoire de la Play Console) :
 
 Source : [`docs/index.html`](../../docs/index.html) à la racine du dépôt, publiée
 via **GitHub Pages** (`main` / `docs`). Contenu : app hors ligne, aucune donnée
-collectée / transmise / partagée, stockage local uniquement.
+collectée / transmise / partagée par l'application, stockage local et exclusion
+explicite des sauvegardes cloud et transferts automatiques Android.
