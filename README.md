@@ -135,7 +135,11 @@ regroupées dans **`store/play/`** — voir [store/play/README.md](store/play/RE
 
 Sur un tag `vX.Y.Z`, le CI ([.github/workflows/build-apk.yml](.github/workflows/build-apk.yml))
 construit l'**APK** (installable directement) et l'**AAB signé** (tous les ABI, à
-téléverser sur Google Play), et les joint à la Release GitHub.
+téléverser sur Google Play), et les joint à la Release GitHub. La ligne
+`version: X.Y.Z+N` du `pubspec.yaml` est l'unique source de vérité : le tag doit
+être `vX.Y.Z`, et le changelog Play Store `changelogs/N.txt` doit exister. Une
+release taguée ou manuelle échoue immédiatement si un secret de signature
+manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 
 ## Qualité
 

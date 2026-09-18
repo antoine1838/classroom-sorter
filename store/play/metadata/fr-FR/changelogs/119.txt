@@ -1,0 +1,4 @@
+• Sauvegardes locales fiabilisées, avec récupération automatique en cas de données endommagées.
+• Les préférences de place cèdent désormais correctement devant les règles obligatoires.
+• Supprimer une place retire aussi l'affectation de l'élève concerné.
+• Les données élèves sont exclues des sauvegardes et transferts automatiques Android.

@@ -19,6 +19,53 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v7
 
+      - name: Lire et valider la version du pubspec
+        shell: bash
+        run: |
+          VERSION=$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml | tr -d '\r')
+          if [[ ! "$VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
+            echo "::error::Version pubspec invalide : $VERSION (attendu X.Y.Z+N)"
+            exit 1
+          fi
+
+          APP_VERSION="${BASH_REMATCH[1]}"
+          APP_BUILD_NUMBER="${BASH_REMATCH[2]}"
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" &&
+                "$GITHUB_REF_NAME" != "v$APP_VERSION" ]]; then
+            echo "::error::Le tag $GITHUB_REF_NAME ne correspond pas à la version v$APP_VERSION du pubspec."
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" ||
+                "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            CHANGELOG="store/play/metadata/fr-FR/changelogs/$APP_BUILD_NUMBER.txt"
+            if [[ ! -f "$CHANGELOG" ]]; then
+              echo "::error::Changelog Play Store manquant : $CHANGELOG"
+              exit 1
+            fi
+          fi
+
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "APP_BUILD_NUMBER=$APP_BUILD_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Vérifier les secrets de signature Play Store
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        shell: bash
+        run: |
+          missing=0
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Secret de signature manquant : $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
       - name: Installer Java 17
         uses: actions/setup-java@v6
         with:
@@ -50,21 +97,21 @@ jobs:
             echo "keyPassword=$KEY_PASSWORD"
           } > android/key.properties
 
-      - name: Déterminer la version depuis le tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-
       - name: Compiler l'APK release
-        # --build-number = versionCode Android, basé sur le n° de run (monotone croissant)
+        # build-name et build-number viennent exclusivement du pubspec.
         # --target-platform : on ne compile que les ABI ARM (téléphones réels : arm64 + 32 bits).
         # On omet x86_64, qui ne sert qu'aux émulateurs -> AOT/CMake plus rapides, aucun impact
         # utilisateur. Pour tester en local sur émulateur x86_64 : `flutter run` (debug, ABI auto).
-        run: flutter build apk --release --target-platform android-arm64,android-arm --build-number=$GITHUB_RUN_NUMBER ${APP_VERSION:+--build-name=$APP_VERSION}
+        run: flutter build apk --release --target-platform android-arm64,android-arm
 
       - name: Renommer l'APK selon la convention
         # Tag v1.0.0 -> classroom-sorter-1.0.0.apk ; sinon -> classroom-sorter-build-<run>.apk
         run: |
-          LABEL="${APP_VERSION:-build-$GITHUB_RUN_NUMBER}"
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            LABEL="$APP_VERSION"
+          else
+            LABEL="build-$GITHUB_RUN_NUMBER"
+          fi
           mv build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/classroom-sorter-$LABEL.apk"
           echo "APK_LABEL=$LABEL" >> "$GITHUB_ENV"
           echo "APK_PATH=build/app/outputs/flutter-apk/classroom-sorter-$LABEL.apk" >> "$GITHUB_ENV"
@@ -83,12 +130,13 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         # Pas de --target-platform : Play génère les APK par appareil à partir de
         # tous les ABI présents dans le bundle (arm64, arm32, x86_64).
-        run: flutter build appbundle --release --build-number=$GITHUB_RUN_NUMBER ${APP_VERSION:+--build-name=$APP_VERSION}
+        # build-name et build-number viennent exclusivement du pubspec.
+        run: flutter build appbundle --release
 
       - name: Renommer l'AAB selon la convention
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         run: |
-          LABEL="${APP_VERSION:-build-$GITHUB_RUN_NUMBER}"
+          LABEL="${APK_LABEL}"
           mv build/app/outputs/bundle/release/app-release.aab "build/app/outputs/bundle/release/classroom-sorter-$LABEL.aab"
           echo "AAB_PATH=build/app/outputs/bundle/release/classroom-sorter-$LABEL.aab" >> "$GITHUB_ENV"
 

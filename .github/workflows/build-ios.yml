@@ -25,6 +25,27 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v7
 
+      - name: Lire et valider la version du pubspec
+        shell: bash
+        run: |
+          VERSION=$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml | tr -d '\r')
+          if [[ ! "$VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
+            echo "::error::Version pubspec invalide : $VERSION (attendu X.Y.Z+N)"
+            exit 1
+          fi
+
+          APP_VERSION="${BASH_REMATCH[1]}"
+          APP_BUILD_NUMBER="${BASH_REMATCH[2]}"
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" &&
+                "$GITHUB_REF_NAME" != "v$APP_VERSION" ]]; then
+            echo "::error::Le tag $GITHUB_REF_NAME ne correspond pas à la version v$APP_VERSION du pubspec."
+            exit 1
+          fi
+
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "APP_BUILD_NUMBER=$APP_BUILD_NUMBER" >> "$GITHUB_ENV"
+
       - name: Installer Flutter (stable)
         uses: subosito/flutter-action@v2
         with:
@@ -37,12 +58,13 @@ jobs:
       - name: Compiler l'app iOS (non signée)
         # --no-codesign : pas de signature (aucun certificat / provisioning requis).
         # Produit build/ios/iphoneos/Runner.app (arm64, device), non installable tel quel.
-        run: flutter build ios --release --no-codesign --build-number=$GITHUB_RUN_NUMBER
+        # build-name et build-number viennent exclusivement du pubspec.
+        run: flutter build ios --release --no-codesign
 
       - name: Empaqueter le .app (zip)
         # ditto = outil macOS qui préserve correctement la structure du bundle .app.
         run: |
-          LABEL="build-$GITHUB_RUN_NUMBER"
+          LABEL="$APP_VERSION-$APP_BUILD_NUMBER"
           cd build/ios/iphoneos
           ditto -c -k --sequesterRsrc --keepParent Runner.app "plan-de-classe-ios-$LABEL-unsigned.zip"
           echo "IOS_LABEL=$LABEL" >> "$GITHUB_ENV"

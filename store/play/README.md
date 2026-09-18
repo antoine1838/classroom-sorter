@@ -84,7 +84,14 @@ Le contenu des descriptions reflète les fonctionnalités réelles (attributs
 *build number* (`versionCode` Android, partie après le `+` dans
 `pubspec.yaml`), pas le numéro de version lisible — ex. `10.txt` pour
 `1.8.0+10`. Texte orienté utilisateur (pas un changelog technique), à copier
-dans le champ « Notes de version » de la Play Console à chaque publication.
+dans le champ « Notes de version » de la Play Console à chaque publication. Le
+workflow refuse désormais de construire l'AAB si ce fichier manque ou si le
+tag `vX.Y.Z` ne correspond pas au `pubspec`.
+
+À partir de la version `1.12.0+119`, le build number du `pubspec` est également
+celui réellement injecté dans Android et iOS. Le saut de `13` à `119` évite de
+redescendre sous le `versionCode` 118 produit par l'ancien workflow pour
+`v1.11.0`.
 
 Les fichiers déjà publiés ne se modifient pas : ce sont les archives de ce qui
 a réellement été envoyé, erreurs comprises. Une phrase fautive se corrige en ne
