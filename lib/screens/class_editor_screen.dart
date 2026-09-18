@@ -367,19 +367,26 @@ class _RoomTab extends StatelessWidget {
   /// d'enregistrement (mise à jour ou nouvelle salle).
   static const _kSaveRoomLabel = 'Enregistrer la salle';
 
-  void _resize({int? rows, int? cols}) {
-    if (rows != null) cls.room.rows = rows.clamp(1, 15);
-    if (cols != null) cls.room.cols = cols.clamp(1, 15);
-    // Nettoyer le plan des places devenues hors grille.
-    cls.assignment.removeWhere((k, v) {
+  /// Finalise une modification de la salle : une affectation ne doit jamais
+  /// survivre sur une case qui vient d'être retirée ou qui est sortie de la
+  /// grille. Sans ce nettoyage, l'élève disparaissait visuellement du plan
+  /// tout en restant considéré comme placé.
+  void _commitRoomChange() {
+    cls.assignment.removeWhere((k, _) {
       final (r, c) = Room.parse(k);
       return !cls.room.isSeat(r, c);
     });
+    state.touch();
+  }
+
+  void _resize({int? rows, int? cols}) {
+    if (rows != null) cls.room.rows = rows.clamp(1, 15);
+    if (cols != null) cls.room.cols = cols.clamp(1, 15);
     // Retirer les couloirs et orientations devenus hors grille.
     cls.room.pruneColAisles();
     cls.room.pruneRowAisles();
     cls.room.pruneFacing();
-    state.touch();
+    _commitRoomChange();
   }
 
   /// Ouvre le sélecteur de disposition, demande confirmation si la salle
@@ -424,11 +431,7 @@ class _RoomTab extends StatelessWidget {
 
     cls.room = layout;
     cls.savedRoomId = savedRoomId;
-    cls.assignment.removeWhere((k, v) {
-      final (r, c) = Room.parse(k);
-      return !cls.room.isSeat(r, c);
-    });
-    state.touch();
+    _commitRoomChange();
   }
 
   /// Enregistre la salle actuelle de la classe. Si elle provient déjà d'une
@@ -695,7 +698,8 @@ class _RoomTab extends StatelessWidget {
               hasScrollBody: false,
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: RoomEditorGrid(room: room, onChanged: state.touch),
+                child: RoomEditorGrid(
+                    room: room, onChanged: _commitRoomChange),
               ),
             ),
           ],

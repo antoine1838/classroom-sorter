@@ -237,6 +237,29 @@ void main() {
       expect(cls.room.capacity, 4);
     });
 
+    testWidgets(
+        'retirer une place occupée nettoie son affectation définitivement',
+        (t) async {
+      final seat = Room.keyOf(0, 0);
+      final cls = _cls(rows: 1, cols: 1, students: 1)
+        ..assignment[seat] = 'stu0';
+      await _pump(t, cls);
+
+      await t.longPress(find.byIcon(Icons.event_seat_outlined));
+      await t.pumpAndSettle();
+
+      expect(cls.room.capacity, 0);
+      expect(cls.assignment, isEmpty,
+          reason: 'un élève ne doit pas rester affecté à une place retirée');
+
+      // Recréer la même case ne doit pas faire réapparaître l'ancien élève.
+      await t.tap(find.byIcon(Icons.block));
+      await t.pumpAndSettle();
+
+      expect(cls.room.capacity, 1);
+      expect(cls.assignment, isEmpty);
+    });
+
     testWidgets('clic droit sur une place la retire (équivalent Windows)',
         (t) async {
       final cls = _cls(rows: 1, cols: 1);
