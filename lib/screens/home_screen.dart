@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../actions/class_group_ops.dart';
 import '../app_state.dart';
 import '../models/classroom.dart';
 import 'class_editor_screen.dart';
@@ -26,9 +27,9 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Réglages',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SettingsScreen(state: state),
-            )),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => SettingsScreen(state: state)),
+            ),
           ),
         ],
       ),
@@ -37,10 +38,7 @@ class HomeScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Nouvelle classe'),
       ),
-      body: ListenableBuilder(
-        listenable: state,
-        builder: _buildBody,
-      ),
+      body: ListenableBuilder(listenable: state, builder: _buildBody),
     );
   }
 
@@ -76,8 +74,9 @@ class HomeScreen extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(child: Text('${c.students.length}')),
         title: Text(c.name.isEmpty ? 'Classe' : c.name),
-        subtitle:
-            Text('${c.students.length} élève(s) · ${c.room.capacity} place(s)'),
+        subtitle: Text(
+          '${c.students.length} élève(s) · ${c.room.capacity} place(s)',
+        ),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline),
           tooltip: 'Supprimer',
@@ -89,11 +88,13 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _withPersistenceBanner(
-      BuildContext context, Widget content, String message) {
+    BuildContext context,
+    Widget content,
+    String message,
+  ) {
     final isError = state.persistenceMessageIsError;
     final cs = Theme.of(context).colorScheme;
-    final foreground =
-        isError ? cs.onErrorContainer : cs.onTertiaryContainer;
+    final foreground = isError ? cs.onErrorContainer : cs.onTertiaryContainer;
     return Column(
       children: [
         MaterialBanner(
@@ -101,8 +102,7 @@ class HomeScreen extends StatelessWidget {
             isError ? Icons.error_outline : Icons.restore,
             color: foreground,
           ),
-          backgroundColor:
-              isError ? cs.errorContainer : cs.tertiaryContainer,
+          backgroundColor: isError ? cs.errorContainer : cs.tertiaryContainer,
           content: Text(message, style: TextStyle(color: foreground)),
           actions: [
             if (state.canRetryPersistence)
@@ -122,9 +122,11 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _open(BuildContext context, ClassGroup c) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ClassEditorScreen(state: state, cls: c),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ClassEditorScreen(state: state, cls: c),
+      ),
+    );
   }
 
   Future<void> _addClass(BuildContext context) async {
@@ -149,9 +151,10 @@ class HomeScreen extends StatelessWidget {
       );
       if (result != null) {
         final (room, savedRoomId) = result;
-        c.room = room;
-        c.savedRoomId = savedRoomId;
-        state.touch();
+        ClassGroupOps(
+          c,
+          commit: state.touch,
+        ).applyRoom(room, savedRoomId: savedRoomId);
       }
     }
 
@@ -171,11 +174,13 @@ class HomeScreen extends StatelessWidget {
         content: Text('« ${c.name} » sera définitivement supprimée.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Supprimer')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Supprimer'),
+          ),
         ],
       ),
     );
@@ -204,11 +209,13 @@ Future<String?> _promptText(
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
         FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: Text(okLabel)),
+          onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+          child: Text(okLabel),
+        ),
       ],
     ),
   );
@@ -230,8 +237,10 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(Icons.chair_alt_outlined, size: 72, color: cs.primary),
             const SizedBox(height: 16),
-            Text('Aucune classe pour le moment',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Aucune classe pour le moment',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             Text(
               'Créez une classe, ajoutez vos élèves, définissez vos règles, '
