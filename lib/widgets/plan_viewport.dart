@@ -19,6 +19,19 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class _ZoomInIntent extends Intent {
+  const _ZoomInIntent();
+}
+
+class _ZoomOutIntent extends Intent {
+  const _ZoomOutIntent();
+}
+
+class _RecenterIntent extends Intent {
+  const _RecenterIntent();
+}
 
 /// Compte les doigts actuellement posés dans la fenêtre du plan.
 ///
@@ -60,7 +73,8 @@ class SeatDraggable<T extends Object> extends Draggable<T> {
 
   @override
   MultiDragGestureRecognizer createRecognizer(
-          GestureMultiDragStartCallback onStart) =>
+    GestureMultiDragStartCallback onStart,
+  ) =>
       _OneFingerDragRecognizer(tracker: tracker, debugOwner: this)
         ..onStart = onStart;
 }
@@ -73,7 +87,11 @@ class _OneFingerDragRecognizer extends MultiDragGestureRecognizer {
   @override
   MultiDragPointerState createNewPointerState(PointerDownEvent event) =>
       _OneFingerPointerState(
-          event.position, event.kind, gestureSettings, tracker);
+        event.position,
+        event.kind,
+        gestureSettings,
+        tracker,
+      );
 
   @override
   String get debugDescription => 'glisser une place (un seul doigt)';
@@ -164,6 +182,27 @@ class PlanViewportState extends State<PlanViewport> {
     widget.onDiagnostic?.call('recentrage');
   }
 
+  /// Augmente l'échelle autour du centre de la fenêtre, notamment au clavier.
+  void zoomIn() => _zoomBy(1.2);
+
+  /// Réduit l'échelle autour du centre de la fenêtre, notamment au clavier.
+  void zoomOut() => _zoomBy(1 / 1.2);
+
+  void _zoomBy(double factor) {
+    final next = (_scale * factor)
+        .clamp(widget.minScale, widget.maxScale)
+        .toDouble();
+    if (next == _scale) return;
+    final center = _viewport.center(Offset.zero);
+    final focal = (center - _translation) / _scale;
+    setState(() {
+      _scale = next;
+      _translation = _clampTranslation(center - focal * next, next);
+    });
+    widget.onScaleChanged?.call(next);
+    widget.onDiagnostic?.call('zoom clavier (×${next.toStringAsFixed(2)})');
+  }
+
   /// Nombre de doigts en dessous duquel le geste n'est pas un pincement.
   static const _minPointers = 2;
 
@@ -183,8 +222,7 @@ class PlanViewportState extends State<PlanViewport> {
     _ignoring = false;
     _startScale = _scale;
     _childFocal = (details.localFocalPoint - _translation) / _scale;
-    widget.onDiagnostic
-        ?.call('zoom début (${details.pointerCount} doigts)');
+    widget.onDiagnostic?.call('zoom début (${details.pointerCount} doigts)');
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
@@ -224,13 +262,17 @@ class PlanViewportState extends State<PlanViewport> {
     // ratio constant, plutôt que de lui retirer un pas fixe — un zoom déjà
     // élevé continue de réagir proportionnellement, pas de moins en moins.
     final factor = math.exp(-scroll.scrollDelta.dy * 0.0015);
-    final next =
-        (_scale * factor).clamp(widget.minScale, widget.maxScale).toDouble();
+    final next = (_scale * factor)
+        .clamp(widget.minScale, widget.maxScale)
+        .toDouble();
     if (next == _scale) return;
     final focal = (scroll.localPosition - _translation) / _scale;
     setState(() {
       _scale = next;
-      _translation = _clampTranslation(scroll.localPosition - focal * next, next);
+      _translation = _clampTranslation(
+        scroll.localPosition - focal * next,
+        next,
+      );
     });
     widget.onScaleChanged?.call(next);
   }
@@ -254,30 +296,72 @@ class PlanViewportState extends State<PlanViewport> {
         _viewport = constraints.biggest;
         // Le Listener est au-dessus du reconnaisseur : il voit tous les doigts,
         // quel que soit le vainqueur de l'arène.
-        return ClipRect(
-          child: Listener(
-            onPointerDown: (_) => widget.tracker.down(),
-            onPointerUp: (_) => widget.tracker.up(),
-            onPointerCancel: (_) => widget.tracker.up(),
-            onPointerSignal: _onPointerSignal,
-            child: RawGestureDetector(
-              behavior: HitTestBehavior.opaque,
-              gestures: <Type, GestureRecognizerFactory>{
-                ScaleGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<
-                        ScaleGestureRecognizer>(
-                  () => ScaleGestureRecognizer(debugOwner: this),
-                  (instance) => instance
-                    ..onStart = _onScaleStart
-                    ..onUpdate = _onScaleUpdate
-                    ..onEnd = _onScaleEnd,
+        return Semantics(
+          container: true,
+          label:
+              'Vue du plan, zoom ${_scale.toStringAsFixed(1)} sur ${widget.maxScale.toStringAsFixed(0)}.',
+          hint:
+              'Utilisez plus et moins pour zoomer, zéro pour recentrer. Le pincement et la molette restent disponibles.',
+          liveRegion: true,
+          child: FocusableActionDetector(
+            shortcuts: {
+              SingleActivator(LogicalKeyboardKey.equal): _ZoomInIntent(),
+              SingleActivator(LogicalKeyboardKey.add): _ZoomInIntent(),
+              SingleActivator(LogicalKeyboardKey.minus): _ZoomOutIntent(),
+              SingleActivator(LogicalKeyboardKey.digit0): _RecenterIntent(),
+            },
+            actions: {
+              _ZoomInIntent: CallbackAction<_ZoomInIntent>(
+                onInvoke: (_) {
+                  zoomIn();
+                  return null;
+                },
+              ),
+              _ZoomOutIntent: CallbackAction<_ZoomOutIntent>(
+                onInvoke: (_) {
+                  zoomOut();
+                  return null;
+                },
+              ),
+              _RecenterIntent: CallbackAction<_RecenterIntent>(
+                onInvoke: (_) {
+                  recenter();
+                  return null;
+                },
+              ),
+            },
+            child: ClipRect(
+              child: Listener(
+                onPointerDown: (_) => widget.tracker.down(),
+                onPointerUp: (_) => widget.tracker.up(),
+                onPointerCancel: (_) => widget.tracker.up(),
+                onPointerSignal: _onPointerSignal,
+                child: RawGestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  gestures: <Type, GestureRecognizerFactory>{
+                    ScaleGestureRecognizer:
+                        GestureRecognizerFactoryWithHandlers<
+                          ScaleGestureRecognizer
+                        >(
+                          () => ScaleGestureRecognizer(debugOwner: this),
+                          (instance) => instance
+                            ..onStart = _onScaleStart
+                            ..onUpdate = _onScaleUpdate
+                            ..onEnd = _onScaleEnd,
+                        ),
+                  },
+                  child: Transform(
+                    transform: Matrix4.identity()
+                      ..translateByDouble(
+                        _translation.dx,
+                        _translation.dy,
+                        0,
+                        1,
+                      )
+                      ..scaleByDouble(_scale, _scale, 1, 1),
+                    child: widget.child,
+                  ),
                 ),
-              },
-              child: Transform(
-                transform: Matrix4.identity()
-                  ..translateByDouble(_translation.dx, _translation.dy, 0, 1)
-                  ..scaleByDouble(_scale, _scale, 1, 1),
-                child: widget.child,
               ),
             ),
           ),

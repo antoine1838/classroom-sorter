@@ -8,6 +8,8 @@ library;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 
 import 'plan_viewport.dart';
 
@@ -43,6 +45,50 @@ const double kBannerBlock = 38;
 /// Au-delà de cette largeur RENDUE, une case a la place d'écrire un prénom ; en
 /// dessous elle s'en tient aux initiales.
 const double kFirstNameMinWidth = 54;
+
+class _RemoveSeatIntent extends Intent {
+  const _RemoveSeatIntent();
+}
+
+class _StartKeyboardMoveIntent extends Intent {
+  const _StartKeyboardMoveIntent();
+}
+
+class _CancelKeyboardMoveIntent extends Intent {
+  const _CancelKeyboardMoveIntent();
+}
+
+String _roomRowLabel(int row, int rows) {
+  if (row == 0) return 'rang devant';
+  if (row == rows - 1) return 'rang du fond';
+  return 'rang ${row + 1} sur $rows';
+}
+
+String _roomColumnLabel(int column) => 'colonne ${column + 1}';
+
+String _facingLabel(Facing facing) => switch (facing) {
+  Facing.nord => 'face au tableau',
+  Facing.est => 'face vers la droite',
+  Facing.sud => 'face au fond de la salle',
+  Facing.ouest => 'face vers la gauche',
+};
+
+String _editorSeatLabel(Room room, int row, int column) {
+  final position =
+      '${_roomRowLabel(row, room.rows)}, ${_roomColumnLabel(column)}';
+  if (!room.isSeat(row, column)) return 'Case vide, $position';
+  return 'Place, $position, ${_facingLabel(room.facingOf(row, column))}';
+}
+
+String _colAisleLabel(Room room, int column) =>
+    'Couloir entre ${_roomColumnLabel(column)} et '
+    '${_roomColumnLabel(column + 1)}, '
+    '${room.hasColAisleAfter(column) ? 'actif' : 'inactif'}';
+
+String _rowAisleLabel(Room room, int row) =>
+    'Couloir entre ${_roomRowLabel(row, room.rows)} et '
+    '${_roomRowLabel(row + 1, room.rows)}, '
+    '${room.hasRowAisleAfter(row) ? 'actif' : 'inactif'}';
 
 /// Bornes de la taille de police RENDUE d'un prénom, et sa part de la largeur
 /// de case.
@@ -137,7 +183,9 @@ double _seatingAreaHeight(Room room, {required bool editor}) =>
 /// d'un bord à l'autre des places plutôt que de s'arrêter avant, comme le
 /// fait déjà la barre verticale d'un couloir de colonne.
 double _seatingAreaWidth(Room room, double cell, {required bool editor}) =>
-    room.cols * cell + _horizontalExtras(room, editor: editor) - 2 * kGridPadding;
+    room.cols * cell +
+    _horizontalExtras(room, editor: editor) -
+    2 * kGridPadding;
 
 /// Tout ce que l'affichage d'une place a besoin de savoir, mesuré d'un bloc.
 class SeatMetrics {
@@ -251,25 +299,25 @@ Color _severityBackground(IssueSeverity? severity, ColorScheme cs) =>
 (Color, Color) genderPaletteColors(GenderColorPalette palette) =>
     switch (palette) {
       GenderColorPalette.violetAmbre => (
-          const Color(0xFF534AB7),
-          const Color(0xFFBA7517),
-        ),
+        const Color(0xFF534AB7),
+        const Color(0xFFBA7517),
+      ),
       GenderColorPalette.tealCorail => (
-          const Color(0xFF0F6E56),
-          const Color(0xFFD85A30),
-        ),
+        const Color(0xFF0F6E56),
+        const Color(0xFFD85A30),
+      ),
       GenderColorPalette.bleuRoseAdouci => (
-          const Color(0xFF185FA5),
-          const Color(0xFF993556),
-        ),
+        const Color(0xFF185FA5),
+        const Color(0xFF993556),
+      ),
       GenderColorPalette.bleuOrange => (
-          const Color(0xFF1F6FB2),
-          const Color(0xFFC2660D),
-        ),
+        const Color(0xFF1F6FB2),
+        const Color(0xFFC2660D),
+      ),
       GenderColorPalette.vertRose => (
-          const Color(0xFF3B6D11),
-          const Color(0xFF99244B),
-        ),
+        const Color(0xFF3B6D11),
+        const Color(0xFF99244B),
+      ),
     };
 
 /// Le genre, replié sur un liseré au bord gauche : le fond n'est plus
@@ -480,11 +528,7 @@ class _FittedGrid extends StatelessWidget {
       height: kCell,
       child: Center(
         child: (!room.hasColAisleAfter(c) && _editor)
-            ? Container(
-                width: 2,
-                height: kCell * 0.5,
-                color: cs.outlineVariant,
-              )
+            ? Container(width: 2, height: kCell * 0.5, color: cs.outlineVariant)
             : const SizedBox.shrink(),
       ),
     );
@@ -492,10 +536,31 @@ class _FittedGrid extends StatelessWidget {
     // HitTestBehavior.opaque : tout l'espace du couloir est cliquable, pas
     // seulement le fin trait peint — sinon la cible (2–4 px) est presque
     // impossible à toucher, surtout pour retirer un couloir existant.
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onToggleAisle!(c),
-      child: gap,
+    void toggle() => onToggleAisle!(c);
+    return Semantics(
+      button: true,
+      label: _colAisleLabel(room, c),
+      hint: 'Activer pour ajouter ou retirer le couloir.',
+      onTap: toggle,
+      child: FocusableActionDetector(
+        shortcuts: {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              toggle();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: toggle,
+          child: gap,
+        ),
+      ),
     );
   }
 
@@ -549,10 +614,31 @@ class _FittedGrid extends StatelessWidget {
       child: Center(child: content),
     );
     if (!_editor) return gap;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onToggleRowAisle!(r),
-      child: gap,
+    void toggle() => onToggleRowAisle!(r);
+    return Semantics(
+      button: true,
+      label: _rowAisleLabel(room, r),
+      hint: 'Activer pour ajouter ou retirer le couloir.',
+      onTap: toggle,
+      child: FocusableActionDetector(
+        shortcuts: {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              toggle();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: toggle,
+          child: gap,
+        ),
+      ),
     );
   }
 }
@@ -569,94 +655,164 @@ class RoomEditorGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return _FittedGrid(
-      room: room,
-      onToggleAisle: (c) {
-        room.toggleColAisle(c);
-        onChanged();
-      },
-      onToggleRowAisle: (r) {
-        room.toggleRowAisle(r);
-        onChanged();
-      },
-      cellBuilder: (r, c) => _buildCell(cs, r, c),
+    return Semantics(
+      container: true,
+      label:
+          'Plan de la salle, ${room.rows} rangs, ${room.cols} colonnes, ${room.capacity} places.',
+      child: _FittedGrid(
+        room: room,
+        onToggleAisle: (c) {
+          room.toggleColAisle(c);
+          onChanged();
+        },
+        onToggleRowAisle: (r) {
+          room.toggleRowAisle(r);
+          onChanged();
+        },
+        cellBuilder: (r, c) => _buildCell(cs, r, c),
+      ),
     );
   }
 
   /// Une case de l'éditeur : gestes (voir le commentaire sur `onTap`
   /// ci-dessous) et rendu (icône pivotée + bord de dossier, voir
-  /// [_facingRotationAngle] / [_backrestBar]). Extrait de [build] pour rester
-  /// sous la limite de complexité cognitive (S3776) : la case a son propre
-  /// niveau d'imbrication, plutôt que d'empiler ses conditions sur celles du
-  /// `cellBuilder` qui l'appelait en ligne.
+  /// [_facingRotationAngle] / [_backrestBar]).
   Widget _buildCell(ColorScheme cs, int r, int c) {
     final isSeat = room.isSeat(r, c);
     // Case vide : le seul geste est d'y poser une place. Place existante :
     // le tap la fait tourner (geste répété après avoir posé un modèle),
     // l'appui long ou le clic droit (équivalent souris sur Windows) la
     // retire — le geste destructeur est délibérément le moins accessible.
-    return InkWell(
-      onTap: () {
-        if (isSeat) {
-          room.rotateFacing(r, c);
-        } else {
-          room.toggle(r, c);
-        }
-        onChanged();
-      },
-      onLongPress: isSeat
-          ? () {
-              room.toggle(r, c);
-              onChanged();
-            }
+    void primaryAction() => _toggleOrRotateSeat(r, c);
+    void removeSeat() => _removeSeat(r, c);
+    return Semantics(
+      button: true,
+      label: _editorSeatLabel(room, r, c),
+      hint: isSeat
+          ? 'Activer pour faire tourner la place. Supprimer avec la touche Suppr.'
+          : 'Activer pour ajouter une place.',
+      onTap: primaryAction,
+      customSemanticsActions: isSeat
+          ? _removeSeatSemanticsAction(removeSeat)
           : null,
-      onSecondaryTap: isSeat
-          ? () {
-              room.toggle(r, c);
-              onChanged();
-            }
-          : null,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: kCell,
-        height: kCell,
-        decoration: BoxDecoration(
-          color: isSeat ? cs.surface : cs.surfaceContainerLow,
-          border: Border.all(
-            color: isSeat ? cs.primary : cs.outlineVariant,
-            width: isSeat ? 1.4 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
+      child: FocusableActionDetector(
+        shortcuts: _editorShortcuts(isSeat),
+        actions: _editorActions(
+          isSeat: isSeat,
+          primaryAction: primaryAction,
+          removeSeat: removeSeat,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              isSeat
-                  ? Transform.rotate(
-                      angle: _facingRotationAngle(room.facingOf(r, c)),
-                      child: Icon(
-                        Icons.event_seat_outlined,
-                        color: cs.primary,
-                        size: 26,
-                      ),
-                    )
-                  : Icon(Icons.block, color: cs.outlineVariant, size: 26),
-              // Même repère que sur les cartes du Plan (_seatContent),
-              // pour rester cohérent entre les deux onglets — même si
-              // l'icône pivotée donne déjà l'orientation ici.
-              if (isSeat)
-                Positioned.fill(
-                  child: Align(
-                    alignment: _backrestAlignment(room.facingOf(r, c)),
-                    child: _backrestBar(room.facingOf(r, c), width: kCell),
-                  ),
-                ),
-            ],
+        child: ExcludeSemantics(
+          child: _editorCellVisual(
+            cs: cs,
+            row: r,
+            column: c,
+            isSeat: isSeat,
+            primaryAction: primaryAction,
+            removeSeat: removeSeat,
           ),
         ),
       ),
+    );
+  }
+
+  void _toggleOrRotateSeat(int row, int column) {
+    if (room.isSeat(row, column)) {
+      room.rotateFacing(row, column);
+    } else {
+      room.toggle(row, column);
+    }
+    onChanged();
+  }
+
+  void _removeSeat(int row, int column) {
+    if (!room.isSeat(row, column)) return;
+    room.toggle(row, column);
+    onChanged();
+  }
+
+  Map<CustomSemanticsAction, VoidCallback> _removeSeatSemanticsAction(
+    VoidCallback removeSeat,
+  ) => {CustomSemanticsAction(label: 'Supprimer la place'): removeSeat};
+
+  Map<ShortcutActivator, Intent> _editorShortcuts(bool isSeat) => {
+    SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
+    SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
+    if (isSeat)
+      SingleActivator(LogicalKeyboardKey.delete): const _RemoveSeatIntent(),
+    if (isSeat)
+      SingleActivator(LogicalKeyboardKey.backspace): const _RemoveSeatIntent(),
+  };
+
+  Map<Type, Action<Intent>> _editorActions({
+    required bool isSeat,
+    required VoidCallback primaryAction,
+    required VoidCallback removeSeat,
+  }) => {
+    ActivateIntent: CallbackAction<ActivateIntent>(
+      onInvoke: (_) {
+        primaryAction();
+        return null;
+      },
+    ),
+    if (isSeat)
+      _RemoveSeatIntent: CallbackAction<_RemoveSeatIntent>(
+        onInvoke: (_) {
+          removeSeat();
+          return null;
+        },
+      ),
+  };
+
+  Widget _editorCellVisual({
+    required ColorScheme cs,
+    required int row,
+    required int column,
+    required bool isSeat,
+    required VoidCallback primaryAction,
+    required VoidCallback removeSeat,
+  }) => InkWell(
+    onTap: primaryAction,
+    onLongPress: isSeat ? removeSeat : null,
+    onSecondaryTap: isSeat ? removeSeat : null,
+    borderRadius: BorderRadius.circular(8),
+    child: Container(
+      width: kCell,
+      height: kCell,
+      decoration: BoxDecoration(
+        color: isSeat ? cs.surface : cs.surfaceContainerLow,
+        border: Border.all(
+          color: isSeat ? cs.primary : cs.outlineVariant,
+          width: isSeat ? 1.4 : 1,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _editorSeatIcon(cs, row, column, isSeat),
+            if (isSeat)
+              Positioned.fill(
+                child: Align(
+                  alignment: _backrestAlignment(room.facingOf(row, column)),
+                  child: _backrestBar(room.facingOf(row, column), width: kCell),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _editorSeatIcon(ColorScheme cs, int row, int column, bool isSeat) {
+    if (!isSeat) {
+      return Icon(Icons.block, color: cs.outlineVariant, size: 26);
+    }
+    return Transform.rotate(
+      angle: _facingRotationAngle(room.facingOf(row, column)),
+      child: Icon(Icons.event_seat_outlined, color: cs.primary, size: 26),
     );
   }
 }
@@ -673,7 +829,7 @@ typedef _SeatRenderContext = ({
   PlanResult? result,
 });
 
-class PlanGrid extends StatelessWidget {
+class PlanGrid extends StatefulWidget {
   final ClassGroup cls;
 
   /// Échanger les occupants de deux places (glisser-déposer).
@@ -713,6 +869,25 @@ class PlanGrid extends StatelessWidget {
   });
 
   @override
+  State<PlanGrid> createState() => _PlanGridState();
+}
+
+class _PlanGridState extends State<PlanGrid> {
+  String? _keyboardSourceSeat;
+
+  ClassGroup get cls => widget.cls;
+  GenderColorPalette get genderPalette => widget.genderPalette;
+
+  @override
+  void didUpdateWidget(covariant PlanGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_keyboardSourceSeat != null &&
+        !cls.assignment.containsKey(_keyboardSourceSeat)) {
+      _keyboardSourceSeat = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     // Étiquettes calculées une fois pour toute la classe : la désambiguïsation
@@ -723,7 +898,7 @@ class PlanGrid extends StatelessWidget {
       builder: (context, constraints) {
         // Tout dépend de la place réellement disponible ici : la largeur des
         // cases, l'échelle, donc la police et le choix prénom / initiales.
-        final m = seatMetrics(cls.room, constraints.biggest, zoom: zoom);
+        final m = seatMetrics(cls.room, constraints.biggest, zoom: widget.zoom);
 
         return _FittedGrid(
           room: cls.room,
@@ -739,45 +914,205 @@ class PlanGrid extends StatelessWidget {
             // Regroupé pour ne pas repasser individuellement labels/metrics/
             // facing/result à chacun des deux appels ci-dessous, identiques
             // sur ce point (voir _SeatRenderContext).
-            final ctx =
-                (labels: labels, metrics: m, facing: facing, result: result);
+            final ctx = (
+              labels: labels,
+              metrics: m,
+              facing: facing,
+              result: widget.result,
+            );
 
-            return DragTarget<String>(
-              onWillAcceptWithDetails: (d) => d.data != seatKey,
-              onAcceptWithDetails: (d) => onSwap(d.data, seatKey),
-              builder: (context, candidate, rejected) {
-                final hovering = candidate.isNotEmpty;
-                final cell = _seatContent(context, student, hovering, ctx,
-                    onTapSeat: onTapSeat);
-                if (student == null) return cell;
-                final feedback = Material(
-                  color: Colors.transparent,
-                  child: _seatContent(context, student, false, ctx,
-                      elevated: true),
-                );
-                final placeholder = _emptySeat(cs, false, m.cell, facing);
-                // Occupé : rendre l'élève déplaçable. Avec un compteur de
-                // doigts, on passe par SeatDraggable pour qu'un pincement ne
-                // saisisse pas d'élève.
-                return tracker == null
-                    ? Draggable<String>(
-                        data: seatKey,
-                        feedback: feedback,
-                        childWhenDragging: placeholder,
-                        child: cell,
-                      )
-                    : SeatDraggable<String>(
-                        tracker: tracker!,
-                        data: seatKey,
-                        feedback: feedback,
-                        childWhenDragging: placeholder,
-                        child: cell,
-                      );
-              },
+            return _keyboardSeat(
+              context,
+              seatKey: seatKey,
+              row: r,
+              column: c,
+              student: student,
+              renderContext: ctx,
+              child: DragTarget<String>(
+                onWillAcceptWithDetails: (d) => d.data != seatKey,
+                onAcceptWithDetails: (d) => widget.onSwap(d.data, seatKey),
+                builder: (context, candidate, rejected) {
+                  final hovering = candidate.isNotEmpty;
+                  final cell = _seatContent(
+                    context,
+                    student,
+                    hovering,
+                    ctx,
+                    onTapSeat: widget.onTapSeat,
+                    keyboardSelected: _keyboardSourceSeat == seatKey,
+                  );
+                  if (student == null) return cell;
+                  final feedback = Material(
+                    color: Colors.transparent,
+                    child: _seatContent(
+                      context,
+                      student,
+                      false,
+                      ctx,
+                      elevated: true,
+                    ),
+                  );
+                  final placeholder = _emptySeat(cs, false, m.cell, facing);
+                  // Occupé : rendre l'élève déplaçable. Avec un compteur de
+                  // doigts, on passe par SeatDraggable pour qu'un pincement ne
+                  // saisisse pas d'élève.
+                  return widget.tracker == null
+                      ? Draggable<String>(
+                          data: seatKey,
+                          feedback: feedback,
+                          childWhenDragging: placeholder,
+                          child: cell,
+                        )
+                      : SeatDraggable<String>(
+                          tracker: widget.tracker!,
+                          data: seatKey,
+                          feedback: feedback,
+                          childWhenDragging: placeholder,
+                          child: cell,
+                        );
+                },
+              ),
             );
           },
         );
       },
+    );
+  }
+
+  String _planSeatLabel(
+    int row,
+    int column,
+    Student? student,
+    _SeatRenderContext context,
+  ) {
+    final position =
+        '${_roomRowLabel(row, cls.room.rows)}, ${_roomColumnLabel(column)}';
+    if (student == null) {
+      return 'Place libre, $position, ${_facingLabel(context.facing)}';
+    }
+    final issues = context.result?.issuesFor(student.id) ?? const <PlanIssue>[];
+    final details = <String>[
+      'Élève ${student.fullName}',
+      position,
+      _facingLabel(context.facing),
+      'genre ${student.gender.label}',
+      'niveau ${student.level.label}',
+      'énergie ${student.energy.label}',
+      'taille ${student.size.label}',
+      student.poorEyesight ? 'mauvaise vue' : 'bonne vue',
+      if (issues.isNotEmpty) issues.map((issue) => issue.label).join(', '),
+      if (_keyboardSourceSeat == Room.keyOf(row, column))
+        'sélectionné pour déplacement',
+    ];
+    return details.join(', ');
+  }
+
+  void _activateSeat(
+    BuildContext context,
+    String targetSeat,
+    Student? student,
+  ) {
+    final source = _keyboardSourceSeat;
+    if (source != null) {
+      if (source != targetSeat) widget.onSwap(source, targetSeat);
+      setState(() => _keyboardSourceSeat = null);
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        source == targetSeat
+            ? 'Déplacement annulé.'
+            : 'Élève déplacé vers la nouvelle place.',
+        TextDirection.ltr,
+      );
+      return;
+    }
+    if (student != null) widget.onTapSeat?.call(student);
+  }
+
+  void _startKeyboardMove(
+    BuildContext context,
+    String seatKey,
+    Student student,
+  ) {
+    setState(() => _keyboardSourceSeat = seatKey);
+    SemanticsService.sendAnnouncement(
+      View.of(context),
+      '${student.fullName} sélectionné. Choisissez une place puis activez-la.',
+      TextDirection.ltr,
+    );
+  }
+
+  void _cancelKeyboardMove(BuildContext context) {
+    if (_keyboardSourceSeat == null) return;
+    setState(() => _keyboardSourceSeat = null);
+    SemanticsService.sendAnnouncement(
+      View.of(context),
+      'Déplacement annulé.',
+      TextDirection.ltr,
+    );
+  }
+
+  Widget _keyboardSeat(
+    BuildContext context, {
+    required String seatKey,
+    required int row,
+    required int column,
+    required Student? student,
+    required _SeatRenderContext renderContext,
+    required Widget child,
+  }) {
+    final selectingMove = _keyboardSourceSeat != null;
+    final actions = <Type, Action<Intent>>{
+      ActivateIntent: CallbackAction<ActivateIntent>(
+        onInvoke: (_) {
+          _activateSeat(context, seatKey, student);
+          return null;
+        },
+      ),
+      _CancelKeyboardMoveIntent: CallbackAction<_CancelKeyboardMoveIntent>(
+        onInvoke: (_) {
+          _cancelKeyboardMove(context);
+          return null;
+        },
+      ),
+      if (student != null)
+        _StartKeyboardMoveIntent: CallbackAction<_StartKeyboardMoveIntent>(
+          onInvoke: (_) {
+            _startKeyboardMove(context, seatKey, student);
+            return null;
+          },
+        ),
+    };
+    final shortcuts = <ShortcutActivator, Intent>{
+      SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
+      SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
+      SingleActivator(LogicalKeyboardKey.escape):
+          const _CancelKeyboardMoveIntent(),
+      if (student != null)
+        SingleActivator(LogicalKeyboardKey.keyM):
+            const _StartKeyboardMoveIntent(),
+    };
+    return Semantics(
+      button: student != null || selectingMove,
+      label: _planSeatLabel(row, column, student, renderContext),
+      hint: selectingMove
+          ? 'Activer pour déplacer l’élève sélectionné ici. Échap annule.'
+          : student == null
+          ? 'Place disponible pour le déplacement au clavier.'
+          : 'Activer pour les détails. Appuyer sur M pour déplacer cet élève.',
+      onTap: student != null || selectingMove
+          ? () => _activateSeat(context, seatKey, student)
+          : null,
+      customSemanticsActions: student == null
+          ? null
+          : {
+              CustomSemanticsAction(label: 'Déplacer cet élève'): () =>
+                  _startKeyboardMove(context, seatKey, student),
+            },
+      child: FocusableActionDetector(
+        shortcuts: shortcuts,
+        actions: actions,
+        child: ExcludeSemantics(child: child),
+      ),
     );
   }
 
@@ -788,6 +1123,7 @@ class PlanGrid extends StatelessWidget {
     _SeatRenderContext ctx, {
     void Function(Student student)? onTapSeat,
     bool elevated = false,
+    bool keyboardSelected = false,
   }) {
     final cs = Theme.of(context).colorScheme;
     if (student == null) {
@@ -799,8 +1135,8 @@ class PlanGrid extends StatelessWidget {
     final width = ctx.metrics.cell;
     final severity = ctx.result?.severityFor(student.id);
     final stripeColor = _genderStripeColor(student.gender, genderPalette);
-    final outline = hovering ? cs.primary : cs.outline;
-    final outlineWidth = hovering ? 2.4 : 1.0;
+    final outline = hovering || keyboardSelected ? cs.primary : cs.outline;
+    final outlineWidth = hovering || keyboardSelected ? 2.4 : 1.0;
     final box = Container(
       width: width,
       height: kCell,
@@ -820,15 +1156,21 @@ class PlanGrid extends StatelessWidget {
             Positioned(
               top: 0,
               left: 0,
-              child: Icon(levelIcon,
-                  size: _kCornerIconSize, color: _cornerIconColor),
+              child: Icon(
+                levelIcon,
+                size: _kCornerIconSize,
+                color: _cornerIconColor,
+              ),
             ),
           if (energyIcon != null)
             Positioned(
               top: 0,
               right: 0,
-              child: Icon(energyIcon,
-                  size: _kCornerIconSize, color: _cornerIconColor),
+              child: Icon(
+                energyIcon,
+                size: _kCornerIconSize,
+                color: _cornerIconColor,
+              ),
             ),
           if (sizeBarHeight != null)
             Positioned(
@@ -900,8 +1242,11 @@ class PlanGrid extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: Align(
                 alignment: _backrestAlignment(ctx.facing),
-                child: _backrestBar(ctx.facing,
-                    width: width, key: ValueKey('backrest_${student.id}')),
+                child: _backrestBar(
+                  ctx.facing,
+                  width: width,
+                  key: ValueKey('backrest_${student.id}'),
+                ),
               ),
             ),
           ),
@@ -989,22 +1334,29 @@ class PlanGrid extends StatelessWidget {
   /// le seul endroit de ce onglet où l'orientation d'une place se voit
   /// directement sur une icône plutôt que sur le bord de dossier d'une carte
   /// (voir [_seatContent]), puisqu'il n'y a pas de nom à préserver ici.
-  Widget _emptySeat(ColorScheme cs, bool hovering, double width, Facing facing) =>
-      Container(
-        width: width,
-        height: kCell,
-        decoration: BoxDecoration(
-          color: hovering ? cs.primaryContainer : cs.surface,
-          border: Border.all(
-            color: hovering ? cs.primary : cs.outlineVariant,
-            width: hovering ? 2.4 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Transform.rotate(
-          angle: _facingRotationAngle(facing),
-          child: Icon(Icons.event_seat_outlined,
-              color: cs.outlineVariant, size: 22),
-        ),
-      );
+  Widget _emptySeat(
+    ColorScheme cs,
+    bool hovering,
+    double width,
+    Facing facing,
+  ) => Container(
+    width: width,
+    height: kCell,
+    decoration: BoxDecoration(
+      color: hovering ? cs.primaryContainer : cs.surface,
+      border: Border.all(
+        color: hovering ? cs.primary : cs.outlineVariant,
+        width: hovering ? 2.4 : 1,
+      ),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Transform.rotate(
+      angle: _facingRotationAngle(facing),
+      child: Icon(
+        Icons.event_seat_outlined,
+        color: cs.outlineVariant,
+        size: 22,
+      ),
+    ),
+  );
 }
