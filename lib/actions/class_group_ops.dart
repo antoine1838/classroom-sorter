@@ -104,9 +104,13 @@ class ClassGroupOps {
     commit();
   }
 
-  PlanResult generatePlan() {
-    final result = SeatingEngine(cls).generate();
-    cls.assignment = result.assignment;
+  /// Applique un résultat calculé hors de l'UI et persiste son affectation.
+  ///
+  /// Le rapport du résultat est conservé : il contient les conflits détectés
+  /// pendant l'épinglage des places imposées, qui ne peuvent pas être
+  /// reconstruits uniquement depuis l'affectation finale.
+  PlanResult applyGeneratedPlan(PlanResult result) {
+    cls.assignment = Map<String, String>.from(result.assignment);
     commit();
     return result;
   }

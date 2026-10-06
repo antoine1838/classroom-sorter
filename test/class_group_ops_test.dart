@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandeclasse/actions/class_group_ops.dart';
+import 'package:plandeclasse/engine/seating_engine.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/rule.dart';
@@ -77,4 +78,22 @@ void main() {
     ]);
     expect(commits, 1);
   });
+
+  test(
+    'appliquer une génération valide une seule fois puis évalue le plan',
+    () {
+      var commits = 0;
+      final alice = Student(id: 'alice');
+      final cls = group(students: [alice]);
+      final ops = ClassGroupOps(cls, commit: () => commits++);
+
+      final result = ops.applyGeneratedPlan(
+        SeatingEngine(cls, seed: 1).generate(restarts: 1, iterations: 1),
+      );
+
+      expect(cls.assignment, result.assignment);
+      expect(commits, 1);
+      expect(result.assignment.values.single, alice.id);
+    },
+  );
 }

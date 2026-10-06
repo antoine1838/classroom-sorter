@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/engine/seating_engine.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/rule.dart';
@@ -45,6 +46,9 @@ ClassGroup _cls({int rows = 5, int cols = 8, int students = 40}) {
   return cls;
 }
 
+Future<PlanResult> _generateImmediately(ClassGroup cls) async =>
+    SeatingEngine(cls).generate();
+
 Future<void> _pump(WidgetTester t, ClassGroup cls, Size size) async {
   // `binding.setSurfaceSize` ne change PAS ce que voit MediaQuery (vérifié :
   // la taille restait à 800×600). Il faut régler la vue elle-même, avec un
@@ -55,11 +59,17 @@ Future<void> _pump(WidgetTester t, ClassGroup cls, Size size) async {
   addTearDown(t.view.resetDevicePixelRatio);
 
   final state = AppState()..classes.add(cls);
-  await t.pumpWidget(MaterialApp(
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    supportedLocales: const [Locale('fr')],
-    home: ClassEditorScreen(state: state, cls: cls),
-  ));
+  await t.pumpWidget(
+    MaterialApp(
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('fr')],
+      home: ClassEditorScreen(
+        state: state,
+        cls: cls,
+        planGenerator: _generateImmediately,
+      ),
+    ),
+  );
   await t.pumpAndSettle();
 
   // On monte sur l'onglet Salle avant de basculer sur Plan : Salle et Élèves
@@ -68,8 +78,12 @@ Future<void> _pump(WidgetTester t, ClassGroup cls, Size size) async {
   // Par l'icône et non par le texte : les onglets passent en icônes seules
   // quand leurs libellés ne tiennent plus. Restreint à la barre d'onglets, car
   // Icons.event_seat sert aussi d'avatar au chip « n places » de l'onglet Salle.
-  await t.tap(find.descendant(
-      of: find.byType(TabBar), matching: find.byIcon(Icons.event_seat)));
+  await t.tap(
+    find.descendant(
+      of: find.byType(TabBar),
+      matching: find.byIcon(Icons.event_seat),
+    ),
+  );
   await t.pumpAndSettle();
 }
 
@@ -82,11 +96,8 @@ double _gridHeight(WidgetTester t) =>
 /// Les débordements passent par `FlutterError.onError` sans faire échouer le
 /// test : sans cette vérification, un « RIGHT OVERFLOWED BY 0.333 PIXELS »
 /// resterait invisible en CI.
-bool hasOverflow(WidgetTester t) => t
-    .takeException()
-    .toString()
-    .toLowerCase()
-    .contains('overflow');
+bool hasOverflow(WidgetTester t) =>
+    t.takeException().toString().toLowerCase().contains('overflow');
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -95,14 +106,22 @@ void main() {
     testWidgets('l\'app bar disparaît mais les onglets restent', (t) async {
       await _pump(t, _cls(), _landscape);
 
-      expect(find.byType(AppBar), findsNothing,
-          reason: 'les 56dp de l\'app bar sont rendus à la grille');
-      expect(find.byType(TabBar), findsOneWidget,
-          reason: 'sans les onglets, on ne pourrait plus quitter le Plan');
+      expect(
+        find.byType(AppBar),
+        findsNothing,
+        reason: 'les 56dp de l\'app bar sont rendus à la grille',
+      );
+      expect(
+        find.byType(TabBar),
+        findsOneWidget,
+        reason: 'sans les onglets, on ne pourrait plus quitter le Plan',
+      );
       expect(find.widgetWithText(Tab, 'Salle'), findsOneWidget);
     });
 
-    testWidgets('les commandes passent dans un rail, plus en rangée', (t) async {
+    testWidgets('les commandes passent dans un rail, plus en rangée', (
+      t,
+    ) async {
       await _pump(t, _cls(), _landscape);
 
       // Icônes seules dans le rail : plus de boutons à libellé.
@@ -116,15 +135,21 @@ void main() {
 
       // C'est ce qui manquait dans #12 : sans le chrome récupéré, il ne restait
       // qu'environ 187dp pour une grille qui en demande plus de 400.
-      expect(_gridHeight(t), greaterThan(250),
-          reason: 'hauteur trop faible : la salle serait réduite à néant');
+      expect(
+        _gridHeight(t),
+        greaterThan(250),
+        reason: 'hauteur trop faible : la salle serait réduite à néant',
+      );
     });
 
     testWidgets('les cases sont larges et portent le prénom', (t) async {
       await _pump(t, _cls(), _landscape);
 
-      expect(find.text('Prenom0'), findsOneWidget,
-          reason: 'en paysage la case a la place d\'écrire le prénom');
+      expect(
+        find.text('Prenom0'),
+        findsOneWidget,
+        reason: 'en paysage la case a la place d\'écrire le prénom',
+      );
     });
 
     testWidgets('le rapport devient un badge qui ouvre une feuille', (t) async {
@@ -152,28 +177,41 @@ void main() {
 
       expect(find.byType(AppBar), findsNothing);
       expect(find.text('6ème B'), findsOneWidget);
-      expect(find.byKey(kClassBackKey), findsOneWidget,
-          reason: 'le retour vit à gauche des onglets, à toutes les tailles');
+      expect(
+        find.byKey(kClassBackKey),
+        findsOneWidget,
+        reason: 'le retour vit à gauche des onglets, à toutes les tailles',
+      );
     });
 
-    testWidgets('les cases restent carrées et affichent les initiales',
-        (t) async {
+    testWidgets('les cases restent carrées et affichent les initiales', (
+      t,
+    ) async {
       await _pump(t, _cls(), _portrait);
 
       // 8 colonnes sur 411dp : pas la place d'un prénom.
       expect(find.text('Prenom0'), findsNothing);
-      expect(find.textContaining('P.Nom0'), findsOneWidget,
-          reason: 'initiales désambiguïsées, « PN » étant partagé par tous');
+      expect(
+        find.textContaining('P.Nom0'),
+        findsOneWidget,
+        reason: 'initiales désambiguïsées, « PN » étant partagé par tous',
+      );
     });
   });
 
   group('Bureau', () {
-    testWidgets('une fenêtre large mais haute garde tout son chrome', (t) async {
+    testWidgets('une fenêtre large mais haute garde tout son chrome', (
+      t,
+    ) async {
       await _pump(t, _cls(), _desktop);
 
-      expect(find.byType(AppBar), findsNothing,
-          reason: 'la masquer supprimerait le seul retour, faute de geste '
-              'système sur un bureau');
+      expect(
+        find.byType(AppBar),
+        findsNothing,
+        reason:
+            'la masquer supprimerait le seul retour, faute de geste '
+            'système sur un bureau',
+      );
       expect(find.widgetWithText(FilledButton, 'Régénérer'), findsOneWidget);
 
       // Le chrome est conservé, mais les cases s'élargissent quand même pour
@@ -200,21 +238,35 @@ void main() {
 
       await t.tap(find.byKey(kReportButtonKey));
       await t.pumpAndSettle();
-      expect(find.text('Équilibre'), findsOneWidget,
-          reason: 'le rapport reste accessible, mais à la demande');
+      expect(
+        find.text('Équilibre'),
+        findsOneWidget,
+        reason: 'le rapport reste accessible, mais à la demande',
+      );
     });
 
-    testWidgets('fenêtre étroite : les libellés cèdent la place aux icônes',
-        (t) async {
+    testWidgets('fenêtre étroite : les libellés cèdent la place aux icônes', (
+      t,
+    ) async {
       // Reproduit le débordement constaté : à cette largeur, les libellés se
       // coupaient en plein mot (« Régé / nérer ») puis débordaient.
-      await _pump(t, _cls(rows: 5, cols: 7, students: 35), const Size(324, 980));
+      await _pump(
+        t,
+        _cls(rows: 5, cols: 7, students: 35),
+        const Size(324, 980),
+      );
 
-      expect(hasOverflow(t), isFalse,
-          reason: 'aucun débordement de mise en page');
+      expect(
+        hasOverflow(t),
+        isFalse,
+        reason: 'aucun débordement de mise en page',
+      );
       expect(find.text('Régénérer'), findsNothing);
-      expect(find.byIcon(Icons.auto_awesome), findsOneWidget,
-          reason: 'l\'icône reste, avec son infobulle');
+      expect(
+        find.byIcon(Icons.auto_awesome),
+        findsOneWidget,
+        reason: 'l\'icône reste, avec son infobulle',
+      );
       expect(find.byIcon(Icons.fact_check), findsOneWidget);
     });
 
@@ -227,8 +279,7 @@ void main() {
       var seenReportIcon = false;
 
       for (var width = 900.0; width >= 300; width -= 25) {
-        await _pump(t, _cls(rows: 5, cols: 7, students: 35),
-            Size(width, 900));
+        await _pump(t, _cls(rows: 5, cols: 7, students: 35), Size(width, 900));
 
         final mainLabelled = find.text('Régénérer').evaluate().isNotEmpty;
         final reportLabelled = find.text('Rapport').evaluate().isNotEmpty;
@@ -236,23 +287,37 @@ void main() {
         if (!reportLabelled) seenReportIcon = true;
         if (!mainLabelled) seenIconsOnly = true;
 
-        expect(reportLabelled && seenReportIcon, isFalse,
-            reason: 'le libellé du rapport est revenu à ${width.toInt()} dp');
-        expect(mainLabelled && seenIconsOnly, isFalse,
-            reason: 'les libellés principaux sont revenus à '
-                '${width.toInt()} dp');
+        expect(
+          reportLabelled && seenReportIcon,
+          isFalse,
+          reason: 'le libellé du rapport est revenu à ${width.toInt()} dp',
+        );
+        expect(
+          mainLabelled && seenIconsOnly,
+          isFalse,
+          reason:
+              'les libellés principaux sont revenus à '
+              '${width.toInt()} dp',
+        );
         // Le rapport perd son libellé AVANT les commandes principales, étant
         // secondaire : on ne peut donc jamais le voir libellé alors qu'elles ne
         // le sont pas.
         if (reportLabelled) {
-          expect(mainLabelled, isTrue,
-              reason: 'rapport libellé mais pas les commandes principales, à '
-                  '${width.toInt()} dp');
+          expect(
+            mainLabelled,
+            isTrue,
+            reason:
+                'rapport libellé mais pas les commandes principales, à '
+                '${width.toInt()} dp',
+          );
         }
       }
 
-      expect(seenIconsOnly, isTrue,
-          reason: 'le balayage doit atteindre le palier « icônes seules »');
+      expect(
+        seenIconsOnly,
+        isTrue,
+        reason: 'le balayage doit atteindre le palier « icônes seules »',
+      );
     });
 
     testWidgets('fenêtre confortable : les libellés reviennent', (t) async {
@@ -261,7 +326,9 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Régénérer'), findsOneWidget);
     });
 
-    testWidgets('rapport rouge quand une contrainte DURE est violée', (t) async {
+    testWidgets('rapport rouge quand une contrainte DURE est violée', (
+      t,
+    ) async {
       // Deux places imposées sur la même case : impossible à satisfaire, donc
       // une vraie violation dure. Le rouge est rare par construction — le
       // moteur évite les contraintes dures — d'où ce test.
@@ -269,30 +336,37 @@ void main() {
       cls.assignment.clear();
       cls.rules.addAll([
         Rule(
-            id: 'r1',
-            type: RuleType.fixedSeat,
-            studentAId: 's0',
-            seatRow: 0,
-            seatCol: 0),
+          id: 'r1',
+          type: RuleType.fixedSeat,
+          studentAId: 's0',
+          seatRow: 0,
+          seatCol: 0,
+        ),
         Rule(
-            id: 'r2',
-            type: RuleType.fixedSeat,
-            studentAId: 's1',
-            seatRow: 0,
-            seatCol: 0),
+          id: 'r2',
+          type: RuleType.fixedSeat,
+          studentAId: 's1',
+          seatRow: 0,
+          seatCol: 0,
+        ),
       ]);
       await _pump(t, cls, const Size(900, 900));
 
       await t.tap(find.text('Générer le plan'));
       await t.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget,
-          reason: 'une contrainte dure violée doit passer le rapport au rouge');
-      expect(find.byIcon(Icons.warning_amber), findsNothing,
-          reason: 'le dur prime sur le perfectible');
+      expect(
+        find.byIcon(Icons.error_outline),
+        findsOneWidget,
+        reason: 'une contrainte dure violée doit passer le rapport au rouge',
+      );
+      expect(
+        find.byIcon(Icons.warning_amber),
+        findsNothing,
+        reason: 'le dur prime sur le perfectible',
+      );
       expect(find.textContaining('problème(s)'), findsOneWidget);
     });
-
 
     testWidgets('en rangée, le rapport est un bouton à libellé', (t) async {
       // Sur un grand écran, une icône nue au bout de la rangée passait
@@ -303,33 +377,50 @@ void main() {
 
       // L'état sain doit être franchement VERT : la couleur par défaut donnait
       // une coche grise, indiscernable d'un état neutre.
-      final icone = t.widget<Icon>(find.descendant(
-          of: find.byKey(kReportButtonKey), matching: find.byType(Icon)));
+      final icone = t.widget<Icon>(
+        find.descendant(
+          of: find.byKey(kReportButtonKey),
+          matching: find.byType(Icon),
+        ),
+      );
       expect(icone.icon, Icons.check_circle_outline);
       expect(icone.color, isNotNull, reason: 'le vert doit être explicite');
       expect(find.widgetWithText(OutlinedButton, 'Rapport'), findsOneWidget);
-      expect(find.byType(Badge), findsNothing,
-          reason: 'le libellé porte déjà le compte, un badge ferait doublon');
+      expect(
+        find.byType(Badge),
+        findsNothing,
+        reason: 'le libellé porte déjà le compte, un badge ferait doublon',
+      );
     });
 
     testWidgets('fenêtre haute : rien n\'est sacrifié', (t) async {
       await _pump(t, _cls(), const Size(1280, 800));
 
       expect(find.byType(AppBar), findsNothing);
-      expect(find.widgetWithText(FilledButton, 'Régénérer'), findsOneWidget,
-          reason: 'les boutons gardent leur libellé');
+      expect(
+        find.widgetWithText(FilledButton, 'Régénérer'),
+        findsOneWidget,
+        reason: 'les boutons gardent leur libellé',
+      );
     });
 
-    testWidgets('fenêtre moyennement courte : seul le rail est sacrifié',
-        (t) async {
+    testWidgets('fenêtre moyennement courte : seul le rail est sacrifié', (
+      t,
+    ) async {
       // 480 dp de haut : après passage en rail il reste assez de hauteur, donc
       // l'app bar — et son bouton retour — est conservée.
       await _pump(t, _cls(), const Size(1000, 480));
 
-      expect(find.byType(AppBar), findsNothing,
-          reason: 'pas encore besoin de sacrifier le retour');
-      expect(find.widgetWithText(FilledButton, 'Régénérer'), findsNothing,
-          reason: 'les commandes sont passées en rail');
+      expect(
+        find.byType(AppBar),
+        findsNothing,
+        reason: 'pas encore besoin de sacrifier le retour',
+      );
+      expect(
+        find.widgetWithText(FilledButton, 'Régénérer'),
+        findsNothing,
+        reason: 'les commandes sont passées en rail',
+      );
       expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
     });
 
@@ -340,19 +431,24 @@ void main() {
       expect(find.byType(TabBar), findsOneWidget);
     });
 
-    testWidgets('app bar masquée : le retour survit à côté des onglets',
-        (t) async {
+    testWidgets('app bar masquée : le retour survit à côté des onglets', (
+      t,
+    ) async {
       // Sans lui, on ne pouvait plus quitter la classe : aucun geste système ne
       // remplace le retour sur un bureau, quelle que soit la forme de la fenêtre.
       await _pump(t, _cls(), _landscape);
 
       expect(find.byType(AppBar), findsNothing);
-      expect(find.byKey(kClassBackKey), findsOneWidget,
-          reason: 'il doit toujours exister un moyen de sortir de la classe');
+      expect(
+        find.byKey(kClassBackKey),
+        findsOneWidget,
+        reason: 'il doit toujours exister un moyen de sortir de la classe',
+      );
     });
 
-    testWidgets('fenêtre étroite et courte : l\'app bar est conservée',
-        (t) async {
+    testWidgets('fenêtre étroite et courte : l\'app bar est conservée', (
+      t,
+    ) async {
       // Plus haute que large : un rail n'aurait pas de sens, et masquer l'app
       // bar ferait perdre le retour sans rien gagner d'utile.
       await _pump(t, _cls(), const Size(400, 420));
@@ -360,8 +456,9 @@ void main() {
       expect(find.byType(AppBar), findsNothing);
     });
 
-    testWidgets('fenêtre portrait courte : les commandes restent EN HAUT',
-        (t) async {
+    testWidgets('fenêtre portrait courte : les commandes restent EN HAUT', (
+      t,
+    ) async {
       // Défaut signalé sur un format de petite tablette : le rail se déclenchait
       // alors que la fenêtre était plus haute que large. Or en portrait c'est la
       // largeur qui est rare — un rail y vole exactement ce qui manque.
@@ -374,8 +471,11 @@ void main() {
       final grid = t.getRect(find.byType(PlanViewport));
       final controls = t.getRect(find.byIcon(Icons.auto_awesome));
 
-      expect(controls.center.dy, lessThan(grid.top),
-          reason: 'les commandes doivent être au-dessus de la grille');
+      expect(
+        controls.center.dy,
+        lessThan(grid.top),
+        reason: 'les commandes doivent être au-dessus de la grille',
+      );
       expect(find.byType(AppBar), findsNothing);
     });
   });
@@ -407,9 +507,13 @@ void main() {
       testWidgets('${size.width.toInt()}×${size.height.toInt()}', (t) async {
         await _pump(t, _cls(rows: 5, cols: 7, students: 35), size);
 
-        expect(t.takeException(), isNull,
-            reason: 'débordement de mise en page en ${size.width.toInt()}×'
-                '${size.height.toInt()}');
+        expect(
+          t.takeException(),
+          isNull,
+          reason:
+              'débordement de mise en page en ${size.width.toInt()}×'
+              '${size.height.toInt()}',
+        );
       });
     }
   });
@@ -433,8 +537,7 @@ void main() {
       await f2.up();
       await t.pumpAndSettle();
 
-      final viewport =
-          t.state<PlanViewportState>(find.byType(PlanViewport));
+      final viewport = t.state<PlanViewportState>(find.byType(PlanViewport));
       expect(viewport.isZoomed, isTrue);
     });
 
@@ -459,8 +562,7 @@ void main() {
       await t.tap(find.byIcon(Icons.center_focus_strong));
       await t.pumpAndSettle();
 
-      final viewport =
-          t.state<PlanViewportState>(find.byType(PlanViewport));
+      final viewport = t.state<PlanViewportState>(find.byType(PlanViewport));
       expect(viewport.isZoomed, isFalse);
       expect(find.byIcon(Icons.center_focus_strong), findsNothing);
     });
@@ -489,13 +591,19 @@ void main() {
 
         for (final label in ['Salle', 'Élèves', 'Règles', 'Plan']) {
           final finder = find.text(label);
-          if (finder.evaluate().isEmpty) continue; // mode icônes : rien à vérifier
+          if (finder.evaluate().isEmpty) {
+            continue; // mode icônes : rien à vérifier
+          }
           final box = t.renderObject(finder) as RenderBox;
           final natural = naturalWidth(t, label);
-          expect(box.size.width, greaterThanOrEqualTo(natural - 0.5),
-              reason: '« $label » coupé à ${w.toInt()}dp de large '
-                  '(rendu ${box.size.width.toStringAsFixed(1)}, '
-                  'naturel ${natural.toStringAsFixed(1)})');
+          expect(
+            box.size.width,
+            greaterThanOrEqualTo(natural - 0.5),
+            reason:
+                '« $label » coupé à ${w.toInt()}dp de large '
+                '(rendu ${box.size.width.toStringAsFixed(1)}, '
+                'naturel ${natural.toStringAsFixed(1)})',
+          );
         }
       });
     }
@@ -505,23 +613,33 @@ void main() {
     testWidgets('le retour porte une infobulle en français', (t) async {
       await _pump(t, _cls(), _landscape);
 
-      expect(find.byTooltip('Retour'), findsOneWidget,
-          reason: 'localizationsDelegates + supportedLocales fr fournissent '
-              'la traduction de MaterialLocalizations.backButtonTooltip');
+      expect(
+        find.byTooltip('Retour'),
+        findsOneWidget,
+        reason:
+            'localizationsDelegates + supportedLocales fr fournissent '
+            'la traduction de MaterialLocalizations.backButtonTooltip',
+      );
     });
 
-    testWidgets('en mode icônes, chaque onglet garde son nom en infobulle',
-        (t) async {
+    testWidgets('en mode icônes, chaque onglet garde son nom en infobulle', (
+      t,
+    ) async {
       // 400dp : sous le seuil (~512dp) qui fait apparaître les libellés.
       await _pump(t, _cls(), const Size(400, 900));
 
-      expect(find.text('Salle'), findsNothing,
-          reason: 'ce test suppose le mode icônes, pas le mode libellés');
+      expect(
+        find.text('Salle'),
+        findsNothing,
+        reason: 'ce test suppose le mode icônes, pas le mode libellés',
+      );
       for (final label in kClassTabs.map((t) => t.label)) {
-        expect(find.byTooltip(label), findsOneWidget,
-            reason: '« $label » doit rester accessible via une infobulle');
+        expect(
+          find.byTooltip(label),
+          findsOneWidget,
+          reason: '« $label » doit rester accessible via une infobulle',
+        );
       }
     });
   });
-
 }

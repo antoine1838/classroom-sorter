@@ -4,26 +4,15 @@ part of '../class_editor_screen.dart';
 // Onglet PLAN
 // ---------------------------------------------------------------------------
 
-/// Empreinte des données dont dépend un [PlanResult].
-///
-/// Le nom de la classe et les préférences globales d'affichage sont
-/// volontairement absents : ils peuvent changer sans rendre le rapport faux.
-String _planEvaluationSignature(ClassGroup cls) {
-  final assignment = cls.assignment.entries.toList()
-    ..sort((a, b) => a.key.compareTo(b.key));
-  return jsonEncode({
-    'room': cls.room.toJson(),
-    'students': [for (final s in cls.students) s.toJson()],
-    'rules': [for (final r in cls.rules) r.toJson()],
-    'balance': cls.balance.toJson(),
-    'assignment': {for (final e in assignment) e.key: e.value},
-  });
-}
-
 class _PlanTab extends StatefulWidget {
   final AppState state;
   final ClassGroup cls;
-  const _PlanTab({required this.state, required this.cls});
+  final PlanGenerator planGenerator;
+  const _PlanTab({
+    required this.state,
+    required this.cls,
+    required this.planGenerator,
+  });
 
   @override
   State<_PlanTab> createState() => _PlanTabState();
@@ -32,6 +21,8 @@ class _PlanTab extends StatefulWidget {
 class _PlanTabState extends State<_PlanTab> {
   PlanResult? _result;
   String? _resultSignature;
+  bool _generating = false;
+  int _generationToken = 0;
 
   /// Partagé entre la fenêtre de zoom et les places : un pincement posé sur une
   /// place ne doit pas saisir d'élève (voir PlanViewport).
@@ -48,14 +39,14 @@ class _PlanTabState extends State<_PlanTab> {
   @override
   void didUpdateWidget(covariant _PlanTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_result != null && _resultSignature != _planEvaluationSignature(cls)) {
+    if (_result != null && _resultSignature != planEvaluationSignature(cls)) {
       _clearResult();
     }
   }
 
   void _setResult(PlanResult result) {
     _result = result;
-    _resultSignature = _planEvaluationSignature(cls);
+    _resultSignature = planEvaluationSignature(cls);
   }
 
   void _clearResult() {
@@ -63,9 +54,43 @@ class _PlanTabState extends State<_PlanTab> {
     _resultSignature = null;
   }
 
-  void _generate() {
-    final result = _ops.generatePlan();
-    setState(() => _setResult(result));
+  Future<void> _generate() async {
+    if (_generating || cls.students.isEmpty) return;
+
+    final token = ++_generationToken;
+    final signature = planEvaluationSignature(cls);
+    setState(() {
+      _generating = true;
+      _clearResult();
+    });
+
+    try {
+      final generated = await widget.planGenerator(cls);
+      if (!mounted ||
+          !shouldApplyGeneratedPlan(
+            requestSignature: signature,
+            currentSignature: planEvaluationSignature(cls),
+            requestToken: token,
+            currentToken: _generationToken,
+          )) {
+        return;
+      }
+
+      final result = _ops.applyGeneratedPlan(generated);
+      setState(() => _setResult(result));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La génération du plan a échoué. Réessayez.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted && token == _generationToken) {
+        setState(() => _generating = false);
+      }
+    }
   }
 
   void _validate() {
@@ -180,8 +205,14 @@ class _PlanTabState extends State<_PlanTab> {
 
   Widget _generateControl({required bool labelled}) {
     final label = _generateLabel;
-    final onPressed = cls.students.isEmpty ? null : _generate;
-    const icon = Icon(Icons.auto_awesome);
+    final onPressed = cls.students.isEmpty || _generating ? null : _generate;
+    final icon = _generating
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : const Icon(Icons.auto_awesome);
     if (!labelled) {
       return IconButton.filled(
         tooltip: label,

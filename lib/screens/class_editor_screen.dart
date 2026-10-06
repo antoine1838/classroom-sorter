@@ -1,13 +1,14 @@
 /// Éditeur d'une classe : 4 onglets — Salle, Élèves, Règles, Plan.
 library;
 
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
 import '../actions/class_group_ops.dart';
 import '../app_state.dart';
+import '../engine/plan_evaluation_signature.dart';
+import '../engine/plan_generation.dart';
 import '../engine/plan_issue.dart';
 import '../engine/seating_engine.dart';
 import '../models/classroom.dart';
@@ -245,7 +246,13 @@ bool _looksLikeLandscapePhone(Size size) =>
 class ClassEditorScreen extends StatelessWidget {
   final AppState state;
   final ClassGroup cls;
-  const ClassEditorScreen({super.key, required this.state, required this.cls});
+  final PlanGenerator? planGenerator;
+  const ClassEditorScreen({
+    super.key,
+    required this.state,
+    required this.cls,
+    this.planGenerator,
+  });
 
   /// Les quatre onglets, avec ou sans libellés.
   ///
@@ -325,7 +332,13 @@ class ClassEditorScreen extends StatelessWidget {
                       _RoomTab(state: state, cls: cls),
                       _StudentsTab(state: state, cls: cls),
                       _RulesTab(state: state, cls: cls),
-                      _PlanTab(state: state, cls: cls),
+                      _PlanTab(
+                        state: state,
+                        cls: cls,
+                        planGenerator:
+                            planGenerator ??
+                            const PlanGenerationService().generate,
+                      ),
                     ],
                   ),
                 ),

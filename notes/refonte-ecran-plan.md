@@ -545,3 +545,44 @@ Trois retouches de finition, toutes signalées après essai :
   part, hors scope ici). Remplacé par un `IconButton` équivalent avec `tooltip: 'Retour'`.
 - **Nom de classe centré** : une réserve invisible de la largeur du crayon équilibre l'autre côté de la
   barre, sans quoi le centrage n'aurait été que visuel côté gauche et le nom aurait paru décalé.
+
+## Mesure du moteur de placement — 5 octobre 2026
+
+Le lanceur manuel `tool/seating_engine_benchmark.dart` mesure la fixture
+`test/fixtures/demo_class_varied_35.json` : 35 élèves, une salle pleine de
+5 × 7 places et les cinq objectifs d'équilibre actifs. Il effectue deux
+échauffements, puis dix mesures avec les paramètres réellement utilisés par
+l'interface (`40` redémarrages × `1000` itérations) et des graines explicites.
+La même fixture préaffectée mesure aussi `evaluate()` (action « Valider »).
+
+Commande :
+
+```sh
+dart run tool/seating_engine_benchmark.dart
+```
+
+Résultat sur le poste Windows de développement (Dart JIT ; chiffres non
+comparables avec un téléphone) :
+
+| Action | Min | Médiane | P95 | Max |
+| --- | ---: | ---: | ---: | ---: |
+| Générer | 389,8 ms | 403,2 ms | 421,1 ms | 421,1 ms |
+| Valider | 0,1 ms | 0,2 ms | 0,2 ms | 0,2 ms |
+
+Les deux contrôles renvoient 35 places et aucun élève non placé. Le P95 de
+« Générer » dépasse quatre fois le budget de 100 ms choisi pour éviter un gel
+perceptible de l'interface : **la génération doit quitter l'isolate UI**.
+« Valider » reste sur l'isolate UI ; son coût est négligeable ici.
+
+**Implémenté le 5 octobre 2026.** `PlanGenerationService` sérialise désormais
+un instantané de `ClassGroup` et délègue `SeatingEngine.generate()` à un
+worker `compute` sur mobile et bureau. À son retour, l'onglet Plan n'applique
+le résultat que si son jeton et l'empreinte métier sont encore actuels ; sinon
+il l'ignore sans sauvegarder. Le rapport complet généré dans le worker est
+conservé, notamment pour les conflits de places imposées détectés durant
+l'épinglage. `evaluate()` reste synchrone.
+
+La nouvelle exécution de référence (10 mesures après 2 échauffements) a donné
+424,4 ms de médiane et 447,8 ms de P95 pour « Générer », contre 0,2 ms de
+médiane et 0,4 ms de P95 pour « Valider ». L'algorithme n'a donc pas changé ;
+l'UI native reste réactive pendant son calcul.
