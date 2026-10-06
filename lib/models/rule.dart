@@ -12,19 +12,19 @@ enum RuleType { fixedSeat, frontZone, separate, keepTogether }
 
 extension RuleTypeInfo on RuleType {
   String get label => switch (this) {
-        RuleType.fixedSeat => 'Place imposée',
-        RuleType.frontZone => 'Doit être devant',
-        RuleType.separate => 'Séparer',
-        RuleType.keepTogether => 'Rapprocher',
-      };
+    RuleType.fixedSeat => 'Place imposée',
+    RuleType.frontZone => 'Doit être devant',
+    RuleType.separate => 'Séparer',
+    RuleType.keepTogether => 'Rapprocher',
+  };
 
   String get description => switch (this) {
-        RuleType.fixedSeat => 'Assigner un élève à une place précise',
-        RuleType.frontZone =>
-          'Placer un élève près du tableau (vue, audition, PMR…)',
-        RuleType.separate => "Empêcher deux élèves d'être voisins",
-        RuleType.keepTogether => 'Garder deux élèves voisins',
-      };
+    RuleType.fixedSeat => 'Assigner un élève à une place précise',
+    RuleType.frontZone =>
+      'Placer un élève près du tableau (vue, audition, PMR…)',
+    RuleType.separate => "Empêcher deux élèves d'être voisins",
+    RuleType.keepTogether => 'Garder deux élèves voisins',
+  };
 
   /// Nombre d'élèves concernés (1 ou 2).
   bool get needsSecondStudent =>
@@ -53,27 +53,27 @@ class Rule {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'studentAId': studentAId,
-        'studentBId': studentBId,
-        'seatRow': seatRow,
-        'seatCol': seatCol,
-        'frontRows': frontRows,
-        'hard': hard,
-      };
+    'id': id,
+    'type': type.name,
+    'studentAId': studentAId,
+    'studentBId': studentBId,
+    'seatRow': seatRow,
+    'seatCol': seatCol,
+    'frontRows': frontRows,
+    'hard': hard,
+  };
 
   factory Rule.fromJson(Map<String, dynamic> j) => Rule(
-        id: j['id'] as String,
-        type: RuleType.values.firstWhere(
-          (t) => t.name == j['type'],
-          orElse: () => RuleType.separate,
-        ),
-        studentAId: j['studentAId'] as String,
-        studentBId: j['studentBId'] as String?,
-        seatRow: j['seatRow'] as int?,
-        seatCol: j['seatCol'] as int?,
-        frontRows: (j['frontRows'] ?? 1) as int,
-        hard: (j['hard'] ?? true) as bool,
-      );
+    id: j['id'] as String,
+    type: RuleType.values.firstWhere(
+      (t) => t.name == j['type'],
+      orElse: () => RuleType.separate,
+    ),
+    studentAId: j['studentAId'] as String,
+    studentBId: j['studentBId'] as String?,
+    seatRow: j['seatRow'] as int?,
+    seatCol: j['seatCol'] as int?,
+    frontRows: (j['frontRows'] ?? 1) as int,
+    hard: (j['hard'] ?? true) as bool,
+  );
 }

@@ -21,34 +21,33 @@ ClassGroup _cls({
   Room? room,
   BalanceSettings? balance,
   Map<String, String>? assignment,
-}) =>
-    ClassGroup(
-      id: 'c',
-      name: 'Test',
-      room: room ?? Room(rows: 4, cols: 4),
-      students: students,
-      rules: rules,
-      balance: balance,
-      assignment: assignment,
-    );
+}) => ClassGroup(
+  id: 'c',
+  name: 'Test',
+  room: room ?? Room(rows: 4, cols: 4),
+  students: students,
+  rules: rules,
+  balance: balance,
+  assignment: assignment,
+);
 
-Student _s(String id, {
+Student _s(
+  String id, {
   Gender gender = Gender.autre,
   Level level = Level.moyen,
   Energy energy = Energy.modere,
   StudentSize size = StudentSize.moyen,
   bool poorEyesight = false,
-}) =>
-    Student(
-      id: id,
-      firstName: id.toUpperCase(),
-      lastName: 'Nom$id',
-      gender: gender,
-      level: level,
-      energy: energy,
-      size: size,
-      poorEyesight: poorEyesight,
-    );
+}) => Student(
+  id: id,
+  firstName: id.toUpperCase(),
+  lastName: 'Nom$id',
+  gender: gender,
+  level: level,
+  energy: energy,
+  size: size,
+  poorEyesight: poorEyesight,
+);
 
 /// Élèves concernés par les problèmes de [res], sans doublons.
 Set<String> _flagged(PlanResult res) => res.flaggedStudentIds;
@@ -60,11 +59,12 @@ void main() {
         students: [_s('a'), _s('b'), _s('c')],
         rules: [
           Rule(
-              id: 'r',
-              type: RuleType.separate,
-              studentAId: 'a',
-              studentBId: 'b',
-              hard: true),
+            id: 'r',
+            type: RuleType.separate,
+            studentAId: 'a',
+            studentBId: 'b',
+            hard: true,
+          ),
         ],
         // a et b côte à côte au premier rang : la règle est violée.
         assignment: {
@@ -79,11 +79,17 @@ void main() {
       expect(_flagged(res), {'a', 'b'});
       expect(res.severityFor('a'), IssueSeverity.hard);
       expect(res.severityFor('b'), IssueSeverity.hard);
-      expect(res.severityFor('c'), isNull,
-          reason: 'C n\'est concerné par rien');
+      expect(
+        res.severityFor('c'),
+        isNull,
+        reason: 'C n\'est concerné par rien',
+      );
       expect(res.reasonsFor('a').single, contains('à séparer'));
-      expect(res.violations, hasLength(1),
-          reason: 'le libellé reste dérivé des problèmes');
+      expect(
+        res.violations,
+        hasLength(1),
+        reason: 'le libellé reste dérivé des problèmes',
+      );
     });
 
     test('« séparer » souple : marquage souple, pas dur', () {
@@ -91,11 +97,12 @@ void main() {
         students: [_s('a'), _s('b')],
         rules: [
           Rule(
-              id: 'r',
-              type: RuleType.separate,
-              studentAId: 'a',
-              studentBId: 'b',
-              hard: false),
+            id: 'r',
+            type: RuleType.separate,
+            studentAId: 'a',
+            studentBId: 'b',
+            hard: false,
+          ),
         ],
         assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(0, 1): 'b'},
       );
@@ -112,11 +119,12 @@ void main() {
         students: [_s('a'), _s('b')],
         rules: [
           Rule(
-              id: 'r',
-              type: RuleType.keepTogether,
-              studentAId: 'a',
-              studentBId: 'b',
-              hard: true),
+            id: 'r',
+            type: RuleType.keepTogether,
+            studentAId: 'a',
+            studentBId: 'b',
+            hard: true,
+          ),
         ],
         // Aux deux coins opposés : la règle est violée.
         assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(3, 3): 'b'},
@@ -133,11 +141,12 @@ void main() {
         students: [_s('a'), _s('b')],
         rules: [
           Rule(
-              id: 'r',
-              type: RuleType.frontZone,
-              studentAId: 'a',
-              frontRows: 1,
-              hard: true),
+            id: 'r',
+            type: RuleType.frontZone,
+            studentAId: 'a',
+            frontRows: 1,
+            hard: true,
+          ),
         ],
         // a au dernier rang : la règle est violée. b n'est pas concerné.
         assignment: {Room.keyOf(3, 0): 'a', Room.keyOf(0, 0): 'b'},
@@ -145,8 +154,9 @@ void main() {
 
       final res = SeatingEngine(cls).evaluate();
 
-      expect(_flagged(res), {'a'},
-          reason: 'une règle à un seul élève ne doit pas marquer le voisin');
+      expect(_flagged(res), {
+        'a',
+      }, reason: 'une règle à un seul élève ne doit pas marquer le voisin');
       expect(res.reasonsFor('a').single, contains('près du tableau'));
     });
 
@@ -178,29 +188,33 @@ void main() {
         students: [_s('a'), _s('b')],
         rules: [
           Rule(
-              id: 'r1',
-              type: RuleType.fixedSeat,
-              studentAId: 'a',
-              seatRow: 0,
-              seatCol: 0),
+            id: 'r1',
+            type: RuleType.fixedSeat,
+            studentAId: 'a',
+            seatRow: 0,
+            seatCol: 0,
+          ),
           Rule(
-              id: 'r2',
-              type: RuleType.fixedSeat,
-              studentAId: 'b',
-              seatRow: 0,
-              seatCol: 0),
+            id: 'r2',
+            type: RuleType.fixedSeat,
+            studentAId: 'b',
+            seatRow: 0,
+            seatCol: 0,
+          ),
         ],
       );
 
       final res = SeatingEngine(cls, seed: 1).generate();
 
-      expect(res.severityFor('b'), IssueSeverity.hard,
-          reason: 'B est celui dont la place imposée était déjà prise');
+      expect(
+        res.severityFor('b'),
+        IssueSeverity.hard,
+        reason: 'B est celui dont la place imposée était déjà prise',
+      );
       expect(res.reasonsFor('b').single, contains('déjà occupée'));
     });
 
-    test('deux places imposées souples identiques restent des préférences',
-        () {
+    test('deux places imposées souples identiques restent des préférences', () {
       final cls = _cls(
         students: [_s('a'), _s('b')],
         rules: [
@@ -226,8 +240,11 @@ void main() {
       final res = SeatingEngine(cls, seed: 1).generate();
 
       expect(res.hardCount, 0);
-      expect(res.warnings, hasLength(1),
-          reason: 'une préférence impossible ne doit jamais devenir dure');
+      expect(
+        res.warnings,
+        hasLength(1),
+        reason: 'une préférence impossible ne doit jamais devenir dure',
+      );
       expect(res.warnings.single, contains('place imposée'));
       expect(_flagged(res), hasLength(1));
     });
@@ -237,11 +254,12 @@ void main() {
         students: [_s('a'), _s('b')],
         rules: [
           Rule(
-              id: 'r',
-              type: RuleType.separate,
-              studentAId: 'a',
-              studentBId: 'b',
-              hard: true),
+            id: 'r',
+            type: RuleType.separate,
+            studentAId: 'a',
+            studentBId: 'b',
+            hard: true,
+          ),
         ],
         assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(3, 3): 'b'},
       );
@@ -264,8 +282,11 @@ void main() {
 
       expect(res.unplacedStudentIds, hasLength(1));
       expect(res.warnings, isNotEmpty, reason: 'le rapport doit le dire');
-      expect(_flagged(res), isEmpty,
-          reason: 'un élève non placé n\'occupe aucune place à marquer');
+      expect(
+        _flagged(res),
+        isEmpty,
+        reason: 'un élève non placé n\'occupe aucune place à marquer',
+      );
     });
 
     test('dur et souple sur le même élève : le dur gagne et passe devant', () {
@@ -274,18 +295,20 @@ void main() {
         rules: [
           // Souple : a doit être devant, il ne l'est pas.
           Rule(
-              id: 'r1',
-              type: RuleType.frontZone,
-              studentAId: 'a',
-              frontRows: 1,
-              hard: false),
+            id: 'r1',
+            type: RuleType.frontZone,
+            studentAId: 'a',
+            frontRows: 1,
+            hard: false,
+          ),
           // Dure : a et b doivent être séparés, ils sont voisins.
           Rule(
-              id: 'r2',
-              type: RuleType.separate,
-              studentAId: 'a',
-              studentBId: 'b',
-              hard: true),
+            id: 'r2',
+            type: RuleType.separate,
+            studentAId: 'a',
+            studentBId: 'b',
+            hard: true,
+          ),
         ],
         assignment: {
           Room.keyOf(3, 0): 'a',
@@ -300,8 +323,11 @@ void main() {
       expect(res.severityFor('b'), IssueSeverity.hard);
       final reasons = res.reasonsFor('a');
       expect(reasons, hasLength(2));
-      expect(reasons.first, contains('à séparer'),
-          reason: 'les motifs les plus graves passent devant');
+      expect(
+        reasons.first,
+        contains('à séparer'),
+        reason: 'les motifs les plus graves passent devant',
+      );
     });
   });
 
@@ -326,8 +352,11 @@ void main() {
       expect(res.warnings, isEmpty, reason: 'aucun avertissement de règle');
       expect(res.hardCount, 0);
       expect(res.softCount, 1, reason: 'la mixité non atteinte doit compter');
-      expect(res.isClean, isFalse,
-          reason: 'annoncer « tout est bon » ici serait faux');
+      expect(
+        res.isClean,
+        isFalse,
+        reason: 'annoncer « tout est bon » ici serait faux',
+      );
     });
 
     test('plan irréprochable : isClean', () {
@@ -357,11 +386,12 @@ void main() {
         ],
         rules: [
           Rule(
-              id: 'r',
-              type: RuleType.separate,
-              studentAId: 'a',
-              studentBId: 'b',
-              hard: true),
+            id: 'r',
+            type: RuleType.separate,
+            studentAId: 'a',
+            studentBId: 'b',
+            hard: true,
+          ),
         ],
         balance: BalanceSettings(mixGender: true),
         assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(0, 1): 'b'},
@@ -375,8 +405,10 @@ void main() {
     });
 
     test('les élèves non placés comptent comme perfectibles', () {
-      final cls =
-          _cls(room: Room(rows: 1, cols: 1), students: [_s('a'), _s('b')]);
+      final cls = _cls(
+        room: Room(rows: 1, cols: 1),
+        students: [_s('a'), _s('b')],
+      );
 
       final res = SeatingEngine(cls, seed: 1).generate();
 
@@ -475,8 +507,9 @@ void main() {
 
       final res = SeatingEngine(cls).evaluate();
 
-      expect(_flagged(res), {'a'},
-          reason: 'b est déjà dans la moitié avant, c n\'a pas ce critère');
+      expect(_flagged(res), {
+        'a',
+      }, reason: 'b est déjà dans la moitié avant, c n\'a pas ce critère');
       expect(res.reasonsFor('a').single, contains('Mauvaise vue'));
     });
 
@@ -499,8 +532,10 @@ void main() {
 
       final res = SeatingEngine(cls).evaluate();
 
-      expect(_flagged(res), {'a', 'b'},
-          reason: 'c\'est la position relative qui pose problème, pas un seul');
+      expect(_flagged(res), {
+        'a',
+        'b',
+      }, reason: 'c\'est la position relative qui pose problème, pas un seul');
       expect(res.reasonsFor('b').single, contains('Tailles'));
     });
 

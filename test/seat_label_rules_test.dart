@@ -46,8 +46,11 @@ void main() {
         _s('3', 'Manon', 'Dubois'),
       ]);
 
-      expect(labels.values.toSet(), hasLength(3),
-          reason: 'les trois étiquettes doivent être distinctes');
+      expect(
+        labels.values.toSet(),
+        hasLength(3),
+        reason: 'les trois étiquettes doivent être distinctes',
+      );
       expect(labels['1'], 'M.Dup');
       expect(labels['2'], 'M.Dur');
       expect(labels['3'], 'M.Dub');
@@ -60,8 +63,11 @@ void main() {
         _s('3', 'Paul', 'Martin'),
       ]);
 
-      expect(labels['3'], 'PM',
-          reason: 'Paul Martin n\'est en conflit avec personne');
+      expect(
+        labels['3'],
+        'PM',
+        reason: 'Paul Martin n\'est en conflit avec personne',
+      );
     });
 
     test('homonymie complète : on s\'arrête sans inventer de code', () {
@@ -70,8 +76,11 @@ void main() {
         _s('2', 'Marie', 'Dupont'),
       ]);
 
-      expect(labels['1'], labels['2'],
-          reason: 'deux homonymes sont indiscernables sur une case');
+      expect(
+        labels['1'],
+        labels['2'],
+        reason: 'deux homonymes sont indiscernables sur une case',
+      );
       expect(labels['1'], isNotEmpty);
     });
 
@@ -137,16 +146,21 @@ void main() {
 
     test('paysage : les cases s\'élargissent pour gagner des LETTRES', () {
       final small = seatMetrics(Room(rows: 5, cols: 8), portrait);
-      final wide =
-          seatMetrics(Room(rows: 5, cols: 8), landscape);
+      final wide = seatMetrics(Room(rows: 5, cols: 8), landscape);
 
-      expect(wide.cell, greaterThan(kCell),
-          reason: 'la largeur de case est mesurée, pas codée en dur');
+      expect(
+        wide.cell,
+        greaterThan(kCell),
+        reason: 'la largeur de case est mesurée, pas codée en dur',
+      );
       expect(wide.showsFirstName, isTrue);
       // Le vrai critère, et ce que la première version manquait : on doit
       // gagner des caractères, pas seulement des pixels.
-      expect(letters(wide), greaterThan(letters(small) + 3),
-          reason: 'au moins trois lettres de plus qu\'en portrait');
+      expect(
+        letters(wide),
+        greaterThan(letters(small) + 3),
+        reason: 'au moins trois lettres de plus qu\'en portrait',
+      );
     });
 
     test('une grande fenêtre est OCCUPÉE, pas laissée vide', () {
@@ -156,13 +170,21 @@ void main() {
       final room = Room(rows: 5, cols: 7);
       final m = seatMetrics(room, grandEcran);
 
-      expect(m.scale, greaterThan(1),
-          reason: 'la salle doit grandir pour remplir la fenêtre');
-      expect(gridWidth(room, cell: m.cell) * m.scale,
-          greaterThan(grandEcran.width * 0.9),
-          reason: 'au moins 90 % de la largeur employée');
-      expect(letters(m), greaterThan(14),
-          reason: 'assez de place pour un prénom composé');
+      expect(
+        m.scale,
+        greaterThan(1),
+        reason: 'la salle doit grandir pour remplir la fenêtre',
+      );
+      expect(
+        gridWidth(room, cell: m.cell) * m.scale,
+        greaterThan(grandEcran.width * 0.9),
+        reason: 'au moins 90 % de la largeur employée',
+      );
+      expect(
+        letters(m),
+        greaterThan(14),
+        reason: 'assez de place pour un prénom composé',
+      );
     });
 
     test('la police rendue est bornée et croît moins vite que la case', () {
@@ -171,17 +193,22 @@ void main() {
         seatMetrics(Room(rows: 5, cols: 8), landscape),
         seatMetrics(Room(rows: 5, cols: 7), grandEcran),
       ]) {
-        expect(m.nameFontSize * m.scale * m.zoom,
-            closeTo(m.renderedNameSize, 0.01),
-            reason: 'la police non mise à l\'échelle se déduit de la taille '
-                'rendue voulue, et non l\'inverse');
-        expect(m.renderedNameSize, inInclusiveRange(kNameSizeMin, kNameSizeMax));
+        expect(
+          m.nameFontSize * m.scale * m.zoom,
+          closeTo(m.renderedNameSize, 0.01),
+          reason:
+              'la police non mise à l\'échelle se déduit de la taille '
+              'rendue voulue, et non l\'inverse',
+        );
+        expect(
+          m.renderedNameSize,
+          inInclusiveRange(kNameSizeMin, kNameSizeMax),
+        );
       }
 
       // Une case bien plus large doit accueillir plus de lettres : c'est ce que
       // garantit une police qui croît moins vite qu'elle.
-      final etroit =
-          seatMetrics(Room(rows: 5, cols: 8), landscape);
+      final etroit = seatMetrics(Room(rows: 5, cols: 8), landscape);
       final large = seatMetrics(Room(rows: 5, cols: 7), grandEcran);
 
       expect(large.renderedWidth, greaterThan(etroit.renderedWidth));
@@ -201,10 +228,15 @@ void main() {
       final m = seatMetrics(room, portrait);
 
       expect(m.scale, lessThan(1));
-      expect(gridWidth(room, cell: m.cell) * m.scale,
-          lessThanOrEqualTo(portrait.width + 0.01));
-      expect(m.showsFirstName, isFalse,
-          reason: '15 colonnes sur un téléphone : initiales obligatoires');
+      expect(
+        gridWidth(room, cell: m.cell) * m.scale,
+        lessThanOrEqualTo(portrait.width + 0.01),
+      );
+      expect(
+        m.showsFirstName,
+        isFalse,
+        reason: '15 colonnes sur un téléphone : initiales obligatoires',
+      );
     });
 
     test('la hauteur peut aussi être la contrainte qui mord', () {
@@ -213,7 +245,9 @@ void main() {
 
       expect(m.scale, lessThan(1));
       expect(
-          gridHeight(room) * m.scale, lessThanOrEqualTo(portrait.height + 0.01));
+        gridHeight(room) * m.scale,
+        lessThanOrEqualTo(portrait.height + 0.01),
+      );
     });
 
     test('un viewport vide ne divise pas par zéro', () {
@@ -228,8 +262,10 @@ void main() {
       final avec = Room(rows: 3, cols: 6)..toggleColAisle(2);
       const etroit = Size(300, 651);
 
-      expect(seatMetrics(avec, etroit).renderedWidth,
-          lessThan(seatMetrics(sans, etroit).renderedWidth));
+      expect(
+        seatMetrics(avec, etroit).renderedWidth,
+        lessThan(seatMetrics(sans, etroit).renderedWidth),
+      );
     });
   });
 }

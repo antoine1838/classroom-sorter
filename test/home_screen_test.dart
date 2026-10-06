@@ -18,9 +18,7 @@ ClassGroup _cls(String name, {int students = 2, int rows = 2, int cols = 3}) =>
       id: name,
       name: name,
       room: Room(rows: rows, cols: cols),
-      students: [
-        for (var i = 0; i < students; i++) Student(id: '$name$i'),
-      ],
+      students: [for (var i = 0; i < students; i++) Student(id: '$name$i')],
     );
 
 /// Laisse tourner la boucle asynchrone réelle jusqu'à ce que [done] soit vrai.
@@ -32,15 +30,19 @@ ClassGroup _cls(String name, {int students = 2, int rows = 2, int cols = 3}) =>
 Future<void> _settleUntil(WidgetTester tester, bool Function() done) async {
   for (var i = 0; i < 100 && !done(); i++) {
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)));
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
     await tester.pump();
   }
   await tester.pumpAndSettle();
 }
 
 /// Monte l'accueil. [initialised] à false laisse l'état en cours de chargement.
-Future<AppState> _pump(WidgetTester tester,
-    {List<ClassGroup> classes = const [], bool initialised = true}) async {
+Future<AppState> _pump(
+  WidgetTester tester, {
+  List<ClassGroup> classes = const [],
+  bool initialised = true,
+}) async {
   await tester.binding.setSurfaceSize(const Size(1000, 1400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -76,11 +78,11 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('une corruption des classes est signalée sans être écrasée',
-      (t) async {
+  testWidgets('une corruption des classes est signalée sans être écrasée', (
+    t,
+  ) async {
     const raw = 'données illisibles';
-    SharedPreferences.setMockInitialValues(
-        {'plandeclasse_classes_v1': raw});
+    SharedPreferences.setMockInitialValues({'plandeclasse_classes_v1': raw});
 
     final state = await _pump(t);
 
@@ -105,8 +107,9 @@ void main() {
       expect(find.text('Classe de démo'), findsOneWidget);
     });
 
-    testWidgets('« Créer ma première classe » ouvre la saisie du nom',
-        (t) async {
+    testWidgets('« Créer ma première classe » ouvre la saisie du nom', (
+      t,
+    ) async {
       final state = await _pump(t);
 
       await t.tap(find.text('Créer ma première classe'));
@@ -124,8 +127,11 @@ void main() {
       await t.pumpAndSettle();
 
       expect(state.classes.map((c) => c.name), ['5ème A']);
-      expect(find.byType(ClassEditorScreen), findsOneWidget,
-          reason: 'on enchaîne directement sur l\'édition de la classe');
+      expect(
+        find.byType(ClassEditorScreen),
+        findsOneWidget,
+        reason: 'on enchaîne directement sur l\'édition de la classe',
+      );
     });
 
     testWidgets('la classe de démo est ajoutée et ouverte', (t) async {
@@ -135,8 +141,11 @@ void main() {
       await _settleUntil(t, () => state.classes.isNotEmpty);
 
       expect(state.classes, hasLength(1));
-      expect(state.classes.single.students, isNotEmpty,
-          reason: 'la démo arrive déjà remplie');
+      expect(
+        state.classes.single.students,
+        isNotEmpty,
+        reason: 'la démo arrive déjà remplie',
+      );
       expect(find.byType(ClassEditorScreen), findsOneWidget);
     });
   });
@@ -152,8 +161,10 @@ void main() {
       await t.testTextInput.receiveAction(TextInputAction.done);
       await t.pumpAndSettle();
 
-      expect(state.classes.map((c) => c.name), ['6ème B', '5ème A'],
-          reason: 'le nom doit être rogné');
+      expect(state.classes.map((c) => c.name), [
+        '6ème B',
+        '5ème A',
+      ], reason: 'le nom doit être rogné');
     });
 
     testWidgets('Annuler ne crée rien', (t) async {
@@ -168,8 +179,9 @@ void main() {
       expect(state.classes, isEmpty);
     });
 
-    testWidgets('un nom vide crée quand même une classe nommée par défaut',
-        (t) async {
+    testWidgets('un nom vide crée quand même une classe nommée par défaut', (
+      t,
+    ) async {
       final state = await _pump(t);
 
       await t.tap(find.widgetWithText(FloatingActionButton, 'Nouvelle classe'));
@@ -205,8 +217,9 @@ void main() {
       expect(find.byType(ClassEditorScreen), findsOneWidget);
     });
 
-    testWidgets('choisir un modèle applique sa géométrie à la classe créée',
-        (t) async {
+    testWidgets('choisir un modèle applique sa géométrie à la classe créée', (
+      t,
+    ) async {
       final state = await createUpTo(t);
 
       await t.tap(find.text('U'));
@@ -286,8 +299,10 @@ void main() {
       await t.pumpAndSettle();
 
       expect(find.text('Supprimer la classe ?'), findsOneWidget);
-      expect(find.textContaining('« 6ème B » sera définitivement supprimée'),
-          findsOneWidget);
+      expect(
+        find.textContaining('« 6ème B » sera définitivement supprimée'),
+        findsOneWidget,
+      );
 
       await t.tap(find.text('Supprimer'));
       await t.pumpAndSettle();
@@ -318,8 +333,9 @@ void main() {
       expect(find.text('Réglages'), findsOneWidget);
     });
 
-    testWidgets('le raccourci démo fonctionne aussi depuis la barre',
-        (t) async {
+    testWidgets('le raccourci démo fonctionne aussi depuis la barre', (
+      t,
+    ) async {
       // La classe de démo s'appelle elle aussi « 6ème B » : on part d'un autre
       // nom pour que l'assertion reste lisible.
       final state = await _pump(t, classes: [_cls('5ème A')]);

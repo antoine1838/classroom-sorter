@@ -18,50 +18,61 @@ import 'package:plandeclasse/widgets/seat_grid.dart';
 /// stable `seat_<id>` — la place n'a plus de Tooltip de nom depuis que la
 /// feuille au tap a pris ce rôle.
 Container _seatContainer(WidgetTester t, String studentId) {
-  return t.widget<Container>(find
-      .descendant(
-        of: find.byKey(ValueKey('seat_$studentId')),
-        matching: find.byType(Container),
-      )
-      .first);
+  return t.widget<Container>(
+    find
+        .descendant(
+          of: find.byKey(ValueKey('seat_$studentId')),
+          matching: find.byType(Container),
+        )
+        .first,
+  );
 }
 
 void main() {
-  testWidgets('le fond marque la sévérité : dur, souple et neutre diffèrent',
-      (t) async {
-    final cls = ClassGroup(
-      id: 'c',
-      name: 'Test',
-      room: Room(rows: 1, cols: 3),
-      students: [
-        Student(id: 'hard', firstName: 'Hard'),
-        Student(id: 'soft', firstName: 'Soft'),
-        Student(id: 'clean', firstName: 'Clean'),
-      ],
-    )
-      ..assignment[Room.keyOf(0, 0)] = 'hard'
-      ..assignment[Room.keyOf(0, 1)] = 'soft'
-      ..assignment[Room.keyOf(0, 2)] = 'clean';
+  testWidgets('le fond marque la sévérité : dur, souple et neutre diffèrent', (
+    t,
+  ) async {
+    final cls =
+        ClassGroup(
+            id: 'c',
+            name: 'Test',
+            room: Room(rows: 1, cols: 3),
+            students: [
+              Student(id: 'hard', firstName: 'Hard'),
+              Student(id: 'soft', firstName: 'Soft'),
+              Student(id: 'clean', firstName: 'Clean'),
+            ],
+          )
+          ..assignment[Room.keyOf(0, 0)] = 'hard'
+          ..assignment[Room.keyOf(0, 1)] = 'soft'
+          ..assignment[Room.keyOf(0, 2)] = 'clean';
 
     final result = PlanResult(
       assignment: cls.assignment,
       unplacedStudentIds: const [],
       issues: const [
         PlanIssue(
-            severity: IssueSeverity.hard, label: 'dur', studentIds: ['hard']),
+          severity: IssueSeverity.hard,
+          label: 'dur',
+          studentIds: ['hard'],
+        ),
         PlanIssue(
-            severity: IssueSeverity.soft,
-            label: 'souple',
-            studentIds: ['soft']),
+          severity: IssueSeverity.soft,
+          label: 'souple',
+          studentIds: ['soft'],
+        ),
       ],
       balance: const [],
       score: 0,
     );
 
-    await t.pumpWidget(MaterialApp(
-      home: Scaffold(
-          body: PlanGrid(cls: cls, onSwap: (_, _) {}, result: result)),
-    ));
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlanGrid(cls: cls, onSwap: (_, _) {}, result: result),
+        ),
+      ),
+    );
     await t.pumpAndSettle();
 
     Color bg(String id) =>
@@ -76,47 +87,54 @@ void main() {
   });
 
   testWidgets(
-      'le genre se replie sur un liseré de 4px au bord gauche, muet pour « autre »',
-      (t) async {
-    final cls = ClassGroup(
-      id: 'c',
-      name: 'Test',
-      room: Room(rows: 1, cols: 3),
-      students: [
-        Student(id: 'f', firstName: 'F', gender: Gender.fille),
-        Student(id: 'g', firstName: 'G', gender: Gender.garcon),
-        Student(id: 'a', firstName: 'A', gender: Gender.autre),
-      ],
-    )
-      ..assignment[Room.keyOf(0, 0)] = 'f'
-      ..assignment[Room.keyOf(0, 1)] = 'g'
-      ..assignment[Room.keyOf(0, 2)] = 'a';
+    'le genre se replie sur un liseré de 4px au bord gauche, muet pour « autre »',
+    (t) async {
+      final cls =
+          ClassGroup(
+              id: 'c',
+              name: 'Test',
+              room: Room(rows: 1, cols: 3),
+              students: [
+                Student(id: 'f', firstName: 'F', gender: Gender.fille),
+                Student(id: 'g', firstName: 'G', gender: Gender.garcon),
+                Student(id: 'a', firstName: 'A', gender: Gender.autre),
+              ],
+            )
+            ..assignment[Room.keyOf(0, 0)] = 'f'
+            ..assignment[Room.keyOf(0, 1)] = 'g'
+            ..assignment[Room.keyOf(0, 2)] = 'a';
 
-    await t.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-    ));
-    await t.pumpAndSettle();
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
 
-    Color? stripe(String id) {
-      final finder = find.byKey(ValueKey('gender_stripe_$id'));
-      if (finder.evaluate().isEmpty) return null;
-      return (t.widget<Container>(finder).color);
-    }
+      Color? stripe(String id) {
+        final finder = find.byKey(ValueKey('gender_stripe_$id'));
+        if (finder.evaluate().isEmpty) return null;
+        return (t.widget<Container>(finder).color);
+      }
 
-    final fille = stripe('f');
-    final garcon = stripe('g');
-    final autre = stripe('a');
+      final fille = stripe('f');
+      final garcon = stripe('g');
+      final autre = stripe('a');
 
-    expect(fille, isNotNull);
-    expect(garcon, isNotNull);
-    expect(fille, isNot(equals(garcon)));
-    // « autre » reste muet, comme les autres indicateurs de coin (Moyen /
-    // Modéré / Bonne vue) : pas de liseré du tout.
-    expect(autre, isNull);
-  });
+      expect(fille, isNotNull);
+      expect(garcon, isNotNull);
+      expect(fille, isNot(equals(garcon)));
+      // « autre » reste muet, comme les autres indicateurs de coin (Moyen /
+      // Modéré / Bonne vue) : pas de liseré du tout.
+      expect(autre, isNull);
+    },
+  );
 
-  testWidgets('le tap sur une place occupée transmet l\'élève à onTapSeat',
-      (t) async {
+  testWidgets('le tap sur une place occupée transmet l\'élève à onTapSeat', (
+    t,
+  ) async {
     final cls = ClassGroup(
       id: 'c',
       name: 'Test',
@@ -125,15 +143,17 @@ void main() {
     )..assignment[Room.keyOf(0, 0)] = 'stu';
 
     Student? tapped;
-    await t.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: PlanGrid(
-          cls: cls,
-          onSwap: (_, _) {},
-          onTapSeat: (s) => tapped = s,
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlanGrid(
+            cls: cls,
+            onSwap: (_, _) {},
+            onTapSeat: (s) => tapped = s,
+          ),
         ),
       ),
-    ));
+    );
     await t.pumpAndSettle();
 
     await t.tap(find.byKey(const ValueKey('seat_stu')));
@@ -151,15 +171,17 @@ void main() {
     );
 
     var tappedCount = 0;
-    await t.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: PlanGrid(
-          cls: cls,
-          onSwap: (_, _) {},
-          onTapSeat: (_) => tappedCount++,
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlanGrid(
+            cls: cls,
+            onSwap: (_, _) {},
+            onTapSeat: (_) => tappedCount++,
+          ),
         ),
       ),
-    ));
+    );
     await t.pumpAndSettle();
 
     await t.tap(find.byIcon(Icons.event_seat_outlined));
@@ -170,10 +192,12 @@ void main() {
 
   group('Bord de dossier (orientation)', () {
     Alignment backrestAlignment(WidgetTester t, String studentId) {
-      final align = t.widget<Align>(find.ancestor(
-        of: find.byKey(ValueKey('backrest_$studentId')),
-        matching: find.byType(Align),
-      ));
+      final align = t.widget<Align>(
+        find.ancestor(
+          of: find.byKey(ValueKey('backrest_$studentId')),
+          matching: find.byType(Align),
+        ),
+      );
       return align.alignment as Alignment;
     }
 
@@ -186,16 +210,21 @@ void main() {
       );
       cls.assignment[Room.keyOf(0, 0)] = 'stu';
 
-      await t.pumpWidget(MaterialApp(
-        home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-      ));
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+          ),
+        ),
+      );
       await t.pumpAndSettle();
 
       expect(backrestAlignment(t, 'stu'), Alignment.topCenter);
     });
 
-    testWidgets('chaque orientation place le dossier sur le bord opposé',
-        (t) async {
+    testWidgets('chaque orientation place le dossier sur le bord opposé', (
+      t,
+    ) async {
       final expected = {
         Facing.nord: Alignment.topCenter,
         Facing.est: Alignment.centerLeft,
@@ -216,18 +245,24 @@ void main() {
         );
         cls.assignment[Room.keyOf(0, 0)] = 'stu';
 
-        await t.pumpWidget(MaterialApp(
-          home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-        ));
+        await t.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+            ),
+          ),
+        );
         await t.pumpAndSettle();
 
-        expect(backrestAlignment(t, 'stu'), entry.value,
-            reason: 'orientation ${entry.key}');
+        expect(
+          backrestAlignment(t, 'stu'),
+          entry.value,
+          reason: 'orientation ${entry.key}',
+        );
       }
     });
 
-    testWidgets(
-        'facing est + liseré de genre : le dossier reste visible, '
+    testWidgets('facing est + liseré de genre : le dossier reste visible, '
         'peint par-dessus le liseré', (t) async {
       final room = Room(rows: 1, cols: 1)
         ..facing[Room.keyOf(0, 0)] = Facing.est;
@@ -235,15 +270,17 @@ void main() {
         id: 'c',
         name: 'Test',
         room: room,
-        students: [
-          Student(id: 'stu', firstName: 'A', gender: Gender.fille),
-        ],
+        students: [Student(id: 'stu', firstName: 'A', gender: Gender.fille)],
       );
       cls.assignment[Room.keyOf(0, 0)] = 'stu';
 
-      await t.pumpWidget(MaterialApp(
-        home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-      ));
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+          ),
+        ),
+      );
       await t.pumpAndSettle();
 
       // Le dossier n'est pas décalé (un seul rendu pour toutes les
@@ -252,26 +289,35 @@ void main() {
       // peint après — sinon l'orientation d'un élève genré serait invisible.
       expect(backrestAlignment(t, 'stu'), Alignment.centerLeft);
 
-      final seatStack = t.widget<Stack>(find
-          .ancestor(
-            of: find.byKey(const ValueKey('backrest_stu')),
-            matching: find.byType(Stack),
-          )
-          .first);
-      int indexOf(Key key) => seatStack.children.indexWhere((w) => find
-          .descendant(of: find.byWidget(w), matching: find.byKey(key))
-          .evaluate()
-          .isNotEmpty);
+      final seatStack = t.widget<Stack>(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey('backrest_stu')),
+              matching: find.byType(Stack),
+            )
+            .first,
+      );
+      int indexOf(Key key) => seatStack.children.indexWhere(
+        (w) => find
+            .descendant(of: find.byWidget(w), matching: find.byKey(key))
+            .evaluate()
+            .isNotEmpty,
+      );
       final dossierIndex = indexOf(const ValueKey('backrest_stu'));
       final genderIndex = indexOf(const ValueKey('gender_stripe_stu'));
 
       expect(genderIndex, isNot(-1));
-      expect(dossierIndex, greaterThan(genderIndex),
-          reason: 'le dossier doit être peint après le liseré pour rester visible');
+      expect(
+        dossierIndex,
+        greaterThan(genderIndex),
+        reason:
+            'le dossier doit être peint après le liseré pour rester visible',
+      );
     });
 
-    testWidgets('facing est sans genre marqué : le dossier reste au bord',
-        (t) async {
+    testWidgets('facing est sans genre marqué : le dossier reste au bord', (
+      t,
+    ) async {
       final room = Room(rows: 1, cols: 1)
         ..facing[Room.keyOf(0, 0)] = Facing.est;
       final cls = ClassGroup(
@@ -282,31 +328,50 @@ void main() {
       );
       cls.assignment[Room.keyOf(0, 0)] = 'stu';
 
-      await t.pumpWidget(MaterialApp(
-        home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-      ));
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+          ),
+        ),
+      );
       await t.pumpAndSettle();
 
-      expect(backrestAlignment(t, 'stu'), Alignment.centerLeft,
-          reason: 'rien à éviter : pas de liseré de genre pour "autre"');
+      expect(
+        backrestAlignment(t, 'stu'),
+        Alignment.centerLeft,
+        reason: 'rien à éviter : pas de liseré de genre pour "autre"',
+      );
     });
   });
 
-  testWidgets('une place libre affiche l\'icône pivotée selon son orientation',
-      (t) async {
-    final room = Room(rows: 1, cols: 1)..facing[Room.keyOf(0, 0)] = Facing.sud;
-    final cls = ClassGroup(id: 'c', name: 'Test', room: room, students: []);
+  testWidgets(
+    'une place libre affiche l\'icône pivotée selon son orientation',
+    (t) async {
+      final room = Room(rows: 1, cols: 1)
+        ..facing[Room.keyOf(0, 0)] = Facing.sud;
+      final cls = ClassGroup(id: 'c', name: 'Test', room: room, students: []);
 
-    await t.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-    ));
-    await t.pumpAndSettle();
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
 
-    final rotate = t.widget<Transform>(find.ancestor(
-      of: find.byIcon(Icons.event_seat_outlined),
-      matching: find.byType(Transform),
-    ));
-    expect(rotate.transform.getRotation()[0], closeTo(-1, 0.001),
-        reason: 'sud = 180°, cos(π) = -1 sur la diagonale de la matrice');
-  });
+      final rotate = t.widget<Transform>(
+        find.ancestor(
+          of: find.byIcon(Icons.event_seat_outlined),
+          matching: find.byType(Transform),
+        ),
+      );
+      expect(
+        rotate.transform.getRotation()[0],
+        closeTo(-1, 0.001),
+        reason: 'sud = 180°, cos(π) = -1 sur la diagonale de la matrice',
+      );
+    },
+  );
 }

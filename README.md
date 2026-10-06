@@ -144,8 +144,10 @@ manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 ## Qualité
 
 Sur chaque push sur `main` et chaque pull request, le CI
-([.github/workflows/sonarcloud.yml](.github/workflows/sonarcloud.yml)) lance les
-tests avec couverture puis envoie une analyse statique à
+([.github/workflows/ci.yml](.github/workflows/ci.yml)) vérifie le format Dart,
+lance `flutter analyze` et compile les cibles Web et Windows. Le workflow
+([.github/workflows/sonarcloud.yml](.github/workflows/sonarcloud.yml)) lance
+les tests avec couverture puis envoie une analyse statique à
 [SonarCloud](https://sonarcloud.io/project/overview?id=antoine1838_classroom-sorter)
 (bugs, code smells, duplication, couverture). Config dans
 [sonar-project.properties](sonar-project.properties). Le CodeQL par défaut de

@@ -12,10 +12,10 @@ void main() {
 
   setUpAll(() {
     pubspec = File('pubspec.yaml').readAsStringSync();
-    androidWorkflow =
-        File('.github/workflows/build-apk.yml').readAsStringSync();
-    iosWorkflow =
-        File('.github/workflows/build-ios.yml').readAsStringSync();
+    androidWorkflow = File(
+      '.github/workflows/build-apk.yml',
+    ).readAsStringSync();
+    iosWorkflow = File('.github/workflows/build-ios.yml').readAsStringSync();
     version = RegExp(
       r'^version:\s+([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$',
       multiLine: true,
@@ -27,11 +27,11 @@ void main() {
     expect(int.parse(version.group(2)!), greaterThan(118));
   });
 
-  test('le changelog du build courant existe et respecte la limite Play',
-      () {
+  test('le changelog du build courant existe et respecte la limite Play', () {
     final buildNumber = version.group(2)!;
     final changelog = File(
-        'store/play/metadata/fr-FR/changelogs/$buildNumber.txt');
+      'store/play/metadata/fr-FR/changelogs/$buildNumber.txt',
+    );
 
     expect(changelog.existsSync(), isTrue);
     expect(changelog.readAsStringSync().trim(), isNotEmpty);
@@ -41,8 +41,11 @@ void main() {
   test('Android et iOS lisent le pubspec sans remplacer ses versions', () {
     for (final workflow in [androidWorkflow, iosWorkflow]) {
       expect(workflow, contains('Lire et valider la version du pubspec'));
-      expect(workflow, contains(r"tr -d '\r'"),
-          reason: 'les runners Linux doivent retirer le CR des fichiers CRLF');
+      expect(
+        workflow,
+        contains(r"tr -d '\r'"),
+        reason: 'les runners Linux doivent retirer le CR des fichiers CRLF',
+      );
       expect(workflow, contains(r'$GITHUB_REF_NAME" != "v$APP_VERSION'));
       expect(workflow, isNot(contains('--build-number=')));
       expect(workflow, isNot(contains('--build-name=')));
@@ -50,10 +53,11 @@ void main() {
   });
 
   test('la release Android exige changelog et secrets de signature', () {
-    expect(androidWorkflow,
-        contains(r'changelogs/$APP_BUILD_NUMBER.txt'));
-    expect(androidWorkflow,
-        contains('Vérifier les secrets de signature Play Store'));
+    expect(androidWorkflow, contains(r'changelogs/$APP_BUILD_NUMBER.txt'));
+    expect(
+      androidWorkflow,
+      contains('Vérifier les secrets de signature Play Store'),
+    );
     for (final secret in [
       'KEYSTORE_BASE64',
       'KEYSTORE_PASSWORD',
@@ -62,8 +66,7 @@ void main() {
     ]) {
       expect(androidWorkflow, contains(secret));
     }
-    expect(androidWorkflow,
-        contains('Secret de signature manquant'));
+    expect(androidWorkflow, contains('Secret de signature manquant'));
     expect(androidWorkflow, contains('flutter build appbundle --release'));
   });
 }

@@ -20,14 +20,14 @@ import 'package:plandeclasse/screens/class_editor_screen.dart';
 const _helpText = 'Touchez une case vide';
 
 ClassGroup _cls() => ClassGroup(
-      id: 'c',
-      name: '6ème B',
-      room: Room(rows: 5, cols: 7),
-      students: [
-        for (var i = 0; i < 35; i++)
-          Student(id: 's$i', firstName: 'Prenom$i', lastName: 'Nom$i'),
-      ],
-    );
+  id: 'c',
+  name: '6ème B',
+  room: Room(rows: 5, cols: 7),
+  students: [
+    for (var i = 0; i < 35; i++)
+      Student(id: 's$i', firstName: 'Prenom$i', lastName: 'Nom$i'),
+  ],
+);
 
 /// Vrai si Flutter a signalé un débordement de mise en page : un débordement
 /// ne fait pas échouer un test par lui-même, il faut inspecter
@@ -45,14 +45,20 @@ Future<void> _pump(WidgetTester t, Size size) async {
   final cls = _cls();
   final state = AppState()..classes.add(cls);
   await t.pumpWidget(
-      MaterialApp(home: ClassEditorScreen(state: state, cls: cls)));
+    MaterialApp(
+      home: ClassEditorScreen(state: state, cls: cls),
+    ),
+  );
   await t.pumpAndSettle();
 }
 
 Future<void> _toStudents(WidgetTester t) async {
-  await t.tap(find.descendant(
+  await t.tap(
+    find.descendant(
       of: find.byType(TabBar),
-      matching: find.byIcon(Icons.people_alt_outlined)));
+      matching: find.byIcon(Icons.people_alt_outlined),
+    ),
+  );
   await t.pumpAndSettle();
 }
 
@@ -62,30 +68,38 @@ void main() {
       const Size(700, 250), // mesure exacte de l'issue
       const Size(500, 220),
       const Size(900, 300),
-      const Size(300, 900), // portrait très étroit : plancher hors scope, mais pas de crash
+      const Size(
+        300,
+        900,
+      ), // portrait très étroit : plancher hors scope, mais pas de crash
     ]) {
-      testWidgets(
-          'Salle et Élèves ne débordent pas à '
+      testWidgets('Salle et Élèves ne débordent pas à '
           '${size.width.toInt()}×${size.height.toInt()}', (t) async {
         await _pump(t, size);
         // DefaultTabController démarre sur Salle, mais TabBarView construit
         // aussi son voisin (Élèves) : un débordement ici peut appartenir à
         // l'un ou l'autre.
-        expect(_hasOverflow(t), isFalse, reason: 'Salle (et son voisin Élèves)');
+        expect(
+          _hasOverflow(t),
+          isFalse,
+          reason: 'Salle (et son voisin Élèves)',
+        );
 
         await _toStudents(t);
         expect(_hasOverflow(t), isFalse, reason: 'Élèves');
       });
     }
 
-    testWidgets('à 700×250, le paragraphe d\'aide de Salle cède la place',
-        (t) async {
+    testWidgets('à 700×250, le paragraphe d\'aide de Salle cède la place', (
+      t,
+    ) async {
       await _pump(t, const Size(700, 250));
       expect(find.textContaining(_helpText), findsNothing);
     });
 
-    testWidgets('en confort, le paragraphe d\'aide de Salle reste visible',
-        (t) async {
+    testWidgets('en confort, le paragraphe d\'aide de Salle reste visible', (
+      t,
+    ) async {
       await _pump(t, const Size(1000, 800));
       expect(find.textContaining(_helpText), findsOneWidget);
     });

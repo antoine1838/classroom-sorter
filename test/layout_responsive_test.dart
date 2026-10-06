@@ -27,12 +27,17 @@ ClassGroup _demoClass({required int rows, required int cols, int nb = 6}) {
   );
 }
 
-Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls,
-    {StudentsViewMode mode = StudentsViewMode.compact}) async {
+Future<void> _pumpEditor(
+  WidgetTester tester,
+  ClassGroup cls, {
+  StudentsViewMode mode = StudentsViewMode.compact,
+}) async {
   final state = AppState()..studentsViewMode = mode;
-  await tester.pumpWidget(MaterialApp(
-    home: ClassEditorScreen(state: state, cls: cls),
-  ));
+  await tester.pumpWidget(
+    MaterialApp(
+      home: ClassEditorScreen(state: state, cls: cls),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -48,8 +53,9 @@ Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls,
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('Salle : une grille large tient dans un écran étroit',
-      (tester) async {
+  testWidgets('Salle : une grille large tient dans un écran étroit', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(360, 740);
     addTearDown(tester.view.resetPhysicalSize);
@@ -78,54 +84,63 @@ void main() {
   });
 
   testWidgets(
-      'Élèves (vue Compacte) : le dernier attribut (« Vue ») est visible sans scroll',
-      (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(320, 800);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    'Élèves (vue Compacte) : le dernier attribut (« Vue ») est visible sans scroll',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(320, 800);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    await _pumpEditor(tester, _demoClass(rows: 5, cols: 7),
-        mode: StudentsViewMode.compact);
+      await _pumpEditor(
+        tester,
+        _demoClass(rows: 5, cols: 7),
+        mode: StudentsViewMode.compact,
+      );
 
-    // Les onglets passent en icônes seules quand leurs libellés ne tiennent
-    // plus : on cible donc l'icône, stable dans les deux cas.
-    await tester.tap(find.byIcon(Icons.people_alt_outlined));
-    await tester.pumpAndSettle();
+      // Les onglets passent en icônes seules quand leurs libellés ne tiennent
+      // plus : on cible donc l'icône, stable dans les deux cas.
+      await tester.tap(find.byIcon(Icons.people_alt_outlined));
+      await tester.pumpAndSettle();
 
-    // La colonne la plus à droite est l'attribut « Vue » (en-tête).
-    final vue = find.text('Vue');
-    expect(vue, findsOneWidget);
-    final right = _globalEdges(tester.element(vue)).right;
-    expect(right, lessThanOrEqualTo(320 + 0.5));
-  });
+      // La colonne la plus à droite est l'attribut « Vue » (en-tête).
+      final vue = find.text('Vue');
+      expect(vue, findsOneWidget);
+      final right = _globalEdges(tester.element(vue)).right;
+      expect(right, lessThanOrEqualTo(320 + 0.5));
+    },
+  );
 
   testWidgets(
-      'Élèves (vue Complète) : le dernier groupe (« Vue ») est visible sans '
-      'scroll',
-      (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(320, 800);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    'Élèves (vue Complète) : le dernier groupe (« Vue ») est visible sans '
+    'scroll',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(320, 800);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    await _pumpEditor(tester, _demoClass(rows: 5, cols: 7),
-        mode: StudentsViewMode.complete);
+      await _pumpEditor(
+        tester,
+        _demoClass(rows: 5, cols: 7),
+        mode: StudentsViewMode.complete,
+      );
 
-    // Les onglets passent en icônes seules quand leurs libellés ne tiennent
-    // plus : on cible donc l'icône, stable dans les deux cas.
-    await tester.tap(find.byIcon(Icons.people_alt_outlined));
-    await tester.pumpAndSettle();
+      // Les onglets passent en icônes seules quand leurs libellés ne tiennent
+      // plus : on cible donc l'icône, stable dans les deux cas.
+      await tester.tap(find.byIcon(Icons.people_alt_outlined));
+      await tester.pumpAndSettle();
 
-    // Le dernier groupe de colonnes est l'attribut « Vue » (en-tête).
-    final vue = find.text('Vue');
-    expect(vue, findsOneWidget);
-    final right = _globalEdges(tester.element(vue)).right;
-    expect(right, lessThanOrEqualTo(320 + 0.5));
-  });
+      // Le dernier groupe de colonnes est l'attribut « Vue » (en-tête).
+      final vue = find.text('Vue');
+      expect(vue, findsOneWidget);
+      final right = _globalEdges(tester.element(vue)).right;
+      expect(right, lessThanOrEqualTo(320 + 0.5));
+    },
+  );
 
-  testWidgets('Onglets : la barre remplit toute la largeur de l\'écran',
-      (tester) async {
+  testWidgets('Onglets : la barre remplit toute la largeur de l\'écran', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(360, 740);
     addTearDown(tester.view.resetPhysicalSize);

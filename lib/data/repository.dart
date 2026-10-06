@@ -9,11 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/classroom.dart';
 import '../models/saved_room.dart';
 
-enum RepositoryLoadStatus {
-  ok,
-  recoveredFromBackup,
-  corrupted,
-}
+enum RepositoryLoadStatus { ok, recoveredFromBackup, corrupted }
 
 class RepositoryLoadResult<T> {
   final T data;
@@ -31,19 +27,17 @@ class Repository {
   static const _savedRoomsKey = 'plandeclasse_saved_rooms_v1';
   static const _savedRoomsBackupKey = 'plandeclasse_saved_rooms_v1_backup';
   static const _savedRoomsCorruptKey = 'plandeclasse_saved_rooms_v1_corrupt';
-  static const _genderColorPaletteKey =
-      'plandeclasse_gender_color_palette_v1';
+  static const _genderColorPaletteKey = 'plandeclasse_gender_color_palette_v1';
 
-  Future<List<ClassGroup>> load() async =>
-      (await loadClassesWithStatus()).data;
+  Future<List<ClassGroup>> load() async => (await loadClassesWithStatus()).data;
 
-  Future<RepositoryLoadResult<List<ClassGroup>>>
-      loadClassesWithStatus() => _loadList(
-            key: _key,
-            backupKey: _backupKey,
-            corruptKey: _corruptKey,
-            fromJson: ClassGroup.fromJson,
-          );
+  Future<RepositoryLoadResult<List<ClassGroup>>> loadClassesWithStatus() =>
+      _loadList(
+        key: _key,
+        backupKey: _backupKey,
+        corruptKey: _corruptKey,
+        fromJson: ClassGroup.fromJson,
+      );
 
   Future<void> save(List<ClassGroup> classes) {
     // Sérialiser avant le premier await fige l'état correspondant exactement
@@ -88,7 +82,7 @@ class Repository {
   /// si jamais sauvegardée. Pas de dépendance à `dart:ui` ici (types bruts),
   /// c'est à l'appelant (main.dart) de les convertir en Offset/Size.
   Future<({double x, double y, double width, double height})?>
-      loadWindowBounds() async {
+  loadWindowBounds() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_windowBoundsKey);
     if (raw == null) return null;
@@ -98,7 +92,11 @@ class Repository {
   }
 
   Future<void> saveWindowBounds(
-      double x, double y, double width, double height) async {
+    double x,
+    double y,
+    double width,
+    double height,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await _setString(prefs, _windowBoundsKey, '$x,$y,$width,$height');
   }
@@ -108,13 +106,13 @@ class Repository {
   Future<List<SavedRoom>> loadSavedRooms() async =>
       (await loadSavedRoomsWithStatus()).data;
 
-  Future<RepositoryLoadResult<List<SavedRoom>>>
-      loadSavedRoomsWithStatus() => _loadList(
-            key: _savedRoomsKey,
-            backupKey: _savedRoomsBackupKey,
-            corruptKey: _savedRoomsCorruptKey,
-            fromJson: SavedRoom.fromJson,
-          );
+  Future<RepositoryLoadResult<List<SavedRoom>>> loadSavedRoomsWithStatus() =>
+      _loadList(
+        key: _savedRoomsKey,
+        backupKey: _savedRoomsBackupKey,
+        corruptKey: _savedRoomsCorruptKey,
+        fromJson: SavedRoom.fromJson,
+      );
 
   Future<void> saveSavedRooms(List<SavedRoom> rooms) {
     final raw = jsonEncode(rooms.map((r) => r.toJson()).toList());
@@ -180,7 +178,8 @@ class Repository {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final previous = prefs.getString(key);
-    final previousIsValid = previous != null &&
+    final previousIsValid =
+        previous != null &&
         previous.isNotEmpty &&
         _tryDecodeList(previous, fromJson) != null;
 
@@ -195,7 +194,8 @@ class Repository {
     // Première sauvegarde, ou valeur principale antérieure corrompue sans
     // secours exploitable : initialiser aussi un point de restauration.
     final backup = prefs.getString(backupKey);
-    final backupIsValid = backup != null &&
+    final backupIsValid =
+        backup != null &&
         backup.isNotEmpty &&
         _tryDecodeList(backup, fromJson) != null;
     if (!previousIsValid && !backupIsValid) {
@@ -216,7 +216,10 @@ class Repository {
   }
 
   Future<void> _preserveCorruptData(
-      SharedPreferences prefs, String key, String raw) async {
+    SharedPreferences prefs,
+    String key,
+    String raw,
+  ) async {
     try {
       await prefs.setString(key, raw);
     } catch (_) {
@@ -226,7 +229,10 @@ class Repository {
   }
 
   Future<void> _setString(
-      SharedPreferences prefs, String key, String value) async {
+    SharedPreferences prefs,
+    String key,
+    String value,
+  ) async {
     final written = await prefs.setString(key, value);
     if (!written) {
       throw StateError('Impossible d\'écrire la préférence $key.');

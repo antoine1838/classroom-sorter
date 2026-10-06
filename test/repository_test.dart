@@ -21,8 +21,11 @@ void main() {
 
       expect(classes, isEmpty);
       classes.add(ClassGroup(id: 'a', name: '5ème A'));
-      expect(classes, hasLength(1),
-          reason: 'la liste chargée alimente directement AppState');
+      expect(
+        classes,
+        hasLength(1),
+        reason: 'la liste chargée alimente directement AppState',
+      );
     });
 
     test('aller-retour save / load', () async {
@@ -45,15 +48,13 @@ void main() {
     });
 
     test('chaîne vide traitée comme absence de données', () async {
-      SharedPreferences.setMockInitialValues(
-          {'plandeclasse_classes_v1': ''});
+      SharedPreferences.setMockInitialValues({'plandeclasse_classes_v1': ''});
       expect(await Repository().load(), isEmpty);
     });
 
     test('données corrompues : statut explicite et copie préservée', () async {
       const raw = 'ceci n\'est pas du JSON';
-      SharedPreferences.setMockInitialValues(
-          {'plandeclasse_classes_v1': raw});
+      SharedPreferences.setMockInitialValues({'plandeclasse_classes_v1': raw});
 
       final result = await Repository().loadClassesWithStatus();
       final prefs = await SharedPreferences.getInstance();
@@ -63,38 +64,46 @@ void main() {
       expect(prefs.getString('plandeclasse_classes_v1_corrupt'), raw);
     });
 
-    test('JSON valide mais de forme inattendue : corruption signalée',
-        () async {
-      // Un objet là où on attend une liste : le try/catch doit encaisser.
-      SharedPreferences.setMockInitialValues(
-          {'plandeclasse_classes_v1': jsonEncode({'pas': 'une liste'})});
+    test(
+      'JSON valide mais de forme inattendue : corruption signalée',
+      () async {
+        // Un objet là où on attend une liste : le try/catch doit encaisser.
+        SharedPreferences.setMockInitialValues({
+          'plandeclasse_classes_v1': jsonEncode({'pas': 'une liste'}),
+        });
 
-      final result = await Repository().loadClassesWithStatus();
+        final result = await Repository().loadClassesWithStatus();
 
-      expect(result.data, isEmpty);
-      expect(result.status, RepositoryLoadStatus.corrupted);
-    });
+        expect(result.data, isEmpty);
+        expect(result.status, RepositoryLoadStatus.corrupted);
+      },
+    );
 
-    test('restaure la dernière sauvegarde valide si la principale est corrompue',
-        () async {
-      final backup = jsonEncode([
-        ClassGroup(id: 'secours', name: '5ème A').toJson(),
-      ]);
-      const corrupt = 'JSON cassé';
-      SharedPreferences.setMockInitialValues({
-        'plandeclasse_classes_v1': corrupt,
-        'plandeclasse_classes_v1_backup': backup,
-      });
+    test(
+      'restaure la dernière sauvegarde valide si la principale est corrompue',
+      () async {
+        final backup = jsonEncode([
+          ClassGroup(id: 'secours', name: '5ème A').toJson(),
+        ]);
+        const corrupt = 'JSON cassé';
+        SharedPreferences.setMockInitialValues({
+          'plandeclasse_classes_v1': corrupt,
+          'plandeclasse_classes_v1_backup': backup,
+        });
 
-      final result = await Repository().loadClassesWithStatus();
-      final prefs = await SharedPreferences.getInstance();
+        final result = await Repository().loadClassesWithStatus();
+        final prefs = await SharedPreferences.getInstance();
 
-      expect(result.status, RepositoryLoadStatus.recoveredFromBackup);
-      expect(result.data.single.name, '5ème A');
-      expect(prefs.getString('plandeclasse_classes_v1'), backup,
-          reason: 'la valeur principale doit être réparée');
-      expect(prefs.getString('plandeclasse_classes_v1_corrupt'), corrupt);
-    });
+        expect(result.status, RepositoryLoadStatus.recoveredFromBackup);
+        expect(result.data.single.name, '5ème A');
+        expect(
+          prefs.getString('plandeclasse_classes_v1'),
+          backup,
+          reason: 'la valeur principale doit être réparée',
+        );
+        expect(prefs.getString('plandeclasse_classes_v1_corrupt'), corrupt);
+      },
+    );
 
     test('chaque sauvegarde conserve la version valide précédente', () async {
       final repo = Repository();
@@ -105,8 +114,9 @@ void main() {
       final backup =
           jsonDecode(prefs.getString('plandeclasse_classes_v1_backup')!)
               as List<dynamic>;
-      final current = jsonDecode(prefs.getString('plandeclasse_classes_v1')!)
-          as List<dynamic>;
+      final current =
+          jsonDecode(prefs.getString('plandeclasse_classes_v1')!)
+              as List<dynamic>;
 
       expect((backup.single as Map<String, dynamic>)['name'], '5ème A');
       expect((current.single as Map<String, dynamic>)['name'], '6ème B');
@@ -120,8 +130,9 @@ void main() {
       classes.add(ClassGroup(id: 'b', name: '6ème B'));
       await saving;
 
-      expect((await repo.load()).map((c) => c.name), ['5ème A'],
-          reason: 'une mutation ultérieure ne doit pas modifier le snapshot');
+      expect((await repo.load()).map((c) => c.name), [
+        '5ème A',
+      ], reason: 'une mutation ultérieure ne doit pas modifier le snapshot');
     });
   });
 
@@ -154,14 +165,16 @@ void main() {
     });
 
     test('valeur tronquée : ignorée plutôt que devinée', () async {
-      SharedPreferences.setMockInitialValues(
-          {'plandeclasse_window_bounds_v1': '10,20,1280'});
+      SharedPreferences.setMockInitialValues({
+        'plandeclasse_window_bounds_v1': '10,20,1280',
+      });
       expect(await Repository().loadWindowBounds(), isNull);
     });
 
     test('valeur non numérique : ignorée', () async {
-      SharedPreferences.setMockInitialValues(
-          {'plandeclasse_window_bounds_v1': '10,20,large,720'});
+      SharedPreferences.setMockInitialValues({
+        'plandeclasse_window_bounds_v1': '10,20,large,720',
+      });
       expect(await Repository().loadWindowBounds(), isNull);
     });
   });
@@ -186,8 +199,9 @@ void main() {
 
     test('données corrompues : statut explicite et copie préservée', () async {
       const raw = 'ceci n\'est pas du JSON';
-      SharedPreferences.setMockInitialValues(
-          {'plandeclasse_saved_rooms_v1': raw});
+      SharedPreferences.setMockInitialValues({
+        'plandeclasse_saved_rooms_v1': raw,
+      });
 
       final result = await Repository().loadSavedRoomsWithStatus();
       final prefs = await SharedPreferences.getInstance();
@@ -199,8 +213,11 @@ void main() {
 
     test('restaure les salles depuis la dernière sauvegarde valide', () async {
       final backup = jsonEncode([
-        SavedRoom(id: 's1', name: 'B204', room: Room(rows: 3, cols: 4))
-            .toJson(),
+        SavedRoom(
+          id: 's1',
+          name: 'B204',
+          room: Room(rows: 3, cols: 4),
+        ).toJson(),
       ]);
       SharedPreferences.setMockInitialValues({
         'plandeclasse_saved_rooms_v1': 'JSON cassé',
@@ -223,8 +240,11 @@ void main() {
       expect(a.name, '5ème A');
 
       final b = state.addClass('   ');
-      expect(b.name, 'Nouvelle classe',
-          reason: 'un nom vide ne doit pas passer');
+      expect(
+        b.name,
+        'Nouvelle classe',
+        reason: 'un nom vide ne doit pas passer',
+      );
 
       final c = state.addClass('  6ème B  ');
       expect(c.name, '6ème B', reason: 'les espaces sont rognés');
@@ -283,11 +303,17 @@ void main() {
       final room = Room(rows: 2, cols: 2);
 
       final saved = state.addSavedRoom('B204', room);
-      room.toggle(0, 0); // retouche la salle d'origine après l'avoir enregistrée
+      room.toggle(
+        0,
+        0,
+      ); // retouche la salle d'origine après l'avoir enregistrée
 
       expect(state.savedRooms, hasLength(1));
-      expect(saved.room.isSeat(0, 0), isTrue,
-          reason: 'la salle enregistrée ne doit pas suivre l\'originale');
+      expect(
+        saved.room.isSeat(0, 0),
+        isTrue,
+        reason: 'la salle enregistrée ne doit pas suivre l\'originale',
+      );
     });
 
     test('les salles enregistrées survivent à un redémarrage', () async {
@@ -302,19 +328,21 @@ void main() {
       expect(reloaded.savedRooms.map((r) => r.name), ['B204']);
     });
 
-    test('updateSavedRoom remplace la géométrie sans changer id ni nom',
-        () async {
-      final state = AppState();
-      await state.init();
-      final saved = state.addSavedRoom('B204', Room(rows: 2, cols: 2));
+    test(
+      'updateSavedRoom remplace la géométrie sans changer id ni nom',
+      () async {
+        final state = AppState();
+        await state.init();
+        final saved = state.addSavedRoom('B204', Room(rows: 2, cols: 2));
 
-      state.updateSavedRoom(saved.id, Room(rows: 5, cols: 6));
+        state.updateSavedRoom(saved.id, Room(rows: 5, cols: 6));
 
-      expect(state.savedRooms.single.id, saved.id);
-      expect(state.savedRooms.single.name, 'B204');
-      expect(state.savedRooms.single.room.rows, 5);
-      expect(state.savedRooms.single.room.cols, 6);
-    });
+        expect(state.savedRooms.single.id, saved.id);
+        expect(state.savedRooms.single.name, 'B204');
+        expect(state.savedRooms.single.room.rows, 5);
+        expect(state.savedRooms.single.room.cols, 6);
+      },
+    );
 
     test('updateSavedRoom sur un id inconnu ne fait rien', () async {
       final state = AppState();
@@ -372,8 +400,10 @@ void main() {
       expect(state.savedRoomNameExists('B204'), isTrue);
       expect(state.savedRoomNameExists('C105'), isFalse);
       expect(
-          state.savedRoomNameExists('B204', excludingId: saved.id), isFalse,
-          reason: 'une salle ne doit pas être comptée en doublon d\'elle-même');
+        state.savedRoomNameExists('B204', excludingId: saved.id),
+        isFalse,
+        reason: 'une salle ne doit pas être comptée en doublon d\'elle-même',
+      );
     });
   });
 }

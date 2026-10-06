@@ -15,12 +15,12 @@ enum GenderColorPalette {
 
 extension GenderColorPaletteLabel on GenderColorPalette {
   String get label => switch (this) {
-        GenderColorPalette.violetAmbre => 'Violet / ambre',
-        GenderColorPalette.tealCorail => 'Vert canard / corail',
-        GenderColorPalette.bleuRoseAdouci => 'Bleu / rose',
-        GenderColorPalette.bleuOrange => 'Bleu / orange',
-        GenderColorPalette.vertRose => 'Vert / rose',
-      };
+    GenderColorPalette.violetAmbre => 'Violet / ambre',
+    GenderColorPalette.tealCorail => 'Vert canard / corail',
+    GenderColorPalette.bleuRoseAdouci => 'Bleu / rose',
+    GenderColorPalette.bleuOrange => 'Bleu / orange',
+    GenderColorPalette.vertRose => 'Vert / rose',
+  };
 }
 
 enum Level { faible, moyen, fort }
@@ -33,34 +33,34 @@ enum StudentSize { petit, moyen, grand }
 
 extension GenderLabel on Gender {
   String get label => switch (this) {
-        Gender.fille => 'Fille',
-        Gender.garcon => 'Garçon',
-        Gender.autre => 'Non précisé',
-      };
+    Gender.fille => 'Fille',
+    Gender.garcon => 'Garçon',
+    Gender.autre => 'Non précisé',
+  };
 }
 
 extension LevelLabel on Level {
   String get label => switch (this) {
-        Level.faible => 'Faible',
-        Level.moyen => 'Moyen',
-        Level.fort => 'Fort',
-      };
+    Level.faible => 'Faible',
+    Level.moyen => 'Moyen',
+    Level.fort => 'Fort',
+  };
 }
 
 extension EnergyLabel on Energy {
   String get label => switch (this) {
-        Energy.calme => 'Calme',
-        Energy.modere => 'Modéré',
-        Energy.agite => 'Agité',
-      };
+    Energy.calme => 'Calme',
+    Energy.modere => 'Modéré',
+    Energy.agite => 'Agité',
+  };
 }
 
 extension StudentSizeLabel on StudentSize {
   String get label => switch (this) {
-        StudentSize.petit => 'Petit',
-        StudentSize.moyen => 'Moyen',
-        StudentSize.grand => 'Grand',
-      };
+    StudentSize.petit => 'Petit',
+    StudentSize.moyen => 'Moyen',
+    StudentSize.grand => 'Grand',
+  };
 }
 
 class Student {
@@ -101,47 +101,48 @@ class Student {
   String get initials {
     final f = firstName.trim();
     final l = lastName.trim();
-    final s = ('${f.isNotEmpty ? f[0] : ''}${l.isNotEmpty ? l[0] : ''}').toUpperCase();
+    final s = ('${f.isNotEmpty ? f[0] : ''}${l.isNotEmpty ? l[0] : ''}')
+        .toUpperCase();
     return s.isEmpty ? '?' : s;
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'firstName': firstName,
-        'lastName': lastName,
-        'gender': gender.name,
-        'level': level.name,
-        'energy': energy.name,
-        'size': size.name,
-        'poorEyesight': poorEyesight,
-        'notes': notes,
-      };
+    'id': id,
+    'firstName': firstName,
+    'lastName': lastName,
+    'gender': gender.name,
+    'level': level.name,
+    'energy': energy.name,
+    'size': size.name,
+    'poorEyesight': poorEyesight,
+    'notes': notes,
+  };
 
   factory Student.fromJson(Map<String, dynamic> j) => Student(
-        id: j['id'] as String,
-        firstName: (j['firstName'] ?? '') as String,
-        lastName: (j['lastName'] ?? '') as String,
-        gender: Gender.values.firstWhere(
-          (g) => g.name == j['gender'],
-          orElse: () => Gender.autre,
-        ),
-        level: Level.values.firstWhere(
-          (l) => l.name == j['level'],
-          orElse: () => Level.moyen,
-        ),
-        energy: Energy.values.firstWhere(
-          // Rétrocompat : lit aussi l'ancienne clé « temperament ».
-          (t) => t.name == (j['energy'] ?? j['temperament']),
-          orElse: () => Energy.modere,
-        ),
-        // Absent des sauvegardes antérieures à ce critère : repli sur Moyen.
-        size: StudentSize.values.firstWhere(
-          (t) => t.name == j['size'],
-          orElse: () => StudentSize.moyen,
-        ),
-        poorEyesight: (j['poorEyesight'] ?? false) as bool,
-        notes: (j['notes'] ?? '') as String,
-      );
+    id: j['id'] as String,
+    firstName: (j['firstName'] ?? '') as String,
+    lastName: (j['lastName'] ?? '') as String,
+    gender: Gender.values.firstWhere(
+      (g) => g.name == j['gender'],
+      orElse: () => Gender.autre,
+    ),
+    level: Level.values.firstWhere(
+      (l) => l.name == j['level'],
+      orElse: () => Level.moyen,
+    ),
+    energy: Energy.values.firstWhere(
+      // Rétrocompat : lit aussi l'ancienne clé « temperament ».
+      (t) => t.name == (j['energy'] ?? j['temperament']),
+      orElse: () => Energy.modere,
+    ),
+    // Absent des sauvegardes antérieures à ce critère : repli sur Moyen.
+    size: StudentSize.values.firstWhere(
+      (t) => t.name == j['size'],
+      orElse: () => StudentSize.moyen,
+    ),
+    poorEyesight: (j['poorEyesight'] ?? false) as bool,
+    notes: (j['notes'] ?? '') as String,
+  );
 }
 
 /// Étiquettes courtes et, autant que possible, NON AMBIGUËS pour le plan.
@@ -155,9 +156,7 @@ class Student {
 /// réellement indiscernables sur une case, et c'est le détail de l'élève qui
 /// tranchera. Renvoie `id de l'élève -> étiquette`.
 Map<String, String> disambiguatedInitials(List<Student> students) {
-  final labels = <String, String>{
-    for (final s in students) s.id: s.initials,
-  };
+  final labels = <String, String>{for (final s in students) s.id: s.initials};
 
   // Groupe les élèves par étiquette, et n'allonge que là où ça collide.
   final byLabel = <String, List<Student>>{};
@@ -167,7 +166,7 @@ Map<String, String> disambiguatedInitials(List<Student> students) {
 
   for (final group in byLabel.values) {
     if (group.length < 2) continue;
-    for (var keep = 2;; keep++) {
+    for (var keep = 2; ; keep++) {
       final attempt = {for (final s in group) s.id: _longerLabel(s, keep)};
       final distinct = attempt.values.toSet().length == group.length;
       // Plus rien à allonger : les noms restants sont identiques.

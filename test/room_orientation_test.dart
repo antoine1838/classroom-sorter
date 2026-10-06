@@ -12,8 +12,9 @@ import 'package:plandeclasse/models/student.dart';
 import 'package:plandeclasse/widgets/seat_grid.dart';
 
 void main() {
-  testWidgets('Salle : le devant (tableau) est affiché en bas (vue prof)',
-      (tester) async {
+  testWidgets('Salle : le devant (tableau) est affiché en bas (vue prof)', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(360, 740);
     addTearDown(tester.view.resetPhysicalSize);
@@ -32,9 +33,13 @@ void main() {
     cls.assignment[Room.keyOf(0, 0)] = 'front';
     cls.assignment[Room.keyOf(2, 0)] = 'back';
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // Centre vertical à l'écran (transformations d'ancêtres, dont le FittedBox
@@ -55,109 +60,128 @@ void main() {
   });
 
   testWidgets(
-      'Mauvaise vue : l\'élève est placé au rang 0 ET rendu en bas, près du '
-      'tableau (règle non inversée, cohérente avec la vue prof)',
-      (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(360, 740);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    'Mauvaise vue : l\'élève est placé au rang 0 ET rendu en bas, près du '
+    'tableau (règle non inversée, cohérente avec la vue prof)',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(360, 740);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final cls = ClassGroup(
-      id: 'c2',
-      name: 'Test',
-      room: Room(rows: 2, cols: 1), // moitié avant = rang 0 uniquement
-      students: [
-        Student(id: 'myope', firstName: 'Myope', poorEyesight: true),
-        Student(id: 'normal', firstName: 'Normal'),
-      ],
-      // Objectif d'équilibre « mauvaise vue -> devant » activé.
-      balance: BalanceSettings(frontForPoorEyesight: true),
-    );
+      final cls = ClassGroup(
+        id: 'c2',
+        name: 'Test',
+        room: Room(rows: 2, cols: 1), // moitié avant = rang 0 uniquement
+        students: [
+          Student(id: 'myope', firstName: 'Myope', poorEyesight: true),
+          Student(id: 'normal', firstName: 'Normal'),
+        ],
+        // Objectif d'équilibre « mauvaise vue -> devant » activé.
+        balance: BalanceSettings(frontForPoorEyesight: true),
+      );
 
-    // Avec l'objectif activé, le moteur place l'élève à mauvaise vue au rang 0.
-    final res = SeatingEngine(cls, seed: 2).generate();
-    final seatMyope =
-        res.assignment.entries.firstWhere((e) => e.value == 'myope').key;
-    expect(Room.parse(seatMyope).$1, 0,
-        reason: 'mauvaise vue -> rang logique 0 (devant), règle inchangée');
-    expect(res.violations, isEmpty);
-    cls.assignment.addAll(res.assignment);
+      // Avec l'objectif activé, le moteur place l'élève à mauvaise vue au rang 0.
+      final res = SeatingEngine(cls, seed: 2).generate();
+      final seatMyope = res.assignment.entries
+          .firstWhere((e) => e.value == 'myope')
+          .key;
+      expect(
+        Room.parse(seatMyope).$1,
+        0,
+        reason: 'mauvaise vue -> rang logique 0 (devant), règle inchangée',
+      );
+      expect(res.violations, isEmpty);
+      cls.assignment.addAll(res.assignment);
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-    ));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    double centerDy(Finder f) {
-      final box = tester.renderObject<RenderBox>(f);
-      return box.localToGlobal(box.size.center(Offset.zero)).dy;
-    }
+      double centerDy(Finder f) {
+        final box = tester.renderObject<RenderBox>(f);
+        return box.localToGlobal(box.size.center(Offset.zero)).dy;
+      }
 
-    final myopeDy = centerDy(find.byKey(const ValueKey('seat_myope')));
-    final normalDy = centerDy(find.byKey(const ValueKey('seat_normal')));
-    final bannerDy = centerDy(find.textContaining('DEVANT'));
+      final myopeDy = centerDy(find.byKey(const ValueKey('seat_myope')));
+      final normalDy = centerDy(find.byKey(const ValueKey('seat_normal')));
+      final bannerDy = centerDy(find.textContaining('DEVANT'));
 
-    // Devant en bas : l'élève à mauvaise vue (rang 0) est rendu plus BAS que
-    // l'élève du fond…
-    expect(myopeDy, greaterThan(normalDy));
-    // …et juste au-dessus du bandeau tableau, tout en bas de la salle.
-    expect(bannerDy, greaterThan(myopeDy));
-  });
+      // Devant en bas : l'élève à mauvaise vue (rang 0) est rendu plus BAS que
+      // l'élève du fond…
+      expect(myopeDy, greaterThan(normalDy));
+      // …et juste au-dessus du bandeau tableau, tout en bas de la salle.
+      expect(bannerDy, greaterThan(myopeDy));
+    },
+  );
 
   testWidgets(
-      'Règle « doit être devant » : élève placé au rang 0 ET rendu en bas, '
-      'près du tableau (indépendant de l\'orientation)', (tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(360, 740);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    'Règle « doit être devant » : élève placé au rang 0 ET rendu en bas, '
+    'près du tableau (indépendant de l\'orientation)',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(360, 740);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final cls = ClassGroup(
-      id: 'c3',
-      name: 'Test',
-      room: Room(rows: 2, cols: 1),
-      students: [
-        Student(id: 'avant', firstName: 'Avant'),
-        Student(id: 'fond', firstName: 'Fond'),
-      ],
-      rules: [
-        Rule(
-          id: 'r',
-          type: RuleType.frontZone,
-          studentAId: 'avant',
-          frontRows: 1, // premier rang uniquement
-          hard: true,
+      final cls = ClassGroup(
+        id: 'c3',
+        name: 'Test',
+        room: Room(rows: 2, cols: 1),
+        students: [
+          Student(id: 'avant', firstName: 'Avant'),
+          Student(id: 'fond', firstName: 'Fond'),
+        ],
+        rules: [
+          Rule(
+            id: 'r',
+            type: RuleType.frontZone,
+            studentAId: 'avant',
+            frontRows: 1, // premier rang uniquement
+            hard: true,
+          ),
+        ],
+      );
+
+      // Le moteur place l'élève « devant » au rang LOGIQUE 0.
+      final res = SeatingEngine(cls, seed: 3).generate();
+      final seatAvant = res.assignment.entries
+          .firstWhere((e) => e.value == 'avant')
+          .key;
+      expect(
+        Room.parse(seatAvant).$1,
+        0,
+        reason: 'règle « devant » -> rang logique 0',
+      );
+      expect(res.violations, isEmpty);
+      cls.assignment.addAll(res.assignment);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}),
+          ),
         ),
-      ],
-    );
+      );
+      await tester.pumpAndSettle();
 
-    // Le moteur place l'élève « devant » au rang LOGIQUE 0.
-    final res = SeatingEngine(cls, seed: 3).generate();
-    final seatAvant =
-        res.assignment.entries.firstWhere((e) => e.value == 'avant').key;
-    expect(Room.parse(seatAvant).$1, 0,
-        reason: 'règle « devant » -> rang logique 0');
-    expect(res.violations, isEmpty);
-    cls.assignment.addAll(res.assignment);
+      double centerDy(Finder f) {
+        final box = tester.renderObject<RenderBox>(f);
+        return box.localToGlobal(box.size.center(Offset.zero)).dy;
+      }
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PlanGrid(cls: cls, onSwap: (_, _) {})),
-    ));
-    await tester.pumpAndSettle();
+      final avantDy = centerDy(find.byKey(const ValueKey('seat_avant')));
+      final fondDy = centerDy(find.byKey(const ValueKey('seat_fond')));
+      final bannerDy = centerDy(find.textContaining('DEVANT'));
 
-    double centerDy(Finder f) {
-      final box = tester.renderObject<RenderBox>(f);
-      return box.localToGlobal(box.size.center(Offset.zero)).dy;
-    }
-
-    final avantDy = centerDy(find.byKey(const ValueKey('seat_avant')));
-    final fondDy = centerDy(find.byKey(const ValueKey('seat_fond')));
-    final bannerDy = centerDy(find.textContaining('DEVANT'));
-
-    // Devant en bas : l'élève « devant » (rang 0) est rendu plus BAS que l'élève
-    // du fond, et juste au-dessus du bandeau tableau.
-    expect(avantDy, greaterThan(fondDy));
-    expect(bannerDy, greaterThan(avantDy));
-  });
+      // Devant en bas : l'élève « devant » (rang 0) est rendu plus BAS que l'élève
+      // du fond, et juste au-dessus du bandeau tableau.
+      expect(avantDy, greaterThan(fondDy));
+      expect(bannerDy, greaterThan(avantDy));
+    },
+  );
 }

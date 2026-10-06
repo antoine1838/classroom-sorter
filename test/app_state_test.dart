@@ -33,45 +33,49 @@ class _FailingRepository extends Repository {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('StudentsViewMode : défaut Complète, persiste après changement',
-      () async {
-    final state = AppState();
-    await state.init();
-    expect(state.studentsViewMode, StudentsViewMode.complete);
+  test(
+    'StudentsViewMode : défaut Complète, persiste après changement',
+    () async {
+      final state = AppState();
+      await state.init();
+      expect(state.studentsViewMode, StudentsViewMode.complete);
 
-    state.setStudentsViewMode(StudentsViewMode.compact);
-    expect(state.studentsViewMode, StudentsViewMode.compact);
-    await state.flushPendingSaves();
+      state.setStudentsViewMode(StudentsViewMode.compact);
+      expect(state.studentsViewMode, StudentsViewMode.compact);
+      await state.flushPendingSaves();
 
-    // Une nouvelle instance (ex. redémarrage de l'appli) doit relire le
-    // choix persisté plutôt que de retomber sur le défaut.
-    final reloaded = AppState();
-    await reloaded.init();
-    expect(reloaded.studentsViewMode, StudentsViewMode.compact);
-  });
+      // Une nouvelle instance (ex. redémarrage de l'appli) doit relire le
+      // choix persisté plutôt que de retomber sur le défaut.
+      final reloaded = AppState();
+      await reloaded.init();
+      expect(reloaded.studentsViewMode, StudentsViewMode.compact);
+    },
+  );
 
-  test('les modifications reçues pendant une écriture sont coalescées',
-      () async {
-    final repo = _BlockingRepository();
-    final state = AppState(repository: repo);
-    await state.init();
+  test(
+    'les modifications reçues pendant une écriture sont coalescées',
+    () async {
+      final repo = _BlockingRepository();
+      final state = AppState(repository: repo);
+      await state.init();
 
-    state.addClass('5ème A');
-    state.addClass('5ème B');
-    state.addClass('5ème C');
+      state.addClass('5ème A');
+      state.addClass('5ème B');
+      state.addClass('5ème C');
 
-    expect(repo.snapshots, [
-      ['5ème A'],
-    ], reason: 'une seule écriture doit être active à la fois');
+      expect(repo.snapshots, [
+        ['5ème A'],
+      ], reason: 'une seule écriture doit être active à la fois');
 
-    repo.firstSaveMayFinish.complete();
-    await state.flushPendingSaves();
+      repo.firstSaveMayFinish.complete();
+      await state.flushPendingSaves();
 
-    expect(repo.snapshots, [
-      ['5ème A'],
-      ['5ème A', '5ème B', '5ème C'],
-    ], reason: 'les changements intermédiaires doivent être regroupés');
-  });
+      expect(repo.snapshots, [
+        ['5ème A'],
+        ['5ème A', '5ème B', '5ème C'],
+      ], reason: 'les changements intermédiaires doivent être regroupés');
+    },
+  );
 
   test('une erreur de sauvegarde est signalée et peut être retentée', () async {
     final repo = _FailingRepository();
@@ -96,9 +100,7 @@ void main() {
   });
 
   test('une restauration depuis le secours est annoncée sans erreur', () async {
-    final backup = jsonEncode([
-      ClassGroup(id: 'a', name: '5ème A').toJson(),
-    ]);
+    final backup = jsonEncode([ClassGroup(id: 'a', name: '5ème A').toJson()]);
     SharedPreferences.setMockInitialValues({
       'plandeclasse_classes_v1': 'JSON cassé',
       'plandeclasse_classes_v1_backup': backup,

@@ -71,7 +71,11 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
   Future<void> _saveWindowBounds() async {
     final bounds = await windowManager.getBounds();
     await _windowRepo.saveWindowBounds(
-        bounds.left, bounds.top, bounds.width, bounds.height);
+      bounds.left,
+      bounds.top,
+      bounds.width,
+      bounds.height,
+    );
   }
 
   @override
@@ -87,13 +91,15 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
       title: 'Plan de classe',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-          colorSchemeSeed: seed,
-          useMaterial3: true,
-          brightness: Brightness.light),
+        colorSchemeSeed: seed,
+        useMaterial3: true,
+        brightness: Brightness.light,
+      ),
       darkTheme: ThemeData(
-          colorSchemeSeed: seed,
-          useMaterial3: true,
-          brightness: Brightness.dark),
+        colorSchemeSeed: seed,
+        useMaterial3: true,
+        brightness: Brightness.dark,
+      ),
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       supportedLocales: const [Locale('fr')],
       home: HomeScreen(state: _state),

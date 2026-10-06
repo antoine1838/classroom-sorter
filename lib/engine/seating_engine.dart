@@ -48,12 +48,16 @@ class PlanResult {
   }) : _byStudent = _indexByStudent(issues, balance);
 
   /// Libellés des contraintes dures non respectées.
-  List<String> get violations =>
-      [for (final i in issues) if (i.isHard) i.label];
+  List<String> get violations => [
+    for (final i in issues)
+      if (i.isHard) i.label,
+  ];
 
   /// Libellés des contraintes souples non respectées, et informations.
-  List<String> get warnings =>
-      [for (final i in issues) if (!i.isHard) i.label];
+  List<String> get warnings => [
+    for (final i in issues)
+      if (!i.isHard) i.label,
+  ];
 
   bool get hasHardViolations => issues.any((i) => i.isHard);
 
@@ -90,8 +94,9 @@ class PlanResult {
   }
 
   /// Motifs à afficher au tap sur une place, les plus graves d'abord.
-  List<String> reasonsFor(String studentId) =>
-      [for (final i in issuesFor(studentId)) i.label];
+  List<String> reasonsFor(String studentId) => [
+    for (final i in issuesFor(studentId)) i.label,
+  ];
 
   /// Élèves concernés par au moins un problème.
   Set<String> get flaggedStudentIds => _byStudent.keys.toSet();
@@ -99,7 +104,9 @@ class PlanResult {
   /// Indexe les problèmes par élève. Un objectif d'équilibre non atteint marque
   /// ses élèves au même titre qu'une contrainte souple.
   static Map<String, List<PlanIssue>> _indexByStudent(
-      List<PlanIssue> issues, List<BalanceNote> balance) {
+    List<PlanIssue> issues,
+    List<BalanceNote> balance,
+  ) {
     final map = <String, List<PlanIssue>>{};
     void add(PlanIssue issue) {
       for (final id in issue.studentIds) {
@@ -112,11 +119,13 @@ class PlanResult {
     }
     for (final n in balance) {
       if (n.ok || n.studentIds.isEmpty) continue;
-      add(PlanIssue(
-        severity: IssueSeverity.soft,
-        label: n.label,
-        studentIds: n.studentIds,
-      ));
+      add(
+        PlanIssue(
+          severity: IssueSeverity.soft,
+          label: n.label,
+          studentIds: n.studentIds,
+        ),
+      );
     }
     return map;
   }
@@ -189,16 +198,21 @@ class SeatingEngine {
     // 2) Élèves et places libres.
     final freeStudents = [
       for (final s in cls.students)
-        if (!pinning.pinned.containsKey(s.id)) s.id
+        if (!pinning.pinned.containsKey(s.id)) s.id,
     ];
     final freeSeats = [
       for (final k in _seats)
-        if (!pinning.takenSeats.contains(k)) k
+        if (!pinning.takenSeats.contains(k)) k,
     ];
 
     // 3) Recherche par recuit simulé avec redémarrages.
-    final search =
-        _anneal(freeStudents, freeSeats, pinning.pinned, restarts, iterations);
+    final search = _anneal(
+      freeStudents,
+      freeSeats,
+      pinning.pinned,
+      restarts,
+      iterations,
+    );
 
     // 4) Construire le plan final.
     final seatOf = <String, String>{...pinning.pinned};
@@ -210,7 +224,7 @@ class SeatingEngine {
 
     final unplaced = [
       for (final s in cls.students)
-        if (!seatOf.containsKey(s.id)) s.id
+        if (!seatOf.containsKey(s.id)) s.id,
     ];
 
     // 5) Rapport lisible.
@@ -228,21 +242,20 @@ class SeatingEngine {
   /// conflits détectés (place inexistante, déjà prise, ou élève avec plusieurs
   /// places imposées — seule la première est gardée).
   ({Map<String, String> pinned, Set<String> takenSeats, List<PlanIssue> issues})
-      _pinHardFixedSeats() {
+  _pinHardFixedSeats() {
     final pinned = <String, String>{}; // studentId -> seatKey
     final takenSeats = <String>{};
     final issues = <PlanIssue>[];
 
     // Un conflit de place imposée est toujours une violation dure : la règle
     // ne peut pas être honorée du tout.
-    void conflict(Student s, String label) => issues.add(PlanIssue(
-          severity: IssueSeverity.hard,
-          label: label,
-          studentIds: [s.id],
-        ));
+    void conflict(Student s, String label) => issues.add(
+      PlanIssue(severity: IssueSeverity.hard, label: label, studentIds: [s.id]),
+    );
 
-    for (final rule in cls.rules
-        .where((r) => r.type == RuleType.fixedSeat && r.hard)) {
+    for (final rule in cls.rules.where(
+      (r) => r.type == RuleType.fixedSeat && r.hard,
+    )) {
       final s = _byId[rule.studentAId];
       if (s == null || rule.seatRow == null || rule.seatCol == null) continue;
       final k = Room.keyOf(rule.seatRow!, rule.seatCol!);
@@ -256,7 +269,9 @@ class SeatingEngine {
       }
       if (pinned.containsKey(s.id)) {
         conflict(
-            s, '${s.fullName} : plusieurs places imposées, la 1re est gardée.');
+          s,
+          '${s.fullName} : plusieurs places imposées, la 1re est gardée.',
+        );
         continue;
       }
       pinned[s.id] = k;
@@ -316,7 +331,8 @@ class SeatingEngine {
       final newCost = _cost(current, pinned);
       final delta = newCost - cost;
       final accept =
-          delta <= 0 || _rng.nextDouble() < exp(-delta / (temp <= 0 ? 1e-4 : temp));
+          delta <= 0 ||
+          _rng.nextDouble() < exp(-delta / (temp <= 0 ? 1e-4 : temp));
       if (accept) {
         cost = newCost;
       } else {
@@ -338,7 +354,7 @@ class SeatingEngine {
 
     final unplaced = [
       for (final s in cls.students)
-        if (!seatOf.containsKey(s.id)) s.id
+        if (!seatOf.containsKey(s.id)) s.id,
     ];
 
     final issues = _report(
@@ -362,7 +378,9 @@ class SeatingEngine {
     final shuffledStudents = [...students]..shuffle(_rng);
     final map = <String, String?>{};
     for (var i = 0; i < shuffledStudents.length; i++) {
-      map[shuffledStudents[i]] = i < shuffledSeats.length ? shuffledSeats[i] : null;
+      map[shuffledStudents[i]] = i < shuffledSeats.length
+          ? shuffledSeats[i]
+          : null;
     }
     return map;
   }
@@ -416,8 +434,7 @@ class SeatingEngine {
         RuleType.separate => _separateCost(rule, seatOf, p),
         RuleType.keepTogether => _keepTogetherCost(rule, seatOf, p),
         RuleType.frontZone => _frontZoneCost(rule, seatOf, p),
-        RuleType.fixedSeat =>
-          rule.hard ? 0 : _fixedSeatCost(rule, seatOf, p),
+        RuleType.fixedSeat => rule.hard ? 0 : _fixedSeatCost(rule, seatOf, p),
       };
     }
     return cost;
@@ -439,8 +456,7 @@ class SeatingEngine {
     return r >= rule.frontRows ? p : 0;
   }
 
-  double _fixedSeatCost(
-      Rule rule, Map<String, String> seatOf, double penalty) {
+  double _fixedSeatCost(Rule rule, Map<String, String> seatOf, double penalty) {
     if (rule.seatRow == null || rule.seatCol == null) return penalty;
     final expected = Room.keyOf(rule.seatRow!, rule.seatCol!);
     return seatOf[rule.studentAId] == expected ? 0 : penalty;
@@ -528,7 +544,8 @@ class SeatingEngine {
       final behindSid = occ[Room.keyOf(r + 1, c)];
       if (behindSid != null && _byId[behindSid]!.size == StudentSize.petit) {
         count++;
-        ids?..add(sid)
+        ids
+          ?..add(sid)
           ..add(behindSid);
       }
     }
@@ -562,7 +579,8 @@ class SeatingEngine {
           s2.gender != Gender.autre &&
           s.gender == s2.gender) {
         sameGender++;
-        sameGenderIds..add(s.id)
+        sameGenderIds
+          ..add(s.id)
           ..add(s2.id);
       }
       if (b.mixLevel &&
@@ -570,14 +588,16 @@ class SeatingEngine {
           s2.level != Level.moyen &&
           s.level == s2.level) {
         sameLevel++;
-        sameLevelIds..add(s.id)
+        sameLevelIds
+          ..add(s.id)
           ..add(s2.id);
       }
       if (b.separateAgites &&
           s.energy == Energy.agite &&
           s2.energy == Energy.agite) {
         bothAgite++;
-        bothAgiteIds..add(s.id)
+        bothAgiteIds
+          ..add(s.id)
           ..add(s2.id);
       }
     });
@@ -621,40 +641,64 @@ class SeatingEngine {
     required _Tally size,
   }) {
     final notes = <BalanceNote>[];
-    _addBalanceNote(notes, b.mixGender, gender,
-        'Mixité filles/garçons : aucun voisin de même genre.',
-        'Mixité filles/garçons : ${gender.count} paire(s) de même genre voisines.');
-    _addBalanceNote(notes, b.mixLevel, level,
-        'Mélange des niveaux : aucune paire de Faibles ou de Forts voisine.',
-        'Mélange des niveaux : ${level.count} paire(s) de Faibles ou de Forts voisines.');
-    _addBalanceNote(notes, b.separateAgites, agite,
-        'Élèves agités séparés : aucun voisin agité.',
-        'Élèves agités : ${agite.count} paire(s) d\'agités voisines.');
+    _addBalanceNote(
+      notes,
+      b.mixGender,
+      gender,
+      'Mixité filles/garçons : aucun voisin de même genre.',
+      'Mixité filles/garçons : ${gender.count} paire(s) de même genre voisines.',
+    );
+    _addBalanceNote(
+      notes,
+      b.mixLevel,
+      level,
+      'Mélange des niveaux : aucune paire de Faibles ou de Forts voisine.',
+      'Mélange des niveaux : ${level.count} paire(s) de Faibles ou de Forts voisines.',
+    );
+    _addBalanceNote(
+      notes,
+      b.separateAgites,
+      agite,
+      'Élèves agités séparés : aucun voisin agité.',
+      'Élèves agités : ${agite.count} paire(s) d\'agités voisines.',
+    );
     // Note affichée seulement s'il existe au moins un élève à mauvaise vue.
     _addBalanceNote(
-        notes,
-        b.frontForPoorEyesight && eyesightTotal > 0,
-        eyesight,
-        'Mauvaise vue : tous dans la moitié avant (près du tableau).',
-        'Mauvaise vue : ${eyesight.count} élève(s) hors moitié avant.');
-    _addBalanceNote(notes, b.avoidTallInFrontOfShort, size,
-        'Tailles : aucun grand ne gêne la vue d\'un petit.',
-        'Tailles : ${size.count} grand(s) qui gênent la vue d\'un petit.');
+      notes,
+      b.frontForPoorEyesight && eyesightTotal > 0,
+      eyesight,
+      'Mauvaise vue : tous dans la moitié avant (près du tableau).',
+      'Mauvaise vue : ${eyesight.count} élève(s) hors moitié avant.',
+    );
+    _addBalanceNote(
+      notes,
+      b.avoidTallInFrontOfShort,
+      size,
+      'Tailles : aucun grand ne gêne la vue d\'un petit.',
+      'Tailles : ${size.count} grand(s) qui gênent la vue d\'un petit.',
+    );
     return notes;
   }
 
   /// Ajoute une ligne de bilan si l'objectif [active] est activé. L'objectif est
   /// atteint quand le compteur est nul ; les élèves ne sont rattachés que dans
   /// le cas contraire.
-  void _addBalanceNote(List<BalanceNote> notes, bool active, _Tally tally,
-      String okLabel, String violatedLabel) {
+  void _addBalanceNote(
+    List<BalanceNote> notes,
+    bool active,
+    _Tally tally,
+    String okLabel,
+    String violatedLabel,
+  ) {
     if (!active) return;
     final ok = tally.count == 0;
-    notes.add(BalanceNote(
-      ok: ok,
-      label: ok ? okLabel : violatedLabel,
-      studentIds: ok ? const [] : tally.ids.toList(),
-    ));
+    notes.add(
+      BalanceNote(
+        ok: ok,
+        label: ok ? okLabel : violatedLabel,
+        studentIds: ok ? const [] : tally.ids.toList(),
+      ),
+    );
   }
 
   /// Problèmes issus des règles, rattachés aux élèves concernés.
@@ -673,16 +717,19 @@ class SeatingEngine {
         RuleType.separate => _separateViolation(rule, seatOf, name),
         RuleType.keepTogether => _keepTogetherViolation(rule, seatOf, name),
         RuleType.frontZone => _frontZoneViolation(rule, seatOf, name),
-        RuleType.fixedSeat => !rule.hard || includeHardFixedSeats
-            ? _fixedSeatViolation(rule, seatOf, name)
-            : null,
+        RuleType.fixedSeat =>
+          !rule.hard || includeHardFixedSeats
+              ? _fixedSeatViolation(rule, seatOf, name)
+              : null,
       };
       if (found != null) {
-        issues.add(PlanIssue(
-          severity: rule.hard ? IssueSeverity.hard : IssueSeverity.soft,
-          label: found.label,
-          studentIds: found.studentIds,
-        ));
+        issues.add(
+          PlanIssue(
+            severity: rule.hard ? IssueSeverity.hard : IssueSeverity.soft,
+            label: found.label,
+            studentIds: found.studentIds,
+          ),
+        );
       }
     }
 
@@ -692,11 +739,13 @@ class SeatingEngine {
     if (unplaced.isNotEmpty) {
       // Sans élèves concernés : un élève non placé n'occupe aucune place, il n'y
       // a donc rien à marquer sur le plan. C'est un problème de salle.
-      issues.add(PlanIssue(
-        severity: IssueSeverity.soft,
-        label:
-            '${unplaced.length} élève(s) non placé(s) : la salle manque de places.',
-      ));
+      issues.add(
+        PlanIssue(
+          severity: IssueSeverity.soft,
+          label:
+              '${unplaced.length} élève(s) non placé(s) : la salle manque de places.',
+        ),
+      );
     }
 
     return issues;
@@ -704,12 +753,15 @@ class SeatingEngine {
 
   /// Les deux élèves d'une règle, le second seulement s'il existe.
   List<String> _ruleStudents(Rule rule) => [
-        rule.studentAId,
-        if (rule.studentBId != null) rule.studentBId!,
-      ];
+    rule.studentAId,
+    if (rule.studentBId != null) rule.studentBId!,
+  ];
 
   _Violation? _separateViolation(
-      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    Rule rule,
+    Map<String, String> seatOf,
+    String Function(String?) name,
+  ) {
     if (!_adjacent(seatOf[rule.studentAId], seatOf[rule.studentBId])) {
       return null;
     }
@@ -721,7 +773,10 @@ class SeatingEngine {
   }
 
   _Violation? _keepTogetherViolation(
-      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    Rule rule,
+    Map<String, String> seatOf,
+    String Function(String?) name,
+  ) {
     final ka = seatOf[rule.studentAId];
     final kb = seatOf[rule.studentBId];
     if (ka != null && kb != null && _adjacent(ka, kb)) return null;
@@ -733,7 +788,10 @@ class SeatingEngine {
   }
 
   _Violation? _frontZoneViolation(
-      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    Rule rule,
+    Map<String, String> seatOf,
+    String Function(String?) name,
+  ) {
     final ka = seatOf[rule.studentAId];
     if (ka != null && Room.parse(ka).$1 < rule.frontRows) return null;
     return (
@@ -743,7 +801,10 @@ class SeatingEngine {
   }
 
   _Violation? _fixedSeatViolation(
-      Rule rule, Map<String, String> seatOf, String Function(String?) name) {
+    Rule rule,
+    Map<String, String> seatOf,
+    String Function(String?) name,
+  ) {
     if (rule.seatRow == null || rule.seatCol == null) return null;
     if (!cls.room.isSeat(rule.seatRow!, rule.seatCol!)) {
       return (

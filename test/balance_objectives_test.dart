@@ -13,9 +13,11 @@ import 'package:plandeclasse/screens/class_editor_screen.dart';
 
 Future<void> _pumpRulesTab(WidgetTester tester, ClassGroup cls) async {
   final state = AppState();
-  await tester.pumpWidget(MaterialApp(
-    home: ClassEditorScreen(state: state, cls: cls),
-  ));
+  await tester.pumpWidget(
+    MaterialApp(
+      home: ClassEditorScreen(state: state, cls: cls),
+    ),
+  );
   await tester.pumpAndSettle();
   await tester.tap(find.text('Règles'));
   await tester.pumpAndSettle();
@@ -25,31 +27,46 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets(
-      'Règles : l\'en-tête « Objectifs d\'équilibre » n\'est plus un ListTile '
-      'identique aux objectifs qu\'il coiffe', (tester) async {
-    final cls =
-        ClassGroup(id: 'c1', name: 'Test', room: Room(rows: 2, cols: 2));
-    await _pumpRulesTab(tester, cls);
+    'Règles : l\'en-tête « Objectifs d\'équilibre » n\'est plus un ListTile '
+    'identique aux objectifs qu\'il coiffe',
+    (tester) async {
+      final cls = ClassGroup(
+        id: 'c1',
+        name: 'Test',
+        room: Room(rows: 2, cols: 2),
+      );
+      await _pumpRulesTab(tester, cls);
 
-    final title = find.text('Objectifs d\'équilibre');
-    expect(title, findsOneWidget);
-    expect(find.ancestor(of: title, matching: find.byType(ListTile)),
-        findsNothing);
-    expect(find.text('Appliqués à toute la classe (préférences).'),
-        findsOneWidget);
-  });
+      final title = find.text('Objectifs d\'équilibre');
+      expect(title, findsOneWidget);
+      expect(
+        find.ancestor(of: title, matching: find.byType(ListTile)),
+        findsNothing,
+      );
+      expect(
+        find.text('Appliqués à toute la classe (préférences).'),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('Règles : chaque objectif d\'équilibre a une icône distincte',
-      (tester) async {
-    final cls =
-        ClassGroup(id: 'c1', name: 'Test', room: Room(rows: 2, cols: 2));
+  testWidgets('Règles : chaque objectif d\'équilibre a une icône distincte', (
+    tester,
+  ) async {
+    final cls = ClassGroup(
+      id: 'c1',
+      name: 'Test',
+      room: Room(rows: 2, cols: 2),
+    );
     await _pumpRulesTab(tester, cls);
 
     IconData iconFor(String title) {
-      final tile = tester.widget<SwitchListTile>(find.ancestor(
-        of: find.text(title),
-        matching: find.byType(SwitchListTile),
-      ));
+      final tile = tester.widget<SwitchListTile>(
+        find.ancestor(
+          of: find.text(title),
+          matching: find.byType(SwitchListTile),
+        ),
+      );
       return (tile.secondary as Icon).icon!;
     }
 
@@ -67,15 +84,20 @@ void main() {
     expect(expected.values.toSet(), hasLength(5));
   });
 
-  testWidgets('Règles : basculer un objectif d\'équilibre met à jour le modèle',
-      (tester) async {
-    final cls =
-        ClassGroup(id: 'c1', name: 'Test', room: Room(rows: 2, cols: 2));
-    await _pumpRulesTab(tester, cls);
+  testWidgets(
+    'Règles : basculer un objectif d\'équilibre met à jour le modèle',
+    (tester) async {
+      final cls = ClassGroup(
+        id: 'c1',
+        name: 'Test',
+        room: Room(rows: 2, cols: 2),
+      );
+      await _pumpRulesTab(tester, cls);
 
-    expect(cls.balance.mixGender, isFalse);
-    await tester.tap(find.text('Mixer filles / garçons'));
-    await tester.pumpAndSettle();
-    expect(cls.balance.mixGender, isTrue);
-  });
+      expect(cls.balance.mixGender, isFalse);
+      await tester.tap(find.text('Mixer filles / garçons'));
+      await tester.pumpAndSettle();
+      expect(cls.balance.mixGender, isTrue);
+    },
+  );
 }

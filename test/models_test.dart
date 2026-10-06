@@ -12,21 +12,27 @@ import 'package:plandeclasse/models/student.dart';
 void main() {
   group('Student — nom affichable et initiales', () {
     test('fullName assemble prénom et nom', () {
-      expect(Student(id: '1', firstName: 'Marie', lastName: 'Dupont').fullName,
-          'Marie Dupont');
+      expect(
+        Student(id: '1', firstName: 'Marie', lastName: 'Dupont').fullName,
+        'Marie Dupont',
+      );
       expect(Student(id: '1', firstName: 'Marie').fullName, 'Marie');
       expect(Student(id: '1', lastName: 'Dupont').fullName, 'Dupont');
     });
 
     test('fullName n\'est jamais vide', () {
       expect(Student(id: '1').fullName, 'Élève sans nom');
-      expect(Student(id: '1', firstName: '  ', lastName: '  ').fullName,
-          'Élève sans nom');
+      expect(
+        Student(id: '1', firstName: '  ', lastName: '  ').fullName,
+        'Élève sans nom',
+      );
     });
 
     test('initials prend la première lettre de chaque nom, en majuscules', () {
-      expect(Student(id: '1', firstName: 'marie', lastName: 'dupont').initials,
-          'MD');
+      expect(
+        Student(id: '1', firstName: 'marie', lastName: 'dupont').initials,
+        'MD',
+      );
       expect(Student(id: '1', firstName: 'Marie').initials, 'M');
       expect(Student(id: '1', lastName: 'Dupont').initials, 'D');
     });
@@ -183,7 +189,11 @@ void main() {
     });
 
     test('type inconnu retombe sur « séparer », défauts sûrs', () {
-      final r = Rule.fromJson({'id': 'r', 'type': 'sortilege', 'studentAId': 'a'});
+      final r = Rule.fromJson({
+        'id': 'r',
+        'type': 'sortilege',
+        'studentAId': 'a',
+      });
 
       expect(r.type, RuleType.separate);
       expect(r.studentBId, isNull);
@@ -217,20 +227,25 @@ void main() {
       expect(room.hasColAisleAfter(0), isFalse);
     });
 
-    test('toggleRowAisle ajoute puis retire un couloir, miroir de colAisle',
-        () {
-      final room = Room(rows: 3, cols: 2);
-      expect(room.hasRowAisleAfter(0), isFalse);
+    test(
+      'toggleRowAisle ajoute puis retire un couloir, miroir de colAisle',
+      () {
+        final room = Room(rows: 3, cols: 2);
+        expect(room.hasRowAisleAfter(0), isFalse);
 
-      room.toggleRowAisle(0);
-      expect(room.hasRowAisleAfter(0), isTrue);
-      expect(room.rowAisleBetween(0, 1), isTrue);
-      expect(room.rowAisleBetween(1, 0), isTrue,
-          reason: 'ordre indifférent, comme colAisleBetween');
+        room.toggleRowAisle(0);
+        expect(room.hasRowAisleAfter(0), isTrue);
+        expect(room.rowAisleBetween(0, 1), isTrue);
+        expect(
+          room.rowAisleBetween(1, 0),
+          isTrue,
+          reason: 'ordre indifférent, comme colAisleBetween',
+        );
 
-      room.toggleRowAisle(0);
-      expect(room.hasRowAisleAfter(0), isFalse);
-    });
+        room.toggleRowAisle(0);
+        expect(room.hasRowAisleAfter(0), isFalse);
+      },
+    );
 
     test('rotateFacing cycle nord → est → sud → ouest → nord', () {
       final room = Room(rows: 1, cols: 1);
@@ -243,8 +258,11 @@ void main() {
       room.rotateFacing(0, 0);
       expect(room.facingOf(0, 0), Facing.ouest);
       room.rotateFacing(0, 0);
-      expect(room.facingOf(0, 0), Facing.nord,
-          reason: 'retour à nord => stocké de façon creuse (retiré de la map)');
+      expect(
+        room.facingOf(0, 0),
+        Facing.nord,
+        reason: 'retour à nord => stocké de façon creuse (retiré de la map)',
+      );
     });
 
     test('toggle retire l\'orientation quand la place est désactivée', () {
@@ -254,8 +272,11 @@ void main() {
 
       room.toggle(0, 0);
       room.toggle(0, 0);
-      expect(room.facingOf(0, 0), Facing.nord,
-          reason: 'une place remise naît orientée vers le tableau');
+      expect(
+        room.facingOf(0, 0),
+        Facing.nord,
+        reason: 'une place remise naît orientée vers le tableau',
+      );
     });
 
     test('toJson/fromJson conservent rowAisles et facing', () {
@@ -284,7 +305,10 @@ void main() {
       final cls = ClassGroup(
         id: 'c',
         name: 'Test',
-        students: [Student(id: 'a'), Student(id: 'b')],
+        students: [
+          Student(id: 'a'),
+          Student(id: 'b'),
+        ],
       );
 
       expect(cls.studentById('b')?.id, 'b');
@@ -297,35 +321,41 @@ void main() {
         id: 'c',
         name: 'Test',
         room: Room(rows: 2, cols: 2),
-        students: [Student(id: 'a'), Student(id: 'b'), Student(id: 'c')],
+        students: [
+          Student(id: 'a'),
+          Student(id: 'b'),
+          Student(id: 'c'),
+        ],
         rules: [
           // Règle où l'élève supprimé est en position A.
           Rule(id: 'r1', type: RuleType.frontZone, studentAId: 'a'),
           // Règle où il est en position B : doit partir aussi.
           Rule(
-              id: 'r2',
-              type: RuleType.separate,
-              studentAId: 'b',
-              studentBId: 'a'),
+            id: 'r2',
+            type: RuleType.separate,
+            studentAId: 'b',
+            studentBId: 'a',
+          ),
           // Règle sans lien : doit survivre.
           Rule(
-              id: 'r3',
-              type: RuleType.keepTogether,
-              studentAId: 'b',
-              studentBId: 'c'),
+            id: 'r3',
+            type: RuleType.keepTogether,
+            studentAId: 'b',
+            studentBId: 'c',
+          ),
         ],
-        assignment: {
-          Room.keyOf(0, 0): 'a',
-          Room.keyOf(0, 1): 'b',
-        },
+        assignment: {Room.keyOf(0, 0): 'a', Room.keyOf(0, 1): 'b'},
       );
 
       cls.purgeStudent('a');
 
       expect(cls.rules.map((r) => r.id).toList(), ['r3']);
       expect(cls.assignment.containsValue('a'), isFalse);
-      expect(cls.assignment[Room.keyOf(0, 1)], 'b',
-          reason: 'les autres places ne doivent pas bouger');
+      expect(
+        cls.assignment[Room.keyOf(0, 1)],
+        'b',
+        reason: 'les autres places ne doivent pas bouger',
+      );
     });
 
     test('aller-retour JSON d\'une classe complète', () {

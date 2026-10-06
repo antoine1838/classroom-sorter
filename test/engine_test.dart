@@ -12,15 +12,14 @@ ClassGroup _classWith({
   required List<Rule> rules,
   Room? room,
   BalanceSettings? balance,
-}) =>
-    ClassGroup(
-      id: 'c',
-      name: 'Test',
-      room: room ?? Room(rows: 4, cols: 4),
-      students: students,
-      rules: rules,
-      balance: balance,
-    );
+}) => ClassGroup(
+  id: 'c',
+  name: 'Test',
+  room: room ?? Room(rows: 4, cols: 4),
+  students: students,
+  rules: rules,
+  balance: balance,
+);
 
 void main() {
   test('contrainte dure « séparer » respectée', () {
@@ -33,18 +32,22 @@ void main() {
       ],
       rules: [
         Rule(
-            id: 'r',
-            type: RuleType.separate,
-            studentAId: 'a',
-            studentBId: 'b',
-            hard: true),
+          id: 'r',
+          type: RuleType.separate,
+          studentAId: 'a',
+          studentBId: 'b',
+          hard: true,
+        ),
       ],
     );
 
     final res = SeatingEngine(cls, seed: 7).generate();
 
-    expect(res.violations, isEmpty,
-        reason: 'A et B ne devraient pas être côte à côte');
+    expect(
+      res.violations,
+      isEmpty,
+      reason: 'A et B ne devraient pas être côte à côte',
+    );
     expect(res.unplacedStudentIds, isEmpty);
     expect(res.assignment.length, 4);
   });
@@ -72,33 +75,35 @@ void main() {
     expect(res.violations, isEmpty);
   });
 
-  test('place imposée souple honorée quand rien de prioritaire ne s\'y oppose',
-      () {
-    final target = Room.keyOf(0, 1);
-    final cls = _classWith(
-      room: Room(rows: 1, cols: 2),
-      students: [
-        Student(id: 'a', firstName: 'A'),
-        Student(id: 'b', firstName: 'B'),
-      ],
-      rules: [
-        Rule(
-          id: 'r',
-          type: RuleType.fixedSeat,
-          studentAId: 'a',
-          seatRow: 0,
-          seatCol: 1,
-          hard: false,
-        ),
-      ],
-      balance: BalanceSettings(separateAgites: false),
-    );
+  test(
+    'place imposée souple honorée quand rien de prioritaire ne s\'y oppose',
+    () {
+      final target = Room.keyOf(0, 1);
+      final cls = _classWith(
+        room: Room(rows: 1, cols: 2),
+        students: [
+          Student(id: 'a', firstName: 'A'),
+          Student(id: 'b', firstName: 'B'),
+        ],
+        rules: [
+          Rule(
+            id: 'r',
+            type: RuleType.fixedSeat,
+            studentAId: 'a',
+            seatRow: 0,
+            seatCol: 1,
+            hard: false,
+          ),
+        ],
+        balance: BalanceSettings(separateAgites: false),
+      );
 
-    final res = SeatingEngine(cls, seed: 1).generate();
+      final res = SeatingEngine(cls, seed: 1).generate();
 
-    expect(res.assignment[target], 'a');
-    expect(res.issues, isEmpty);
-  });
+      expect(res.assignment[target], 'a');
+      expect(res.issues, isEmpty);
+    },
+  );
 
   test('contrainte dure prioritaire sur une place imposée souple', () {
     final front = Room.keyOf(0, 0);
@@ -131,8 +136,11 @@ void main() {
 
     final res = SeatingEngine(cls, seed: 1).generate();
 
-    expect(res.assignment[front], 'b',
-        reason: 'la contrainte dure de B doit primer sur la préférence de A');
+    expect(
+      res.assignment[front],
+      'b',
+      reason: 'la contrainte dure de B doit primer sur la préférence de A',
+    );
     expect(res.assignment[back], 'a');
     expect(res.hasHardViolations, isFalse);
     expect(res.warnings, hasLength(1));
@@ -184,8 +192,11 @@ void main() {
     final (_, ca) = Room.parse(seatA);
     final (_, cb) = Room.parse(seatB);
 
-    expect((ca - cb).abs() > 1, isTrue,
-        reason: 'les deux agités ne devraient pas être côte à côte');
+    expect(
+      (ca - cb).abs() > 1,
+      isTrue,
+      reason: 'les deux agités ne devraient pas être côte à côte',
+    );
   });
 
   test('mauvaise vue (objectif activé) : préféré dans la moitié avant', () {
@@ -205,13 +216,18 @@ void main() {
     final seatA = res.assignment.entries.firstWhere((e) => e.value == 'a').key;
     final (rowA, _) = Room.parse(seatA);
 
-    expect(rowA < 2, isTrue,
-        reason: 'objectif activé : A préféré dans la moitié avant');
+    expect(
+      rowA < 2,
+      isTrue,
+      reason: 'objectif activé : A préféré dans la moitié avant',
+    );
     // Objectif souple désormais : jamais une violation dure…
     expect(res.violations, isEmpty);
     // …et la note d'équilibre correspondante est présente et satisfaite.
-    expect(res.balance.any((n) => n.label.contains('Mauvaise vue') && n.ok),
-        isTrue);
+    expect(
+      res.balance.any((n) => n.label.contains('Mauvaise vue') && n.ok),
+      isTrue,
+    );
   });
 
   test('mauvaise vue (objectif désactivé) : aucune contrainte ni note', () {
@@ -228,8 +244,11 @@ void main() {
     final res = SeatingEngine(cls, seed: 2).generate();
 
     expect(res.violations, isEmpty);
-    expect(res.balance.any((n) => n.label.contains('Mauvaise vue')), isFalse,
-        reason: 'objectif désactivé : aucune note « mauvaise vue »');
+    expect(
+      res.balance.any((n) => n.label.contains('Mauvaise vue')),
+      isFalse,
+      reason: 'objectif désactivé : aucune note « mauvaise vue »',
+    );
   });
 
   test('objectif « éviter grand devant petit » : respecté', () {
@@ -249,10 +268,12 @@ void main() {
     final (rowA, _) = Room.parse(seatA);
     final (rowB, _) = Room.parse(seatB);
 
-    expect(rowA == 0 && rowB == 1, isFalse,
-        reason: 'A (grand) ne devrait pas être directement devant B (petit)');
-    expect(res.balance.any((n) => n.label.contains('Tailles') && n.ok),
-        isTrue);
+    expect(
+      rowA == 0 && rowB == 1,
+      isFalse,
+      reason: 'A (grand) ne devrait pas être directement devant B (petit)',
+    );
+    expect(res.balance.any((n) => n.label.contains('Tailles') && n.ok), isTrue);
   });
 
   test('objectif « éviter grand devant petit » désactivé : aucune note', () {
@@ -284,12 +305,14 @@ void main() {
 
     final res = SeatingEngine(cls, seed: 1).generate();
 
-    expect(res.balance.any((n) => n.label.contains('niveaux') && n.ok), isTrue,
-        reason: 'deux Moyen voisins ne doivent pas compter comme même niveau');
+    expect(
+      res.balance.any((n) => n.label.contains('niveaux') && n.ok),
+      isTrue,
+      reason: 'deux Moyen voisins ne doivent pas compter comme même niveau',
+    );
   });
 
-  test(
-      'objectif « mélanger les niveaux » : deux Faible non voisins '
+  test('objectif « mélanger les niveaux » : deux Faible non voisins '
       '(Fort ignoré comme troisième)', () {
     final cls = _classWith(
       room: Room(rows: 1, cols: 5),
@@ -308,8 +331,11 @@ void main() {
     final (_, ca) = Room.parse(seatA);
     final (_, cb) = Room.parse(seatB);
 
-    expect((ca - cb).abs() > 1, isTrue,
-        reason: 'les deux Faible ne devraient pas être côte à côte');
+    expect(
+      (ca - cb).abs() > 1,
+      isTrue,
+      reason: 'les deux Faible ne devraient pas être côte à côte',
+    );
   });
 
   test('trop d\'élèves : les surnuméraires sont signalés', () {
