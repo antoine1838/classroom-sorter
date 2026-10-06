@@ -46,10 +46,10 @@ class Room {
     Set<int>? colAisles,
     Set<int>? rowAisles,
     Map<String, Facing>? facing,
-  })  : disabled = disabled ?? <String>{},
-        colAisles = colAisles ?? <int>{},
-        rowAisles = rowAisles ?? <int>{},
-        facing = facing ?? <String, Facing>{};
+  }) : disabled = disabled ?? <String>{},
+       colAisles = colAisles ?? <int>{},
+       rowAisles = rowAisles ?? <int>{},
+       facing = facing ?? <String, Facing>{};
 
   static String keyOf(int r, int c) => '$r,$c';
 
@@ -61,7 +61,8 @@ class Room {
   bool inBounds(int r, int c) => r >= 0 && r < rows && c >= 0 && c < cols;
 
   /// Vrai si (r,c) est une vraie place utilisable.
-  bool isSeat(int r, int c) => inBounds(r, c) && !disabled.contains(keyOf(r, c));
+  bool isSeat(int r, int c) =>
+      inBounds(r, c) && !disabled.contains(keyOf(r, c));
 
   /// Toutes les places utilisables, dans l'ordre de lecture.
   List<String> get seatKeys {
@@ -156,37 +157,36 @@ class Room {
 
   /// Supprime les orientations des cases devenues hors grille ou désactivées.
   void pruneFacing() => facing.removeWhere((k, _) {
-        final (r, c) = parse(k);
-        return !isSeat(r, c);
-      });
+    final (r, c) = parse(k);
+    return !isSeat(r, c);
+  });
 
   Map<String, dynamic> toJson() => {
-        'rows': rows,
-        'cols': cols,
-        'disabled': disabled.toList(),
-        'colAisles': colAisles.toList(),
-        'rowAisles': rowAisles.toList(),
-        'facing': facing.map((k, f) => MapEntry(k, f.name)),
-      };
+    'rows': rows,
+    'cols': cols,
+    'disabled': disabled.toList(),
+    'colAisles': colAisles.toList(),
+    'rowAisles': rowAisles.toList(),
+    'facing': facing.map((k, f) => MapEntry(k, f.name)),
+  };
 
   factory Room.fromJson(Map<String, dynamic> j) => Room(
-        rows: (j['rows'] ?? 5) as int,
-        cols: (j['cols'] ?? 7) as int,
-        disabled: ((j['disabled'] ?? const []) as List)
-            .map((e) => e as String)
-            .toSet(),
-        colAisles: ((j['colAisles'] ?? const []) as List)
-            .map((e) => e as int)
-            .toSet(),
-        rowAisles: ((j['rowAisles'] ?? const []) as List)
-            .map((e) => e as int)
-            .toSet(),
-        facing: ((j['facing'] ?? const {}) as Map).map(
-          (k, v) => MapEntry(
-            k as String,
-            Facing.values.firstWhere((f) => f.name == v,
-                orElse: () => Facing.nord),
-          ),
-        ),
-      );
+    rows: (j['rows'] ?? 5) as int,
+    cols: (j['cols'] ?? 7) as int,
+    disabled: ((j['disabled'] ?? const []) as List)
+        .map((e) => e as String)
+        .toSet(),
+    colAisles: ((j['colAisles'] ?? const []) as List)
+        .map((e) => e as int)
+        .toSet(),
+    rowAisles: ((j['rowAisles'] ?? const []) as List)
+        .map((e) => e as int)
+        .toSet(),
+    facing: ((j['facing'] ?? const {}) as Map).map(
+      (k, v) => MapEntry(
+        k as String,
+        Facing.values.firstWhere((f) => f.name == v, orElse: () => Facing.nord),
+      ),
+    ),
+  );
 }

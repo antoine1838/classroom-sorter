@@ -20,12 +20,12 @@ import 'package:plandeclasse/models/student.dart';
 import 'package:plandeclasse/screens/class_editor_screen.dart';
 
 ClassGroup _cls({List<Student>? students, List<Rule>? rules}) => ClassGroup(
-      id: 'c',
-      name: '6ème B',
-      room: Room(rows: 2, cols: 2),
-      students: students ?? [],
-      rules: rules,
-    );
+  id: 'c',
+  name: '6ème B',
+  room: Room(rows: 2, cols: 2),
+  students: students ?? [],
+  rules: rules,
+);
 
 /// Ouvre l'onglet Élèves. Surface large : la barre Ajouter/Importer affiche
 /// alors ses libellés complets (au-dessus du seuil de repli à 420 dp), ce qui
@@ -35,9 +35,11 @@ Future<AppState> _pumpStudents(WidgetTester t, ClassGroup cls) async {
   addTearDown(() => t.binding.setSurfaceSize(null));
 
   final state = AppState()..classes.add(cls);
-  await t.pumpWidget(MaterialApp(
-    home: ClassEditorScreen(state: state, cls: cls),
-  ));
+  await t.pumpWidget(
+    MaterialApp(
+      home: ClassEditorScreen(state: state, cls: cls),
+    ),
+  );
   await t.pumpAndSettle();
   await t.tap(find.widgetWithText(Tab, 'Élèves'));
   await t.pumpAndSettle();
@@ -60,20 +62,23 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('Formulaire élève — création', () {
-    testWidgets('« Ajouter » ouvre un formulaire vierge, sans suppression',
-        (t) async {
+    testWidgets('« Ajouter » ouvre un formulaire vierge, sans suppression', (
+      t,
+    ) async {
       await _pumpStudents(t, _cls());
 
       await t.tap(find.widgetWithText(FilledButton, 'Ajouter'));
       await t.pumpAndSettle();
 
       expect(find.text('Nouvel élève'), findsOneWidget);
-      expect(find.byIcon(Icons.delete_outline), findsNothing,
-          reason: 'rien à supprimer sur un élève qui n\'existe pas encore');
+      expect(
+        find.byIcon(Icons.delete_outline),
+        findsNothing,
+        reason: 'rien à supprimer sur un élève qui n\'existe pas encore',
+      );
     });
 
-    testWidgets('enregistrer crée l\'élève avec tous ses attributs',
-        (t) async {
+    testWidgets('enregistrer crée l\'élève avec tous ses attributs', (t) async {
       final cls = _cls();
       await _pumpStudents(t, cls);
 
@@ -81,7 +86,9 @@ void main() {
       await t.pumpAndSettle();
 
       await t.enterText(
-          find.widgetWithText(TextField, 'Prénom'), '  Camille  ');
+        find.widgetWithText(TextField, 'Prénom'),
+        '  Camille  ',
+      );
       await t.enterText(find.widgetWithText(TextField, 'Nom'), '  Durand  ');
       await _pickDropdown<Gender>(t, 'Fille');
       await _pickDropdown<Level>(t, 'Fort');
@@ -90,7 +97,9 @@ void main() {
       await t.tap(find.text('Mauvaise vue'));
       await t.pumpAndSettle();
       await t.enterText(
-          find.widgetWithText(TextField, 'Notes (facultatif)'), ' lunettes ');
+        find.widgetWithText(TextField, 'Notes (facultatif)'),
+        ' lunettes ',
+      );
 
       await t.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
       await t.pumpAndSettle();
@@ -122,16 +131,16 @@ void main() {
 
   group('Formulaire élève — édition', () {
     Student existing() => Student(
-          id: 's1',
-          firstName: 'Ana',
-          lastName: 'Test',
-          gender: Gender.fille,
-          level: Level.faible,
-          energy: Energy.calme,
-          size: StudentSize.grand,
-          poorEyesight: true,
-          notes: 'tutorat',
-        );
+      id: 's1',
+      firstName: 'Ana',
+      lastName: 'Test',
+      gender: Gender.fille,
+      level: Level.faible,
+      energy: Energy.calme,
+      size: StudentSize.grand,
+      poorEyesight: true,
+      notes: 'tutorat',
+    );
 
     testWidgets('toucher un nom ouvre le formulaire prérempli', (t) async {
       await _pumpStudents(t, _cls(students: [existing()]));
@@ -146,30 +155,35 @@ void main() {
       expect(find.widgetWithText(TextField, 'tutorat'), findsOneWidget);
     });
 
-    testWidgets('enregistrer modifie l\'élève en place, sans en créer un autre',
-        (t) async {
-      final s = existing();
-      final cls = _cls(students: [s]);
-      await _pumpStudents(t, cls);
+    testWidgets(
+      'enregistrer modifie l\'élève en place, sans en créer un autre',
+      (t) async {
+        final s = existing();
+        final cls = _cls(students: [s]);
+        await _pumpStudents(t, cls);
 
-      await t.tap(find.text('Ana Test'));
-      await t.pumpAndSettle();
-      await t.enterText(find.widgetWithText(TextField, 'Ana'), 'Anna');
-      await _pickDropdown<Level>(t, 'Fort');
-      await t.tap(find.text('Mauvaise vue'));
-      await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
-      await t.pumpAndSettle();
+        await t.tap(find.text('Ana Test'));
+        await t.pumpAndSettle();
+        await t.enterText(find.widgetWithText(TextField, 'Ana'), 'Anna');
+        await _pickDropdown<Level>(t, 'Fort');
+        await t.tap(find.text('Mauvaise vue'));
+        await t.pumpAndSettle();
+        await t.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
+        await t.pumpAndSettle();
 
-      expect(cls.students, hasLength(1), reason: 'aucun doublon créé');
-      expect(identical(cls.students.single, s), isTrue,
-          reason: 'la même instance est mutée, pas remplacée');
-      expect(s.firstName, 'Anna');
-      expect(s.level, Level.fort);
-      expect(s.poorEyesight, isFalse, reason: 'la bascule a été inversée');
-      expect(s.lastName, 'Test', reason: 'les champs non touchés survivent');
-      expect(s.notes, 'tutorat');
-    });
+        expect(cls.students, hasLength(1), reason: 'aucun doublon créé');
+        expect(
+          identical(cls.students.single, s),
+          isTrue,
+          reason: 'la même instance est mutée, pas remplacée',
+        );
+        expect(s.firstName, 'Anna');
+        expect(s.level, Level.fort);
+        expect(s.poorEyesight, isFalse, reason: 'la bascule a été inversée');
+        expect(s.lastName, 'Test', reason: 'les champs non touchés survivent');
+        expect(s.notes, 'tutorat');
+      },
+    );
 
     testWidgets('annuler laisse l\'élève intact', (t) async {
       final s = existing();
@@ -191,12 +205,12 @@ void main() {
     /// resté ouvert derrière elle : les deux portent « Annuler ». Toucher le
     /// texte suffit, il est dans la zone tactile de son bouton.
     Finder confirmButton(String label) => find.descendant(
-          of: find.ancestor(
-            of: find.text('Supprimer cet élève ?'),
-            matching: find.byType(AlertDialog),
-          ),
-          matching: find.text(label),
-        );
+      of: find.ancestor(
+        of: find.text('Supprimer cet élève ?'),
+        matching: find.byType(AlertDialog),
+      ),
+      matching: find.text(label),
+    );
 
     /// Élève placé sur le plan et visé par une règle : la suppression doit
     /// purger les deux (ClassGroup.purgeStudent), sinon le plan garde une
@@ -208,18 +222,20 @@ void main() {
         students: [s, other],
         rules: [
           Rule(
-              id: 'r',
-              type: RuleType.separate,
-              studentAId: 's1',
-              studentBId: 's2'),
+            id: 'r',
+            type: RuleType.separate,
+            studentAId: 's1',
+            studentBId: 's2',
+          ),
         ],
       );
       cls.assignment[Room.keyOf(0, 0)] = 's1';
       return cls;
     }
 
-    testWidgets('la suppression demande confirmation ; annuler ne fait rien',
-        (t) async {
+    testWidgets('la suppression demande confirmation ; annuler ne fait rien', (
+      t,
+    ) async {
       final cls = withPlanAndRule();
       await _pumpStudents(t, cls);
 
@@ -251,11 +267,13 @@ void main() {
       await t.pumpAndSettle();
 
       expect(cls.students.map((s) => s.id), ['s2']);
-      expect(cls.rules, isEmpty,
-          reason: 'la règle visait l\'élève supprimé');
+      expect(cls.rules, isEmpty, reason: 'la règle visait l\'élève supprimé');
       expect(cls.assignment, isEmpty, reason: 'sa place est libérée');
-      expect(find.text('Modifier l\'élève'), findsNothing,
-          reason: 'le formulaire se ferme sans enregistrer');
+      expect(
+        find.text('Modifier l\'élève'),
+        findsNothing,
+        reason: 'le formulaire se ferme sans enregistrer',
+      );
     });
   });
 
@@ -270,26 +288,33 @@ void main() {
       await _pumpStudents(t, cls);
       await openImport(t);
 
-      await t.enterText(find.byType(TextField).last,
-          'Camille Durand\n\n   \nLéo Martin\n');
+      await t.enterText(
+        find.byType(TextField).last,
+        'Camille Durand\n\n   \nLéo Martin\n',
+      );
       await t.tap(find.widgetWithText(FilledButton, 'Importer'));
       await t.pumpAndSettle();
 
-      expect(cls.students.map((s) => '${s.firstName}|${s.lastName}'),
-          ['Camille|Durand', 'Léo|Martin']);
+      expect(cls.students.map((s) => '${s.firstName}|${s.lastName}'), [
+        'Camille|Durand',
+        'Léo|Martin',
+      ]);
       expect(find.text('2 élève(s) importé(s).'), findsOneWidget);
     });
 
-    testWidgets('nom de famille composé : tout ce qui suit le prénom',
-        (t) async {
+    testWidgets('nom de famille composé : tout ce qui suit le prénom', (
+      t,
+    ) async {
       final cls = _cls();
       await _pumpStudents(t, cls);
       await openImport(t);
 
       // Convention annoncée dans le dialogue : le premier mot est le prénom,
       // un prénom composé se relie par un tiret.
-      await t.enterText(find.byType(TextField).last,
-          'Sami Ben Ali\nPaul-Henri Dupond\nMononyme');
+      await t.enterText(
+        find.byType(TextField).last,
+        'Sami Ben Ali\nPaul-Henri Dupond\nMononyme',
+      );
       await t.tap(find.widgetWithText(FilledButton, 'Importer'));
       await t.pumpAndSettle();
 
@@ -313,8 +338,9 @@ void main() {
       expect(find.textContaining('importé(s)'), findsNothing);
     });
 
-    testWidgets('un texte vide annonce zéro élève sans rien ajouter',
-        (t) async {
+    testWidgets('un texte vide annonce zéro élève sans rien ajouter', (
+      t,
+    ) async {
       final cls = _cls();
       await _pumpStudents(t, cls);
       await openImport(t);
@@ -323,8 +349,11 @@ void main() {
       await t.pumpAndSettle();
 
       expect(cls.students, isEmpty);
-      expect(find.text('0 élève(s) importé(s).'), findsOneWidget,
-          reason: 'le retour reste explicite plutôt que silencieux');
+      expect(
+        find.text('0 élève(s) importé(s).'),
+        findsOneWidget,
+        reason: 'le retour reste explicite plutôt que silencieux',
+      );
     });
   });
 
@@ -342,25 +371,33 @@ void main() {
       addTearDown(() => t.binding.setSurfaceSize(null));
 
       final state = AppState()..classes.add(cls);
-      await t.pumpWidget(MaterialApp(
-        home: ClassEditorScreen(state: state, cls: cls),
-      ));
+      await t.pumpWidget(
+        MaterialApp(
+          home: ClassEditorScreen(state: state, cls: cls),
+        ),
+      );
       await t.pumpAndSettle();
       // À cette largeur les onglets n'ont plus de libellé : on vise l'icône,
       // qui est là dans les deux modes.
-      await t.tap(find.descendant(
-        of: find.byType(Tab),
-        matching: find.byIcon(Icons.people_alt_outlined),
-      ));
+      await t.tap(
+        find.descendant(
+          of: find.byType(Tab),
+          matching: find.byIcon(Icons.people_alt_outlined),
+        ),
+      );
       await t.pumpAndSettle();
       return state;
     }
 
-    testWidgets('la barre se replie sur des icônes, libellés en infobulle',
-        (t) async {
-      await pumpNarrow(t, _cls(students: [
-        Student(id: 's1', firstName: 'Ana', lastName: 'Test'),
-      ]));
+    testWidgets('la barre se replie sur des icônes, libellés en infobulle', (
+      t,
+    ) async {
+      await pumpNarrow(
+        t,
+        _cls(
+          students: [Student(id: 's1', firstName: 'Ana', lastName: 'Test')],
+        ),
+      );
 
       expect(find.text('Ajouter'), findsNothing);
       expect(find.text('Importer une liste'), findsNothing);
@@ -368,18 +405,25 @@ void main() {
       expect(find.byTooltip('Importer une liste d\'élèves'), findsOneWidget);
     });
 
-    testWidgets('le défilement horizontal garde l\'en-tête aligné au corps',
-        (t) async {
-      await pumpNarrow(t, _cls(students: [
-        Student(id: 's1', firstName: 'Ana', lastName: 'Test'),
-        Student(id: 's2', firstName: 'Bob', lastName: 'Autre'),
-      ]));
+    testWidgets('le défilement horizontal garde l\'en-tête aligné au corps', (
+      t,
+    ) async {
+      await pumpNarrow(
+        t,
+        _cls(
+          students: [
+            Student(id: 's1', firstName: 'Ana', lastName: 'Test'),
+            Student(id: 's2', firstName: 'Bob', lastName: 'Autre'),
+          ],
+        ),
+      );
 
       // Trois défilements horizontaux dans l'arbre : celui du TabBarView
       // (pagination entre onglets) vient en premier, puis l'en-tête et le
       // corps de la matrice — les deux que _sync doit garder alignés.
       final horizontal = find.byWidgetPredicate(
-          (w) => w is Scrollable && w.axisDirection == AxisDirection.right);
+        (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
+      );
       expect(horizontal, findsNWidgets(3));
       final header = horizontal.at(1);
       final body = horizontal.at(2);
@@ -393,8 +437,11 @@ void main() {
       await t.pumpAndSettle();
 
       expect(offsetOf(body), greaterThan(0), reason: 'le corps a bien défilé');
-      expect(offsetOf(header), closeTo(offsetOf(body), 0.5),
-          reason: 'l\'en-tête est resté aligné sur le corps');
+      expect(
+        offsetOf(header),
+        closeTo(offsetOf(body), 0.5),
+        reason: 'l\'en-tête est resté aligné sur le corps',
+      );
 
       // Et dans l'autre sens : on tire l'EN-TÊTE, le corps suit. Décalage
       // modeste pour rester dans l'amplitude disponible (~31 dp) plutôt que
@@ -402,55 +449,76 @@ void main() {
       await t.drag(header, const Offset(15, 0));
       await t.pumpAndSettle();
 
-      expect(offsetOf(body), closeTo(offsetOf(header), 0.5),
-          reason: 'la synchronisation joue dans les deux sens');
+      expect(
+        offsetOf(body),
+        closeTo(offsetOf(header), 0.5),
+        reason: 'la synchronisation joue dans les deux sens',
+      );
     });
   });
 
   group('Colonne des noms', () {
     testWidgets('l\'en-tête bascule le tri par nom', (t) async {
-      final cls = _cls(students: [
-        Student(id: 's1', firstName: 'Zoé', lastName: 'Zulu'),
-        Student(id: 's2', firstName: 'Ana', lastName: 'Alpha'),
-      ]);
+      final cls = _cls(
+        students: [
+          Student(id: 's1', firstName: 'Zoé', lastName: 'Zulu'),
+          Student(id: 's2', firstName: 'Ana', lastName: 'Alpha'),
+        ],
+      );
       await _pumpStudents(t, cls);
 
       Iterable<String> displayedOrder() => t
-          .widgetList<Text>(find.descendant(
-              of: find.byType(InkWell), matching: find.byType(Text)))
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byType(InkWell),
+              matching: find.byType(Text),
+            ),
+          )
           .map((w) => w.data ?? '')
           .where((s) => s.contains('Zulu') || s.contains('Alpha'));
 
-      expect(displayedOrder(), ['Zoé Zulu', 'Ana Alpha'],
-          reason: 'ordre d\'ajout par défaut');
+      expect(displayedOrder(), [
+        'Zoé Zulu',
+        'Ana Alpha',
+      ], reason: 'ordre d\'ajout par défaut');
 
       await t.tap(find.text('Élève'));
       await t.pumpAndSettle();
 
-      expect(displayedOrder(), ['Ana Alpha', 'Zoé Zulu'],
-          reason: 'trié par nom de famille');
-      expect(cls.students.first.id, 's1',
-          reason: 'le tri est un affichage, il ne réordonne pas le modèle');
+      expect(displayedOrder(), [
+        'Ana Alpha',
+        'Zoé Zulu',
+      ], reason: 'trié par nom de famille');
+      expect(
+        cls.students.first.id,
+        's1',
+        reason: 'le tri est un affichage, il ne réordonne pas le modèle',
+      );
 
       await t.tap(find.text('Élève'));
       await t.pumpAndSettle();
       expect(displayedOrder(), ['Zoé Zulu', 'Ana Alpha']);
     });
 
-    testWidgets('une note affiche son indicateur, pas les élèves sans note',
-        (t) async {
+    testWidgets('une note affiche son indicateur, pas les élèves sans note', (
+      t,
+    ) async {
       await _pumpStudents(
         t,
-        _cls(students: [
-          Student(id: 's1', firstName: 'Ana', lastName: 'Test', notes: 'PAI'),
-          Student(id: 's2', firstName: 'Bob', lastName: 'Autre'),
-        ]),
+        _cls(
+          students: [
+            Student(id: 's1', firstName: 'Ana', lastName: 'Test', notes: 'PAI'),
+            Student(id: 's2', firstName: 'Bob', lastName: 'Autre'),
+          ],
+        ),
       );
 
       expect(find.byIcon(Icons.sticky_note_2_outlined), findsOneWidget);
       expect(
-          find.byTooltip('PAI'), findsOneWidget,
-          reason: 'la note complète est lisible au survol');
+        find.byTooltip('PAI'),
+        findsOneWidget,
+        reason: 'la note complète est lisible au survol',
+      );
     });
   });
 
@@ -477,10 +545,14 @@ void main() {
       await t.tap(find.widgetWithText(FilledButton, 'Ajouter'));
       await t.pumpAndSettle();
 
-      expect(capitalizationOf(t, find.widgetWithText(TextField, 'Prénom')),
-          TextCapitalization.words);
-      expect(capitalizationOf(t, find.widgetWithText(TextField, 'Nom')),
-          TextCapitalization.words);
+      expect(
+        capitalizationOf(t, find.widgetWithText(TextField, 'Prénom')),
+        TextCapitalization.words,
+      );
+      expect(
+        capitalizationOf(t, find.widgetWithText(TextField, 'Nom')),
+        TextCapitalization.words,
+      );
     });
 
     testWidgets('le champ d\'import la demande aussi', (t) async {
@@ -489,8 +561,10 @@ void main() {
       await t.tap(find.widgetWithText(FilledButton, 'Importer une liste'));
       await t.pumpAndSettle();
 
-      expect(capitalizationOf(t, find.byType(TextField).last),
-          TextCapitalization.words);
+      expect(
+        capitalizationOf(t, find.byType(TextField).last),
+        TextCapitalization.words,
+      );
     });
   });
 }

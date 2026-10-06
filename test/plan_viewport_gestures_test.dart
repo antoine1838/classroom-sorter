@@ -65,7 +65,8 @@ class _HarnessState extends State<_Harness> {
                     ),
                   ),
                   DragTarget<String>(
-                    onAcceptWithDetails: (d) => setState(() => dropped = d.data),
+                    onAcceptWithDetails: (d) =>
+                        setState(() => dropped = d.data),
                     builder: (_, _, _) => Container(
                       width: 120,
                       height: 400,
@@ -97,8 +98,11 @@ void main() {
     await t.drag(find.text('A'), target(t) - seatA(t));
     await t.pumpAndSettle();
 
-    expect(state(t).dragStarts, 1,
-        reason: 'le geste à un doigt doit atteindre le Draggable');
+    expect(
+      state(t).dragStarts,
+      1,
+      reason: 'le geste à un doigt doit atteindre le Draggable',
+    );
     expect(state(t).dropped, 'eleve');
     expect(state(t).scale, 1, reason: 'un doigt ne doit pas zoomer');
   });
@@ -118,8 +122,11 @@ void main() {
     await f2.up();
     await t.pumpAndSettle();
 
-    expect(state(t).scale, greaterThan(1.5),
-        reason: 'écarter deux doigts de 60 à 180 px doit zoomer ×3 environ');
+    expect(
+      state(t).scale,
+      greaterThan(1.5),
+      reason: 'écarter deux doigts de 60 à 180 px doit zoomer ×3 environ',
+    );
   });
 
   testWidgets('deux doigts sur une place ne déplacent aucun élève', (t) async {
@@ -137,8 +144,11 @@ void main() {
     await f2.up();
     await t.pumpAndSettle();
 
-    expect(state(t).dragStarts, 0,
-        reason: 'deux doigts ne doivent jamais saisir un élève');
+    expect(
+      state(t).dragStarts,
+      0,
+      reason: 'deux doigts ne doivent jamais saisir un élève',
+    );
     expect(state(t).dropped, isNull);
     expect(state(t).scale, greaterThan(1));
   });
@@ -164,9 +174,13 @@ void main() {
     await f2.up();
     await t.pumpAndSettle();
 
-    expect(state(t).scale, greaterThan(1),
-        reason: 'un léger mouvement avant le second doigt ne doit pas '
-            'condamner le pincement');
+    expect(
+      state(t).scale,
+      greaterThan(1),
+      reason:
+          'un léger mouvement avant le second doigt ne doit pas '
+          'condamner le pincement',
+    );
     expect(state(t).dragStarts, 0);
   });
 
@@ -261,12 +275,16 @@ void main() {
     await t.pumpAndSettle();
 
     expect(state(t).scale, 1, reason: 'un doigt ne déplace jamais la vue');
-    expect(log.where((l) => l.startsWith('zoom début')), isEmpty,
-        reason: 'aucun geste de zoom ne doit être ouvert par un seul doigt');
+    expect(
+      log.where((l) => l.startsWith('zoom début')),
+      isEmpty,
+      reason: 'aucun geste de zoom ne doit être ouvert par un seul doigt',
+    );
   });
 
-  testWidgets('zoomé, un doigt sur le vide ne déplace toujours pas la vue',
-      (t) async {
+  testWidgets('zoomé, un doigt sur le vide ne déplace toujours pas la vue', (
+    t,
+  ) async {
     // Le test précédent ne prouve rien à l'échelle 1, où la translation est
     // bornée à zéro quoi qu'il arrive. C'est zoomé que le défaut se voyait :
     // le reconnaisseur gagnait l'arène avec un seul doigt et déplaçait la vue.
@@ -293,8 +311,7 @@ void main() {
     await t.pumpAndSettle();
     final after = t.getRect(find.byKey(const Key('seatA')));
 
-    expect(after, before,
-        reason: 'seuls deux doigts déplacent la vue');
+    expect(after, before, reason: 'seuls deux doigts déplacent la vue');
   });
 
   testWidgets('un doigt annulé libère le compteur', (t) async {
@@ -339,18 +356,23 @@ void main() {
     // réellement visible, sinon le hit-test tombe dans la zone rognée.
     final seat = t.getRect(find.byKey(const Key('seatA')));
     final visible = seat.intersect(t.getRect(find.byType(PlanViewport)));
-    expect(visible.isEmpty, isFalse,
-        reason: 'la place doit rester partiellement visible à ce zoom');
+    expect(
+      visible.isEmpty,
+      isFalse,
+      reason: 'la place doit rester partiellement visible à ce zoom',
+    );
 
     await t.dragFrom(visible.center, const Offset(40, 0), pointer: 5);
     await t.pumpAndSettle();
 
-    expect(state(t).dragStarts, 1,
-        reason: 'le glisser-déposer doit survivre au zoom');
+    expect(
+      state(t).dragStarts,
+      1,
+      reason: 'le glisser-déposer doit survivre au zoom',
+    );
   });
 
-  testWidgets('la molette de souris zoome, centrée sur le curseur',
-      (t) async {
+  testWidgets('la molette de souris zoome, centrée sur le curseur', (t) async {
     final key = GlobalKey<PlanViewportState>();
     await t.pumpWidget(_Harness(viewportKey: key));
     final center = t.getCenter(find.byType(PlanViewport));
@@ -367,20 +389,22 @@ void main() {
     expect(state(t).scale, greaterThan(1));
   });
 
-  testWidgets('la molette de souris dézoome et reste bornée à la vue d\'ensemble',
-      (t) async {
-    final key = GlobalKey<PlanViewportState>();
-    await t.pumpWidget(_Harness(viewportKey: key));
-    final center = t.getCenter(find.byType(PlanViewport));
-    final pointer = TestPointer(1, PointerDeviceKind.mouse);
-    await t.sendEventToBinding(pointer.hover(center));
+  testWidgets(
+    'la molette de souris dézoome et reste bornée à la vue d\'ensemble',
+    (t) async {
+      final key = GlobalKey<PlanViewportState>();
+      await t.pumpWidget(_Harness(viewportKey: key));
+      final center = t.getCenter(find.byType(PlanViewport));
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      await t.sendEventToBinding(pointer.hover(center));
 
-    // dy positif = molette « vers le bas » = zoom arrière, déjà à la vue
-    // d'ensemble : ne doit jamais descendre sous l'échelle minimale.
-    await t.sendEventToBinding(pointer.scroll(const Offset(0, 300)));
-    await t.pumpAndSettle();
+      // dy positif = molette « vers le bas » = zoom arrière, déjà à la vue
+      // d'ensemble : ne doit jamais descendre sous l'échelle minimale.
+      await t.sendEventToBinding(pointer.scroll(const Offset(0, 300)));
+      await t.pumpAndSettle();
 
-    expect(key.currentState!.isZoomed, isFalse);
-    expect(state(t).scale, 1);
-  });
+      expect(key.currentState!.isZoomed, isFalse);
+      expect(state(t).scale, 1);
+    },
+  );
 }

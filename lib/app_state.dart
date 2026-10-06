@@ -144,8 +144,8 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  bool savedRoomNameExists(String name, {String? excludingId}) => savedRooms
-      .any((r) => r.name == name && r.id != excludingId);
+  bool savedRoomNameExists(String name, {String? excludingId}) =>
+      savedRooms.any((r) => r.name == name && r.id != excludingId);
 
   void _touchSavedRooms() {
     _savedRoomsDirty = true;
@@ -307,15 +307,17 @@ class AppState extends ChangeNotifier {
           break;
         case RepositoryLoadStatus.recoveredFromBackup:
           messages.add(
-              'Les données $label étaient endommagées. La dernière sauvegarde '
-              'valide a été chargée.');
+            'Les données $label étaient endommagées. La dernière sauvegarde '
+            'valide a été chargée.',
+          );
           break;
         case RepositoryLoadStatus.corrupted:
           hasError = true;
           messages.add(
-              'Les données $label sont illisibles et aucune sauvegarde valide '
-              'n\'a été trouvée. Une copie de récupération a été conservée '
-              'si possible.');
+            'Les données $label sont illisibles et aucune sauvegarde valide '
+            'n\'a été trouvée. Une copie de récupération a été conservée '
+            'si possible.',
+          );
           break;
       }
     }

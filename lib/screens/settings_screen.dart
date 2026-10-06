@@ -13,15 +13,14 @@ import '../widgets/seat_grid.dart' show genderPaletteColors;
 Widget _paletteIcon(GenderColorPalette palette) {
   final (garcon, fille) = genderPaletteColors(palette);
   Widget dot(Color color) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
-  return Row(mainAxisSize: MainAxisSize.min, children: [
-    dot(garcon),
-    const SizedBox(width: 3),
-    dot(fille),
-  ]);
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [dot(garcon), const SizedBox(width: 3), dot(fille)],
+  );
 }
 
 class SettingsScreen extends StatelessWidget {
@@ -63,8 +62,10 @@ class SettingsScreen extends StatelessWidget {
                   state.setStudentsViewMode(selection.first),
             ),
             const SizedBox(height: 24),
-            Text('Couleurs garçon / fille',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Couleurs garçon / fille',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             const Text(
               'Choisissez les couleurs du liseré affiché sur la carte de '

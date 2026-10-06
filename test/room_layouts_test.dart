@@ -40,8 +40,7 @@ void main() {
   group('U simple', () {
     final room = buildULayout(armDepth: 2);
 
-    test('dimensions : armWidth 1, creux de 3, armDepth + rangée du fond',
-        () {
+    test('dimensions : armWidth 1, creux de 3, armDepth + rangée du fond', () {
       expect(room.cols, 5); // 1 + 3 + 1
       expect(room.rows, 3); // armDepth (2) + rangée du fond
     });
@@ -54,15 +53,17 @@ void main() {
       }
     });
 
-    test(
-        'bras gauche vers l\'est, bras droit vers l\'ouest, creux vide, '
+    test('bras gauche vers l\'est, bras droit vers l\'ouest, creux vide, '
         'ouverture côté tableau', () {
       for (var r = 0; r < room.rows - 1; r++) {
         expect(room.facingOf(r, 0), Facing.est);
         expect(room.facingOf(r, room.cols - 1), Facing.ouest);
         for (var c = 1; c < room.cols - 1; c++) {
-          expect(room.isSeat(r, c), isFalse,
-              reason: 'creux du U à (r=$r, c=$c)');
+          expect(
+            room.isSeat(r, c),
+            isFalse,
+            reason: 'creux du U à (r=$r, c=$c)',
+          );
         }
       }
     });
@@ -87,8 +88,11 @@ void main() {
       }
       for (final r in [1, 2]) {
         for (var c = 0; c < room.cols; c++) {
-          expect(room.facingOf(r, c), Facing.nord,
-              reason: 'rangée du fond doublée : rang $r');
+          expect(
+            room.facingOf(r, c),
+            Facing.nord,
+            reason: 'rangée du fond doublée : rang $r',
+          );
         }
       }
     });
@@ -101,8 +105,10 @@ void main() {
       expect(room.rows, 2);
       expect(room.cols, 6); // 3 îlots de 2 colonnes
       expect(room.capacity, 12, reason: 'aucune case désactivée');
-      expect(room.colAisles, {1, 3},
-          reason: 'un couloir après chaque îlot sauf le dernier');
+      expect(room.colAisles, {
+        1,
+        3,
+      }, reason: 'un couloir après chaque îlot sauf le dernier');
     });
 
     test('taille 6 : tables de 2×3', () {
@@ -112,8 +118,7 @@ void main() {
       expect(room.colAisles, {2});
     });
 
-    test(
-        'taille 4 : appariement par colonne, assis de côté, pas face/dos '
+    test('taille 4 : appariement par colonne, assis de côté, pas face/dos '
         'au tableau', () {
       final room = buildIlotsLayout(islandSize: 4, islandCount: 2);
 
@@ -121,16 +126,21 @@ void main() {
         final left = island * 2;
         final right = left + 1;
         for (final r in [0, 1]) {
-          expect(room.facingOf(r, left), Facing.est,
-              reason: 'îlot $island, colonne gauche, rang $r');
-          expect(room.facingOf(r, right), Facing.ouest,
-              reason: 'îlot $island, colonne droite, rang $r');
+          expect(
+            room.facingOf(r, left),
+            Facing.est,
+            reason: 'îlot $island, colonne gauche, rang $r',
+          );
+          expect(
+            room.facingOf(r, right),
+            Facing.ouest,
+            reason: 'îlot $island, colonne droite, rang $r',
+          );
         }
       }
     });
 
-    test(
-        'taille 6 : colonnes latérales de côté, colonne centrale face/dos '
+    test('taille 6 : colonnes latérales de côté, colonne centrale face/dos '
         'normal', () {
       final room = buildIlotsLayout(islandSize: 6, islandCount: 1);
 
@@ -138,8 +148,16 @@ void main() {
         expect(room.facingOf(r, 0), Facing.est, reason: 'colonne gauche');
         expect(room.facingOf(r, 2), Facing.ouest, reason: 'colonne droite');
       }
-      expect(room.facingOf(0, 1), Facing.nord, reason: 'colonne centrale, avant');
-      expect(room.facingOf(1, 1), Facing.sud, reason: 'colonne centrale, arrière');
+      expect(
+        room.facingOf(0, 1),
+        Facing.nord,
+        reason: 'colonne centrale, avant',
+      );
+      expect(
+        room.facingOf(1, 1),
+        Facing.sud,
+        reason: 'colonne centrale, arrière',
+      );
     });
 
     test('un couloir sépare deux îlots : ils ne partagent aucun voisin', () {
@@ -148,19 +166,35 @@ void main() {
       expect(room.colAisleBetween(1, 2), isTrue);
     });
 
-    test('plusieurs bandes : chacune orientée, séparée par un couloir de rang',
-        () {
-      final room =
-          buildIlotsLayout(islandSize: 4, islandCount: 2, islandRows: 2);
+    test(
+      'plusieurs bandes : chacune orientée, séparée par un couloir de rang',
+      () {
+        final room = buildIlotsLayout(
+          islandSize: 4,
+          islandCount: 2,
+          islandRows: 2,
+        );
 
-      expect(room.rows, 4); // 2 bandes de 2 rangs
-      for (final r in [0, 1, 2, 3]) {
-        expect(room.facingOf(r, 0), Facing.est, reason: 'rang $r, colonne gauche');
-        expect(room.facingOf(r, 1), Facing.ouest, reason: 'rang $r, colonne droite');
-      }
-      expect(room.rowAisleBetween(1, 2), isTrue,
-          reason: 'les deux bandes ne doivent pas être voisines');
-    });
+        expect(room.rows, 4); // 2 bandes de 2 rangs
+        for (final r in [0, 1, 2, 3]) {
+          expect(
+            room.facingOf(r, 0),
+            Facing.est,
+            reason: 'rang $r, colonne gauche',
+          );
+          expect(
+            room.facingOf(r, 1),
+            Facing.ouest,
+            reason: 'rang $r, colonne droite',
+          );
+        }
+        expect(
+          room.rowAisleBetween(1, 2),
+          isTrue,
+          reason: 'les deux bandes ne doivent pas être voisines',
+        );
+      },
+    );
 
     test('une seule bande (par défaut) : aucun couloir de rang', () {
       final room = buildIlotsLayout(islandSize: 4, islandCount: 2);

@@ -27,13 +27,13 @@ class _PrototypeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Gestes du plan — banc d\'essai',
-        theme: ThemeData(
-          colorSchemeSeed: const Color(0xFF3F51B5),
-          useMaterial3: true,
-        ),
-        home: const _Bench(),
-      );
+    title: 'Gestes du plan — banc d\'essai',
+    theme: ThemeData(
+      colorSchemeSeed: const Color(0xFF3F51B5),
+      useMaterial3: true,
+    ),
+    home: const _Bench(),
+  );
 }
 
 class _Bench extends StatefulWidget {
@@ -59,8 +59,22 @@ class _BenchState extends State<_Bench> {
   };
 
   static const _initials = [
-    'AB', 'CD', 'EF', 'GH', 'IJ', 'KL', 'MN', 'OP',
-    'QR', 'ST', 'UV', 'WX', 'YZ', 'AC', 'BD', 'CE',
+    'AB',
+    'CD',
+    'EF',
+    'GH',
+    'IJ',
+    'KL',
+    'MN',
+    'OP',
+    'QR',
+    'ST',
+    'UV',
+    'WX',
+    'YZ',
+    'AC',
+    'BD',
+    'CE',
   ];
 
   int _drags = 0;
@@ -104,7 +118,8 @@ class _BenchState extends State<_Bench> {
           if (_viewport.currentState?.isZoomed ?? false)
             IconButton(
               tooltip: 'Recentrer',
-              onPressed: () => setState(() => _viewport.currentState?.recenter()),
+              onPressed: () =>
+                  setState(() => _viewport.currentState?.recenter()),
               icon: const Icon(Icons.center_focus_strong),
             ),
           IconButton(
@@ -197,32 +212,39 @@ class _BenchState extends State<_Bench> {
     );
   }
 
-  Widget _cellBox(String label, ColorScheme cs,
-          {required bool hovering, bool elevated = false}) =>
-      Container(
-        width: _cell,
-        height: _cell,
-        decoration: BoxDecoration(
-          color: label.isEmpty ? cs.surface : const Color(0xFFA9CCF5),
-          border: Border.all(
-            color: hovering ? cs.primary : cs.outline,
-            width: hovering ? 2.4 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: elevated
-              ? [const BoxShadow(blurRadius: 8, color: Colors.black26)]
-              : null,
-        ),
-        alignment: Alignment.center,
-        child: Text(label,
-            style:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      );
+  Widget _cellBox(
+    String label,
+    ColorScheme cs, {
+    required bool hovering,
+    bool elevated = false,
+  }) => Container(
+    width: _cell,
+    height: _cell,
+    decoration: BoxDecoration(
+      color: label.isEmpty ? cs.surface : const Color(0xFFA9CCF5),
+      border: Border.all(
+        color: hovering ? cs.primary : cs.outline,
+        width: hovering ? 2.4 : 1,
+      ),
+      borderRadius: BorderRadius.circular(8),
+      boxShadow: elevated
+          ? [const BoxShadow(blurRadius: 8, color: Colors.black26)]
+          : null,
+    ),
+    alignment: Alignment.center,
+    child: Text(
+      label,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    ),
+  );
 }
 
 class _Scoreboard extends StatelessWidget {
-  const _Scoreboard(
-      {required this.drags, required this.zooms, required this.scale});
+  const _Scoreboard({
+    required this.drags,
+    required this.zooms,
+    required this.scale,
+  });
 
   final int drags;
   final int zooms;
@@ -230,16 +252,16 @@ class _Scoreboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _Stat(label: 'Élèves déplacés', value: '$drags'),
-            _Stat(label: 'Zooms', value: '$zooms'),
-            _Stat(label: 'Échelle', value: '×${scale.toStringAsFixed(2)}'),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.all(12),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _Stat(label: 'Élèves déplacés', value: '$drags'),
+        _Stat(label: 'Zooms', value: '$zooms'),
+        _Stat(label: 'Échelle', value: '×${scale.toStringAsFixed(2)}'),
+      ],
+    ),
+  );
 }
 
 class _Stat extends StatelessWidget {
@@ -250,11 +272,11 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        children: [
-          Text(value, style: Theme.of(context).textTheme.headlineSmall),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
-        ],
-      );
+    children: [
+      Text(value, style: Theme.of(context).textTheme.headlineSmall),
+      Text(label, style: Theme.of(context).textTheme.labelSmall),
+    ],
+  );
 }
 
 class _LogPanel extends StatelessWidget {
@@ -264,15 +286,15 @@ class _LogPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        height: 104,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        child: ListView(
-          children: [
-            for (final l in lines)
-              Text(l, style: Theme.of(context).textTheme.bodySmall),
-          ],
-        ),
-      );
+    width: double.infinity,
+    height: 104,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    color: Theme.of(context).colorScheme.surfaceContainerLow,
+    child: ListView(
+      children: [
+        for (final l in lines)
+          Text(l, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ),
+  );
 }

@@ -14,14 +14,14 @@ class SavedRoom {
   SavedRoom({required this.id, required this.name, required this.room});
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'room': room.toJson(),
-      };
+    'id': id,
+    'name': name,
+    'room': room.toJson(),
+  };
 
   factory SavedRoom.fromJson(Map<String, dynamic> j) => SavedRoom(
-        id: j['id'] as String,
-        name: (j['name'] ?? '') as String,
-        room: Room.fromJson((j['room'] ?? const {}) as Map<String, dynamic>),
-      );
+    id: j['id'] as String,
+    name: (j['name'] ?? '') as String,
+    room: Room.fromJson((j['room'] ?? const {}) as Map<String, dynamic>),
+  );
 }

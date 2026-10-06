@@ -19,8 +19,9 @@ Future<AppState> _pump(WidgetTester tester) async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('affiche les deux vues, Complète sélectionnée par défaut',
-      (t) async {
+  testWidgets('affiche les deux vues, Complète sélectionnée par défaut', (
+    t,
+  ) async {
     final state = await _pump(t);
 
     expect(find.text('Réglages'), findsOneWidget);
@@ -40,7 +41,8 @@ void main() {
 
     // Le bouton segmenté doit refléter le nouveau choix.
     final button = t.widget<SegmentedButton<StudentsViewMode>>(
-        find.byType(SegmentedButton<StudentsViewMode>));
+      find.byType(SegmentedButton<StudentsViewMode>),
+    );
     expect(button.selected, {StudentsViewMode.compact});
 
     // La persistance elle-même est vérifiée dans app_state_test.dart : ici on
@@ -60,22 +62,25 @@ void main() {
   });
 
   testWidgets(
-      'affiche les 5 palettes de couleurs, vert canard/corail sélectionnée par défaut',
-      (t) async {
-    final state = await _pump(t);
+    'affiche les 5 palettes de couleurs, vert canard/corail sélectionnée par défaut',
+    (t) async {
+      final state = await _pump(t);
 
-    expect(find.text('Couleurs garçon / fille'), findsOneWidget);
-    for (final palette in GenderColorPalette.values) {
-      expect(find.text(palette.label), findsOneWidget);
-    }
+      expect(find.text('Couleurs garçon / fille'), findsOneWidget);
+      for (final palette in GenderColorPalette.values) {
+        expect(find.text(palette.label), findsOneWidget);
+      }
 
-    final chip = t.widget<ChoiceChip>(find.ancestor(
-      of: find.text(GenderColorPalette.tealCorail.label),
-      matching: find.byType(ChoiceChip),
-    ));
-    expect(chip.selected, isTrue);
-    expect(state.genderColorPalette, GenderColorPalette.tealCorail);
-  });
+      final chip = t.widget<ChoiceChip>(
+        find.ancestor(
+          of: find.text(GenderColorPalette.tealCorail.label),
+          matching: find.byType(ChoiceChip),
+        ),
+      );
+      expect(chip.selected, isTrue);
+      expect(state.genderColorPalette, GenderColorPalette.tealCorail);
+    },
+  );
 
   testWidgets('choisir une palette met à jour l\'état global', (t) async {
     final state = await _pump(t);
@@ -86,8 +91,9 @@ void main() {
     expect(state.genderColorPalette, GenderColorPalette.vertRose);
   });
 
-  testWidgets('les 5 palettes tiennent sur un écran étroit sans débordement',
-      (t) async {
+  testWidgets('les 5 palettes tiennent sur un écran étroit sans débordement', (
+    t,
+  ) async {
     t.view.devicePixelRatio = 1.0;
     t.view.physicalSize = const Size(320, 800);
     addTearDown(t.view.resetPhysicalSize);

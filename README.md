@@ -144,13 +144,22 @@ manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 ## Qualité
 
 Sur chaque push sur `main` et chaque pull request, le CI
-([.github/workflows/sonarcloud.yml](.github/workflows/sonarcloud.yml)) lance les
-tests avec couverture puis envoie une analyse statique à
+([.github/workflows/ci.yml](.github/workflows/ci.yml)) vérifie le format Dart,
+lance `flutter analyze` et compile les cibles Web et Windows. Le workflow
+([.github/workflows/sonarcloud.yml](.github/workflows/sonarcloud.yml)) lance
+les tests avec couverture puis envoie une analyse statique à
 [SonarCloud](https://sonarcloud.io/project/overview?id=antoine1838_classroom-sorter)
 (bugs, code smells, duplication, couverture). Config dans
 [sonar-project.properties](sonar-project.properties). Le CodeQL par défaut de
 GitHub ne couvre que les fichiers Actions/C++ (Dart non supporté) — SonarCloud
 comble ce trou côté Dart.
+
+Les contrôles de pull request utilisent Flutter 3.47.6, épinglé pour garantir
+des résultats reproductibles. Chaque lundi, le workflow
+[`flutter-stable.yml`](.github/workflows/flutter-stable.yml) vérifie analyse,
+tests et builds Web/Windows avec le dernier Flutter stable : il signale qu'une
+mise à niveau du SDK doit être évaluée sans rendre les validations courantes
+instables.
 
 ## Structure du code
 

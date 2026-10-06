@@ -1,0 +1,55 @@
+name: Compatibilité Flutter stable
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-latest-stable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Installer le dernier Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      # Le format est contrôlé avec le SDK épinglé dans ci.yml : une évolution
+      # du formateur ne doit pas transformer ce contrôle de compatibilité en
+      # faux échec.
+      - name: Analyser le projet
+        run: flutter analyze
+
+      - name: Lancer les tests
+        run: flutter test
+
+      - name: Compiler le Web
+        run: flutter build web --release
+
+  build-windows-latest-stable:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Installer le dernier Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      - name: Compiler Windows
+        run: flutter build windows --release

@@ -20,13 +20,13 @@ Room buildRangeesLayout({required int rows, required int cols}) =>
 /// Page blanche : la grille rows × cols existe mais toutes ses cases sont
 /// désactivées, prête à être peuplée case par case.
 Room buildBlancheLayout({required int rows, required int cols}) => Room(
-      rows: rows,
-      cols: cols,
-      disabled: {
-        for (var r = 0; r < rows; r++)
-          for (var c = 0; c < cols; c++) Room.keyOf(r, c),
-      },
-    );
+  rows: rows,
+  cols: cols,
+  disabled: {
+    for (var r = 0; r < rows; r++)
+      for (var c = 0; c < cols; c++) Room.keyOf(r, c),
+  },
+);
 
 /// Salle en U : deux bras partant du devant (rangs proches du tableau),
 /// orientés l'un vers l'autre — bras gauche vers l'est, bras droit vers
@@ -81,8 +81,11 @@ Room buildULayout({int armDepth = 3, bool doubleArm = false}) {
 ///
 /// [islandRows] est le nombre de bandes (1 par défaut, une seule rangée
 /// d'îlots) ; chacune ajoute 2 rangs à la salle.
-Room buildIlotsLayout(
-    {int islandSize = 4, int islandCount = 3, int islandRows = 1}) {
+Room buildIlotsLayout({
+  int islandSize = 4,
+  int islandCount = 3,
+  int islandRows = 1,
+}) {
   final islandCols = islandSize == 6 ? 3 : 2;
   final cols = islandCols * islandCount;
   final rows = islandRows * 2;
@@ -105,9 +108,7 @@ Room buildIlotsLayout(
   final colAisles = <int>{
     for (var i = 1; i < islandCount; i++) i * islandCols - 1,
   };
-  final rowAisles = <int>{
-    for (var b = 0; b < islandRows - 1; b++) b * 2 + 1,
-  };
+  final rowAisles = <int>{for (var b = 0; b < islandRows - 1; b++) b * 2 + 1};
   return Room(
     rows: rows,
     cols: cols,

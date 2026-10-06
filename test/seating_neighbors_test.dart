@@ -30,10 +30,21 @@ ClassGroup _group({
   final b = Student(id: 'b', firstName: 'B');
   return ClassGroup(
     id: 'c',
-    room: Room(rows: rows, cols: cols, colAisles: colAisles, rowAisles: rowAisles),
+    room: Room(
+      rows: rows,
+      cols: cols,
+      colAisles: colAisles,
+      rowAisles: rowAisles,
+    ),
     students: [a, b],
     rules: [
-      Rule(id: 'r', type: ruleType, studentAId: 'a', studentBId: 'b', hard: true),
+      Rule(
+        id: 'r',
+        type: ruleType,
+        studentAId: 'a',
+        studentBId: 'b',
+        hard: true,
+      ),
     ],
   );
 }
@@ -44,17 +55,24 @@ PlanResult _run(ClassGroup g) =>
 
 void main() {
   group('Voisinage sur le même rang', () {
-    test('deux places adjacentes du même rang sont voisines (séparer échoue)',
-        () {
-      // 1x2, pas de couloir : les deux élèves sont forcément côte à côte.
-      final res = _run(_group(rows: 1, cols: 2, ruleType: RuleType.separate));
-      expect(res.violations, isNotEmpty,
-          reason: 'sans couloir, les deux places sont voisines → séparer impossible');
-    });
+    test(
+      'deux places adjacentes du même rang sont voisines (séparer échoue)',
+      () {
+        // 1x2, pas de couloir : les deux élèves sont forcément côte à côte.
+        final res = _run(_group(rows: 1, cols: 2, ruleType: RuleType.separate));
+        expect(
+          res.violations,
+          isNotEmpty,
+          reason:
+              'sans couloir, les deux places sont voisines → séparer impossible',
+        );
+      },
+    );
 
     test('rapprocher réussit quand les places sont adjacentes', () {
-      final res =
-          _run(_group(rows: 1, cols: 2, ruleType: RuleType.keepTogether));
+      final res = _run(
+        _group(rows: 1, cols: 2, ruleType: RuleType.keepTogether),
+      );
       expect(res.violations, isEmpty);
     });
   });
@@ -62,15 +80,25 @@ void main() {
   group('Couloir entre colonnes', () {
     test('un couloir coupe le voisinage (séparer réussit)', () {
       // 1x2 avec un couloir entre la colonne 0 et 1.
-      final res = _run(_group(
-          rows: 1, cols: 2, colAisles: {0}, ruleType: RuleType.separate));
-      expect(res.violations, isEmpty,
-          reason: 'avec un couloir, les places ne sont plus voisines');
+      final res = _run(
+        _group(rows: 1, cols: 2, colAisles: {0}, ruleType: RuleType.separate),
+      );
+      expect(
+        res.violations,
+        isEmpty,
+        reason: 'avec un couloir, les places ne sont plus voisines',
+      );
     });
 
     test('rapprocher échoue à travers un couloir', () {
-      final res = _run(_group(
-          rows: 1, cols: 2, colAisles: {0}, ruleType: RuleType.keepTogether));
+      final res = _run(
+        _group(
+          rows: 1,
+          cols: 2,
+          colAisles: {0},
+          ruleType: RuleType.keepTogether,
+        ),
+      );
       expect(res.violations, isNotEmpty);
     });
   });
@@ -78,10 +106,14 @@ void main() {
   group('Rangs contigus (devant/derrière)', () {
     test('devant/derrière sont voisins (rapprocher réussit)', () {
       // 2x1 : les deux élèves sont l'un devant l'autre → voisins.
-      final res =
-          _run(_group(rows: 2, cols: 1, ruleType: RuleType.keepTogether));
-      expect(res.violations, isEmpty,
-          reason: 'même colonne, rangs contigus → voisins');
+      final res = _run(
+        _group(rows: 2, cols: 1, ruleType: RuleType.keepTogether),
+      );
+      expect(
+        res.violations,
+        isEmpty,
+        reason: 'même colonne, rangs contigus → voisins',
+      );
     });
 
     test('séparer échoue entre deux rangs contigus', () {
@@ -93,20 +125,29 @@ void main() {
   group('Couloir entre rangs', () {
     test('un couloir de rang coupe le voisinage (séparer réussit)', () {
       // 2x1 avec un couloir entre le rang 0 et 1.
-      final res = _run(_group(
-          rows: 2, cols: 1, rowAisles: {0}, ruleType: RuleType.separate));
-      expect(res.violations, isEmpty,
-          reason: 'avec un couloir de rang, les places ne sont plus voisines');
+      final res = _run(
+        _group(rows: 2, cols: 1, rowAisles: {0}, ruleType: RuleType.separate),
+      );
+      expect(
+        res.violations,
+        isEmpty,
+        reason: 'avec un couloir de rang, les places ne sont plus voisines',
+      );
     });
 
     test('rapprocher échoue à travers un couloir de rang', () {
-      final res = _run(_group(
-          rows: 2, cols: 1, rowAisles: {0}, ruleType: RuleType.keepTogether));
+      final res = _run(
+        _group(
+          rows: 2,
+          cols: 1,
+          rowAisles: {0},
+          ruleType: RuleType.keepTogether,
+        ),
+      );
       expect(res.violations, isNotEmpty);
     });
 
-    test('un couloir de rang ne coupe pas la ligne de vue vers le tableau',
-        () {
+    test('un couloir de rang ne coupe pas la ligne de vue vers le tableau', () {
       // Deux places, un couloir de rang entre elles : la grande élève A,
       // épinglée devant, gêne quand même la vue de B derrière elle — l'allée
       // n'y change rien, seul le voisinage (séparer/rapprocher) en dépend.
@@ -118,31 +159,41 @@ void main() {
         students: [a, b],
         rules: [
           Rule(
-              id: 'pa',
-              type: RuleType.fixedSeat,
-              studentAId: 'a',
-              seatRow: 0,
-              seatCol: 0,
-              hard: true),
+            id: 'pa',
+            type: RuleType.fixedSeat,
+            studentAId: 'a',
+            seatRow: 0,
+            seatCol: 0,
+            hard: true,
+          ),
           Rule(
-              id: 'pb',
-              type: RuleType.fixedSeat,
-              studentAId: 'b',
-              seatRow: 1,
-              seatCol: 0,
-              hard: true),
+            id: 'pb',
+            type: RuleType.fixedSeat,
+            studentAId: 'b',
+            seatRow: 1,
+            seatCol: 0,
+            hard: true,
+          ),
         ],
         balance: BalanceSettings(avoidTallInFrontOfShort: true),
       );
 
-      final res = SeatingEngine(cls, seed: 1).generate(restarts: 1, iterations: 1);
+      final res = SeatingEngine(
+        cls,
+        seed: 1,
+      ).generate(restarts: 1, iterations: 1);
 
-      expect(res.violations, isEmpty,
-          reason: 'les places imposées ne sont pas voisines : aucune règle dure ne porte dessus');
       expect(
-          res.balance.any((n) => n.label.contains('Tailles') && !n.ok),
-          isTrue,
-          reason: 'le couloir coupe le voisinage mais pas la gêne de vue');
+        res.violations,
+        isEmpty,
+        reason:
+            'les places imposées ne sont pas voisines : aucune règle dure ne porte dessus',
+      );
+      expect(
+        res.balance.any((n) => n.label.contains('Tailles') && !n.ok),
+        isTrue,
+        reason: 'le couloir coupe le voisinage mais pas la gêne de vue',
+      );
     });
   });
 
@@ -158,25 +209,28 @@ void main() {
         students: [a, b],
         rules: [
           Rule(
-              id: 'pa',
-              type: RuleType.fixedSeat,
-              studentAId: 'a',
-              seatRow: 0,
-              seatCol: 0,
-              hard: true),
+            id: 'pa',
+            type: RuleType.fixedSeat,
+            studentAId: 'a',
+            seatRow: 0,
+            seatCol: 0,
+            hard: true,
+          ),
           Rule(
-              id: 'pb',
-              type: RuleType.fixedSeat,
-              studentAId: 'b',
-              seatRow: 1,
-              seatCol: 1,
-              hard: true),
+            id: 'pb',
+            type: RuleType.fixedSeat,
+            studentAId: 'b',
+            seatRow: 1,
+            seatCol: 1,
+            hard: true,
+          ),
           Rule(
-              id: 's',
-              type: RuleType.separate,
-              studentAId: 'a',
-              studentBId: 'b',
-              hard: true),
+            id: 's',
+            type: RuleType.separate,
+            studentAId: 'a',
+            studentBId: 'b',
+            hard: true,
+          ),
         ],
       );
     }
