@@ -19,7 +19,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.1
+          flutter-version: 3.47.6
           cache: true
 
       - name: Récupérer les dépendances
@@ -37,7 +37,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.1
+          flutter-version: 3.47.6
           cache: true
 
       - name: Récupérer les dépendances
@@ -55,7 +55,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.1
+          flutter-version: 3.47.6
           cache: true
 
       - name: Récupérer les dépendances
@@ -73,7 +73,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.1
+          flutter-version: 3.47.6
           cache: true
 
       - name: Récupérer les dépendances
