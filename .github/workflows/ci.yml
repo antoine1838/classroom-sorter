@@ -81,3 +81,86 @@ jobs:
 
       - name: Compiler Windows
         run: flutter build windows --release
+
+  benchmark-seating-engine:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout de la révision courante
+        uses: actions/checkout@v7
+        with:
+          path: current
+
+      - name: Checkout de main comme référence
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: baseline
+
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          cache: true
+
+      - name: Préparer la référence
+        working-directory: baseline
+        run: flutter pub get
+
+      - name: Mesurer la référence main
+        working-directory: baseline
+        run: >-
+          dart run tool/seating_engine_benchmark.dart
+          --json-out ../benchmark-main.json
+
+      - name: Préparer la révision courante
+        working-directory: current
+        run: flutter pub get
+
+      - name: Mesurer et comparer la révision courante
+        working-directory: current
+        run: >-
+          dart run tool/seating_engine_benchmark.dart
+          --json-out ../benchmark-current.json
+          --compare ../benchmark-main.json
+          --threshold 0.20
+
+      - name: Publier le résumé
+        if: always()
+        env:
+          BASELINE: benchmark-main.json
+          CURRENT: benchmark-current.json
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          def read(path):
+              return json.loads(Path(path).read_text())
+
+          if not all(Path(path).exists() for path in (os.environ["BASELINE"], os.environ["CURRENT"])):
+              print("Le benchmark n'a pas produit les deux rapports.")
+              raise SystemExit(0)
+
+          baseline = read(os.environ["BASELINE"])["metrics"]["generate"]
+          current = read(os.environ["CURRENT"])["metrics"]["generate"]
+          ratio = current["p95Us"] / baseline["p95Us"]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("## Performance du moteur de placement\n\n")
+              summary.write("| Révision | Médiane génération | P95 génération |\n")
+              summary.write("| --- | ---: | ---: |\n")
+              summary.write(f"| `main` | {baseline['medianUs'] / 1000:.1f} ms | {baseline['p95Us'] / 1000:.1f} ms |\n")
+              summary.write(f"| PR | {current['medianUs'] / 1000:.1f} ms | {current['p95Us'] / 1000:.1f} ms |\n\n")
+              summary.write(f"P95 PR / main : **{ratio:.1%}** (seuil : **120.0%**).\n")
+          PY
+
+      - name: Archiver les rapports de performance
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: seating-engine-benchmark
+          path: |
+            benchmark-main.json
+            benchmark-current.json
+          if-no-files-found: warn

@@ -1,112 +1,109 @@
-// Mesure manuelle du générateur avec la fixture représentative de 35 élèves.
-//
-// Exécuter depuis la racine du dépôt :
-//   dart run tool/seating_engine_benchmark.dart
-//
-// Ne pas comparer des valeurs absolues entre des machines différentes. Ce
-// lanceur sert à suivre une régression sur une même machine et à décider si
-// l'opération bloque trop longtemps l'interface.
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:plandeclasse/engine/seating_engine.dart';
-import 'package:plandeclasse/models/classroom.dart';
+import 'seating_engine_benchmark_lib.dart';
 
-const _fixturePath = 'test/fixtures/demo_class_varied_35.json';
-const _warmupRuns = 2;
-const _measuredRuns = 10;
+// Mesure manuelle ou CI du générateur avec la fixture représentative de
+// 35 élèves. Exécuter depuis la racine du dépôt :
+//
+//   dart run tool/seating_engine_benchmark.dart --json-out result.json
+//   dart run tool/seating_engine_benchmark.dart \
+//     --json-out result.json --compare main.json --threshold 0.20
+void main(List<String> args) {
+  final options = _BenchmarkOptions.parse(args);
+  final report = runSeatingEngineBenchmark(fixturePath: options.fixturePath);
+  verifyBenchmarkCorrectness(report);
 
-void main() {
-  final fixture = File(_fixturePath).readAsStringSync();
-  final generateSamples = <Duration>[];
-  final evaluateSamples = <Duration>[];
-  PlanResult? lastGeneration;
-  PlanResult? lastEvaluation;
-
-  for (var run = 0; run < _warmupRuns + _measuredRuns; run++) {
-    // Une nouvelle classe par essai évite que l'état mutable de la fixture
-    // n'influence une mesure ultérieure.
-    final generationClass = ClassGroup.fromJson(
-      jsonDecode(fixture) as Map<String, dynamic>,
+  if (options.jsonOut != null) {
+    File(options.jsonOut!).writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert(report.toJson()),
     );
-    final generateWatch = Stopwatch()..start();
-    final generation = SeatingEngine(generationClass, seed: run).generate();
-    generateWatch.stop();
+  }
 
-    final evaluationClass = ClassGroup.fromJson(
-      jsonDecode(fixture) as Map<String, dynamic>,
-    );
-    final evaluateWatch = Stopwatch()..start();
-    final evaluation = SeatingEngine(evaluationClass, seed: run).evaluate();
-    evaluateWatch.stop();
+  stdout.writeln('Fixture : ${report.fixturePath}');
+  stdout.writeln(
+    'Générer (ms) : ${_describe(report.generate)}; '
+    'Valider (ms) : ${_describe(report.evaluate)}',
+  );
 
-    if (run >= _warmupRuns) {
-      generateSamples.add(generateWatch.elapsed);
-      evaluateSamples.add(evaluateWatch.elapsed);
-      lastGeneration = generation;
-      lastEvaluation = evaluation;
+  if (options.comparePath == null) return;
+  final baseline = SeatingEngineBenchmarkReport.fromJson(
+    jsonDecode(File(options.comparePath!).readAsStringSync())
+        as Map<String, dynamic>,
+  );
+  final regression = hasP95Regression(
+    baseline: baseline,
+    current: report,
+    threshold: options.threshold,
+  );
+  final ratio = report.generate.p95Us / baseline.generate.p95Us;
+  stdout.writeln(
+    'Comparaison P95 génération : '
+    '${(ratio * 100).toStringAsFixed(1)} % de la référence '
+    '(tolérance ${(options.threshold * 100).toStringAsFixed(0)} %).',
+  );
+  if (regression) {
+    stderr.writeln('Régression de performance détectée.');
+    exitCode = 1;
+  }
+}
+
+class _BenchmarkOptions {
+  const _BenchmarkOptions({
+    required this.fixturePath,
+    required this.threshold,
+    this.jsonOut,
+    this.comparePath,
+  });
+
+  factory _BenchmarkOptions.parse(List<String> args) {
+    var fixturePath = benchmarkFixturePath;
+    var threshold = benchmarkP95RegressionThreshold;
+    String? jsonOut;
+    String? comparePath;
+    for (var index = 0; index < args.length; index++) {
+      final argument = args[index];
+      if (argument == '--fixture') {
+        fixturePath = _value(args, ++index, argument);
+      } else if (argument == '--json-out') {
+        jsonOut = _value(args, ++index, argument);
+      } else if (argument == '--compare') {
+        comparePath = _value(args, ++index, argument);
+      } else if (argument == '--threshold') {
+        threshold = double.parse(_value(args, ++index, argument));
+      } else {
+        throw ArgumentError.value(argument, 'args', 'option inconnue');
+      }
     }
-  }
-
-  final generationStats = _TimingStats.fromSamples(generateSamples);
-  final evaluationStats = _TimingStats.fromSamples(evaluateSamples);
-  final generation = lastGeneration!;
-  final evaluation = lastEvaluation!;
-
-  stdout.writeln('Fixture : $_fixturePath');
-  stdout.writeln(
-    'Configuration : $_measuredRuns générations, $_warmupRuns échauffements',
-  );
-  stdout.writeln(
-    'Paramètres : 40 redémarrages × 1000 itérations (valeurs production)',
-  );
-  stdout.writeln('Générer (ms) : ${generationStats.describe()}');
-  stdout.writeln('Valider (ms) : ${evaluationStats.describe()}');
-  stdout.writeln(
-    'Contrôle génération : score=${generation.score}, '
-    'places=${generation.assignment.length}, '
-    'élèves non placés=${generation.unplacedStudentIds.length}',
-  );
-  stdout.writeln(
-    'Contrôle validation : score=${evaluation.score}, '
-    'places=${evaluation.assignment.length}, '
-    'élèves non placés=${evaluation.unplacedStudentIds.length}',
-  );
-  stdout.writeln(
-    'Décision : isoler generate() si le P95 dépasse 100 ms '
-    'sur l’appareil cible ; conserver evaluate() tant que son P95 reste '
-    'sous ce seuil.',
-  );
-}
-
-class _TimingStats {
-  _TimingStats._(this.min, this.median, this.p95, this.max);
-
-  factory _TimingStats.fromSamples(List<Duration> samples) {
-    final sorted = samples.map((sample) => sample.inMicroseconds).toList()
-      ..sort();
-    return _TimingStats._(
-      sorted.first,
-      _percentile(sorted, 0.5),
-      _percentile(sorted, 0.95),
-      sorted.last,
+    if (threshold < 0) {
+      throw ArgumentError.value(threshold, 'threshold', 'doit être positif');
+    }
+    return _BenchmarkOptions(
+      fixturePath: fixturePath,
+      jsonOut: jsonOut,
+      comparePath: comparePath,
+      threshold: threshold,
     );
   }
 
-  final int min;
-  final int median;
-  final int p95;
-  final int max;
-
-  String describe() =>
-      'min=${_milliseconds(min)}, '
-      'médiane=${_milliseconds(median)}, '
-      'p95=${_milliseconds(p95)}, '
-      'max=${_milliseconds(max)}';
+  final String fixturePath;
+  final String? jsonOut;
+  final String? comparePath;
+  final double threshold;
 }
 
-int _percentile(List<int> sortedValues, double percentile) =>
-    sortedValues[(percentile * (sortedValues.length - 1)).ceil()];
+String _value(List<String> args, int index, String option) {
+  if (index >= args.length) {
+    throw ArgumentError.value(option, 'args', 'valeur manquante');
+  }
+  return args[index];
+}
+
+String _describe(BenchmarkStats stats) =>
+    'min=${_milliseconds(stats.minUs)}, '
+    'médiane=${_milliseconds(stats.medianUs)}, '
+    'p95=${_milliseconds(stats.p95Us)}, '
+    'max=${_milliseconds(stats.maxUs)}';
 
 String _milliseconds(int microseconds) =>
     (microseconds / Duration.microsecondsPerMillisecond).toStringAsFixed(1);

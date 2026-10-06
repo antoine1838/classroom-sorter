@@ -548,10 +548,10 @@ Trois retouches de finition, toutes signalées après essai :
 
 ## Mesure du moteur de placement — 5 octobre 2026
 
-Le lanceur manuel `tool/seating_engine_benchmark.dart` mesure la fixture
+Le lanceur `tool/seating_engine_benchmark.dart` mesure la fixture
 `test/fixtures/demo_class_varied_35.json` : 35 élèves, une salle pleine de
 5 × 7 places et les cinq objectifs d'équilibre actifs. Il effectue deux
-échauffements, puis dix mesures avec les paramètres réellement utilisés par
+échauffements, puis vingt mesures avec les paramètres réellement utilisés par
 l'interface (`40` redémarrages × `1000` itérations) et des graines explicites.
 La même fixture préaffectée mesure aussi `evaluate()` (action « Valider »).
 
@@ -560,6 +560,14 @@ Commande :
 ```sh
 dart run tool/seating_engine_benchmark.dart
 ```
+
+Le CI des pull requests exécute ce même lanceur pour `main` et pour la
+révision courante dans un unique runner Ubuntu Flutter 3.47.6. Il compare le
+P95 de `generate()` et échoue seulement si la révision dépasse `main` de plus
+de 20 %. Les rapports JSON sont archivés avec le job et le résumé expose
+médiane, P95 et ratio. Cette comparaison relative évite d'ériger les mesures
+Windows ci-dessous en seuil absolu ; `evaluate()` reste vérifié fonctionnellement,
+sans budget temporel.
 
 Résultat sur le poste Windows de développement (Dart JIT ; chiffres non
 comparables avec un téléphone) :

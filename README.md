@@ -161,6 +161,12 @@ tests et builds Web/Windows avec le dernier Flutter stable : il signale qu'une
 mise à niveau du SDK doit être évaluée sans rendre les validations courantes
 instables.
 
+Les pull requests mesurent aussi le moteur de placement avec la fixture de
+35 élèves. Dans le même runner Ubuntu, le CI compare le P95 de `generate()` à
+celui de `main` et échoue au-delà de 20 % de régression. Le rapport JSON et le
+résumé de comparaison sont disponibles dans les artefacts du job ; il ne s'agit
+pas d'un seuil absolu, volontairement fragile entre machines.
+
 ## Structure du code
 
 ```
