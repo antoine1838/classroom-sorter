@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/student.dart';
 import '../widgets/seat_grid.dart' show genderPaletteColors;
 
@@ -29,32 +30,32 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Réglages')),
+      appBar: AppBar(title: Text(l10n.settings)),
       body: ListenableBuilder(
         listenable: state,
         builder: (context, _) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Vue Élèves', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            const Text(
-              'Choisissez comment les attributs des élèves (genre, niveau, '
-              'énergie, taille, vue) s\'affichent dans l\'onglet Élèves.',
-              style: TextStyle(fontSize: 12),
+            Text(
+              l10n.studentsView,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
+            const SizedBox(height: 4),
+            Text(l10n.studentsViewDescription, style: TextStyle(fontSize: 12)),
             const SizedBox(height: 12),
             SegmentedButton<StudentsViewMode>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: StudentsViewMode.complete,
-                  label: Text('Complète'),
-                  icon: Icon(Icons.table_rows_outlined),
+                  label: Text(l10n.studentsViewComplete),
+                  icon: const Icon(Icons.table_rows_outlined),
                 ),
                 ButtonSegment(
                   value: StudentsViewMode.compact,
-                  label: Text('Compacte'),
-                  icon: Icon(Icons.view_week_outlined),
+                  label: Text(l10n.studentsViewCompact),
+                  icon: const Icon(Icons.view_week_outlined),
                 ),
               ],
               selected: {state.studentsViewMode},
@@ -63,15 +64,11 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Couleurs garçon / fille',
+              l10n.genderColors,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Choisissez les couleurs du liseré affiché sur la carte de '
-              'chaque élève dans le plan de classe.',
-              style: TextStyle(fontSize: 12),
-            ),
+            Text(l10n.genderColorsDescription, style: TextStyle(fontSize: 12)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -81,11 +78,38 @@ class SettingsScreen extends StatelessWidget {
                   ChoiceChip(
                     avatar: _paletteIcon(palette),
                     showCheckmark: false,
-                    label: Text(palette.label),
+                    label: Text(_paletteLabel(palette, l10n)),
                     selected: state.genderColorPalette == palette,
                     onSelected: (_) => state.setGenderColorPalette(palette),
                   ),
               ],
+            ),
+            const SizedBox(height: 24),
+            Text(l10n.language, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              l10n.languageDescription,
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<LocalePreference>(
+              segments: [
+                ButtonSegment(
+                  value: LocalePreference.system,
+                  label: Text(l10n.languageSystem),
+                ),
+                ButtonSegment(
+                  value: LocalePreference.french,
+                  label: Text(l10n.languageFrench),
+                ),
+                ButtonSegment(
+                  value: LocalePreference.english,
+                  label: Text(l10n.languageEnglish),
+                ),
+              ],
+              selected: {state.localePreference},
+              onSelectionChanged: (selection) =>
+                  state.setLocalePreference(selection.first),
             ),
           ],
         ),
@@ -93,3 +117,12 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 }
+
+String _paletteLabel(GenderColorPalette palette, AppLocalizations l10n) =>
+    switch (palette) {
+      GenderColorPalette.violetAmbre => l10n.paletteVioletAmber,
+      GenderColorPalette.tealCorail => l10n.paletteTealCoral,
+      GenderColorPalette.bleuRoseAdouci => l10n.paletteBlueSoftPink,
+      GenderColorPalette.bleuOrange => l10n.paletteBlueOrange,
+      GenderColorPalette.vertRose => l10n.paletteGreenPink,
+    };

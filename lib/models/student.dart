@@ -13,16 +13,6 @@ enum GenderColorPalette {
   vertRose,
 }
 
-extension GenderColorPaletteLabel on GenderColorPalette {
-  String get label => switch (this) {
-    GenderColorPalette.violetAmbre => 'Violet / ambre',
-    GenderColorPalette.tealCorail => 'Vert canard / corail',
-    GenderColorPalette.bleuRoseAdouci => 'Bleu / rose',
-    GenderColorPalette.bleuOrange => 'Bleu / orange',
-    GenderColorPalette.vertRose => 'Vert / rose',
-  };
-}
-
 enum Level { faible, moyen, fort }
 
 enum Energy { calme, modere, agite }
@@ -30,38 +20,6 @@ enum Energy { calme, modere, agite }
 // Nommé StudentSize (et non « Size ») pour ne pas entrer en conflit avec
 // dart:ui/Flutter Size, importé partout via package:flutter/material.dart.
 enum StudentSize { petit, moyen, grand }
-
-extension GenderLabel on Gender {
-  String get label => switch (this) {
-    Gender.fille => 'Fille',
-    Gender.garcon => 'Garçon',
-    Gender.autre => 'Non précisé',
-  };
-}
-
-extension LevelLabel on Level {
-  String get label => switch (this) {
-    Level.faible => 'Faible',
-    Level.moyen => 'Moyen',
-    Level.fort => 'Fort',
-  };
-}
-
-extension EnergyLabel on Energy {
-  String get label => switch (this) {
-    Energy.calme => 'Calme',
-    Energy.modere => 'Modéré',
-    Energy.agite => 'Agité',
-  };
-}
-
-extension StudentSizeLabel on StudentSize {
-  String get label => switch (this) {
-    StudentSize.petit => 'Petit',
-    StudentSize.moyen => 'Moyen',
-    StudentSize.grand => 'Grand',
-  };
-}
 
 class Student {
   final String id;

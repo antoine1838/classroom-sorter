@@ -21,6 +21,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 class _ZoomInIntent extends Intent {
   const _ZoomInIntent();
 }
@@ -299,8 +301,13 @@ class PlanViewportState extends State<PlanViewport> {
         return Semantics(
           container: true,
           label:
+              AppLocalizations.of(context)?.planViewportLabel(
+                _scale.toStringAsFixed(1),
+                widget.maxScale.toStringAsFixed(0),
+              ) ??
               'Vue du plan, zoom ${_scale.toStringAsFixed(1)} sur ${widget.maxScale.toStringAsFixed(0)}.',
           hint:
+              AppLocalizations.of(context)?.planViewportHint ??
               'Utilisez plus et moins pour zoomer, zéro pour recentrer. Le pincement et la molette restent disponibles.',
           liveRegion: true,
           child: FocusableActionDetector(

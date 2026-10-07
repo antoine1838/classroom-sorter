@@ -11,21 +11,6 @@ library;
 enum RuleType { fixedSeat, frontZone, separate, keepTogether }
 
 extension RuleTypeInfo on RuleType {
-  String get label => switch (this) {
-    RuleType.fixedSeat => 'Place imposée',
-    RuleType.frontZone => 'Doit être devant',
-    RuleType.separate => 'Séparer',
-    RuleType.keepTogether => 'Rapprocher',
-  };
-
-  String get description => switch (this) {
-    RuleType.fixedSeat => 'Assigner un élève à une place précise',
-    RuleType.frontZone =>
-      'Placer un élève près du tableau (vue, audition, PMR…)',
-    RuleType.separate => "Empêcher deux élèves d'être voisins",
-    RuleType.keepTogether => 'Garder deux élèves voisins',
-  };
-
   /// Nombre d'élèves concernés (1 ou 2).
   bool get needsSecondStudent =>
       this == RuleType.separate || this == RuleType.keepTogether;

@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/rule.dart';
@@ -37,6 +38,9 @@ Future<AppState> _pumpStudents(WidgetTester t, ClassGroup cls) async {
   final state = AppState()..classes.add(cls);
   await t.pumpWidget(
     MaterialApp(
+      locale: const Locale('fr'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(state: state, cls: cls),
     ),
   );
@@ -279,7 +283,9 @@ void main() {
 
   group('Import d\'une liste', () {
     Future<void> openImport(WidgetTester t) async {
-      await t.tap(find.widgetWithText(FilledButton, 'Importer une liste'));
+      await t.tap(
+        find.widgetWithText(FilledButton, 'Importer une liste d’élèves'),
+      );
       await t.pumpAndSettle();
     }
 
@@ -373,6 +379,9 @@ void main() {
       final state = AppState()..classes.add(cls);
       await t.pumpWidget(
         MaterialApp(
+          locale: const Locale('fr'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: ClassEditorScreen(state: state, cls: cls),
         ),
       );
@@ -400,9 +409,9 @@ void main() {
       );
 
       expect(find.text('Ajouter'), findsNothing);
-      expect(find.text('Importer une liste'), findsNothing);
+      expect(find.text('Importer une liste d’élèves'), findsNothing);
       expect(find.byTooltip('Ajouter un élève'), findsOneWidget);
-      expect(find.byTooltip('Importer une liste d\'élèves'), findsOneWidget);
+      expect(find.byTooltip('Importer une liste d’élèves'), findsOneWidget);
     });
 
     testWidgets('le défilement horizontal garde l\'en-tête aligné au corps', (
@@ -558,7 +567,9 @@ void main() {
     testWidgets('le champ d\'import la demande aussi', (t) async {
       await _pumpStudents(t, _cls());
 
-      await t.tap(find.widgetWithText(FilledButton, 'Importer une liste'));
+      await t.tap(
+        find.widgetWithText(FilledButton, 'Importer une liste d’élèves'),
+      );
       await t.pumpAndSettle();
 
       expect(

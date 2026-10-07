@@ -11,6 +11,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/widgets.dart' show Locale;
 
 import 'data/repository.dart';
 import 'models/classroom.dart';
@@ -31,11 +32,25 @@ String newId() =>
 /// cocher) ou [compact] (une colonne par attribut, tap pour cycler).
 enum StudentsViewMode { complete, compact }
 
+enum LocalePreference { system, french, english }
+
+/// Types de messages de persistance affichés par l'interface.
+///
+/// L'état conserve l'événement, l'écran fournit le texte localisé.
+enum PersistenceNotice {
+  classesRecovered,
+  roomsRecovered,
+  classesCorrupted,
+  roomsCorrupted,
+  saveFailed,
+}
+
 typedef _PersistenceBatch = ({
   bool saveClasses,
   bool saveRooms,
   String? viewMode,
   String? palette,
+  String? localePreference,
 });
 
 class AppState extends ChangeNotifier {
@@ -48,9 +63,11 @@ class AppState extends ChangeNotifier {
   bool loading = true;
   StudentsViewMode studentsViewMode = StudentsViewMode.complete;
   GenderColorPalette genderColorPalette = GenderColorPalette.tealCorail;
+  LocalePreference localePreference = LocalePreference.system;
 
   String? _loadNotice;
   bool _loadNoticeIsError = false;
+  List<PersistenceNotice> _loadNotices = const [];
   String? _saveError;
   Object? _lastPersistenceError;
 
@@ -58,9 +75,13 @@ class AppState extends ChangeNotifier {
   bool _savedRoomsDirty = false;
   String? _pendingStudentsViewMode;
   String? _pendingGenderColorPalette;
+  String? _pendingLocalePreference;
   Future<void>? _persistenceLoop;
 
   String? get persistenceMessage => _saveError ?? _loadNotice;
+  List<PersistenceNotice> get persistenceNotices => _saveError != null
+      ? const [PersistenceNotice.saveFailed]
+      : List.unmodifiable(_loadNotices);
   bool get persistenceMessageIsError =>
       _saveError != null || _loadNoticeIsError;
   bool get canRetryPersistence => _saveError != null;
@@ -82,6 +103,11 @@ class AppState extends ChangeNotifier {
       (p) => p.name == rawPalette,
       orElse: () => GenderColorPalette.tealCorail,
     );
+    final rawLocalePreference = await _repo.loadLocalePreference();
+    localePreference = LocalePreference.values.firstWhere(
+      (preference) => preference.name == rawLocalePreference,
+      orElse: () => LocalePreference.system,
+    );
     loading = false;
     notifyListeners();
   }
@@ -98,6 +124,20 @@ class AppState extends ChangeNotifier {
     if (genderColorPalette == palette) return;
     genderColorPalette = palette;
     _pendingGenderColorPalette = palette.name;
+    notifyListeners();
+    _startPersistence();
+  }
+
+  Locale? get locale => switch (localePreference) {
+    LocalePreference.system => null,
+    LocalePreference.french => const Locale('fr'),
+    LocalePreference.english => const Locale('en'),
+  };
+
+  void setLocalePreference(LocalePreference preference) {
+    if (localePreference == preference) return;
+    localePreference = preference;
+    _pendingLocalePreference = preference.name;
     notifyListeners();
     _startPersistence();
   }
@@ -193,7 +233,8 @@ class AppState extends ChangeNotifier {
       _classesDirty ||
       _savedRoomsDirty ||
       _pendingStudentsViewMode != null ||
-      _pendingGenderColorPalette != null;
+      _pendingGenderColorPalette != null ||
+      _pendingLocalePreference != null;
 
   /// Une seule boucle d'écriture à la fois. Les modifications reçues pendant
   /// une sauvegarde sont regroupées dans le passage suivant, avec l'état le
@@ -223,11 +264,13 @@ class AppState extends ChangeNotifier {
       saveRooms: _savedRoomsDirty,
       viewMode: _pendingStudentsViewMode,
       palette: _pendingGenderColorPalette,
+      localePreference: _pendingLocalePreference,
     );
     _classesDirty = false;
     _savedRoomsDirty = false;
     _pendingStudentsViewMode = null;
     _pendingGenderColorPalette = null;
+    _pendingLocalePreference = null;
     return batch;
   }
 
@@ -252,6 +295,9 @@ class AppState extends ChangeNotifier {
     }
     if (batch.palette != null) {
       await attempt(() => _repo.saveGenderColorPalette(batch.palette!));
+    }
+    if (batch.localePreference != null) {
+      await attempt(() => _repo.saveLocalePreference(batch.localePreference!));
     }
     return firstError;
   }
@@ -280,6 +326,7 @@ class AppState extends ChangeNotifier {
     _savedRoomsDirty = true;
     _pendingStudentsViewMode = studentsViewMode.name;
     _pendingGenderColorPalette = genderColorPalette.name;
+    _pendingLocalePreference = localePreference.name;
     _startPersistence();
   }
 
@@ -290,6 +337,7 @@ class AppState extends ChangeNotifier {
     } else {
       _loadNotice = null;
       _loadNoticeIsError = false;
+      _loadNotices = const [];
     }
     notifyListeners();
   }
@@ -299,13 +347,20 @@ class AppState extends ChangeNotifier {
     RepositoryLoadStatus roomStatus,
   ) {
     final messages = <String>[];
+    final notices = <PersistenceNotice>[];
     var hasError = false;
 
-    void addStatus(RepositoryLoadStatus status, String label) {
+    void addStatus(
+      RepositoryLoadStatus status,
+      String label,
+      PersistenceNotice recovered,
+      PersistenceNotice corrupted,
+    ) {
       switch (status) {
         case RepositoryLoadStatus.ok:
           break;
         case RepositoryLoadStatus.recoveredFromBackup:
+          notices.add(recovered);
           messages.add(
             'Les données $label étaient endommagées. La dernière sauvegarde '
             'valide a été chargée.',
@@ -313,6 +368,7 @@ class AppState extends ChangeNotifier {
           break;
         case RepositoryLoadStatus.corrupted:
           hasError = true;
+          notices.add(corrupted);
           messages.add(
             'Les données $label sont illisibles et aucune sauvegarde valide '
             'n\'a été trouvée. Une copie de récupération a été conservée '
@@ -322,9 +378,20 @@ class AppState extends ChangeNotifier {
       }
     }
 
-    addStatus(classStatus, 'des classes');
-    addStatus(roomStatus, 'des salles enregistrées');
+    addStatus(
+      classStatus,
+      'des classes',
+      PersistenceNotice.classesRecovered,
+      PersistenceNotice.classesCorrupted,
+    );
+    addStatus(
+      roomStatus,
+      'des salles enregistrées',
+      PersistenceNotice.roomsRecovered,
+      PersistenceNotice.roomsCorrupted,
+    );
     _loadNotice = messages.isEmpty ? null : messages.join('\n');
+    _loadNotices = notices;
     _loadNoticeIsError = hasError;
   }
 

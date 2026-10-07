@@ -15,6 +15,8 @@ import 'plan_viewport.dart';
 
 import '../engine/plan_issue.dart';
 import '../engine/seating_engine.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../l10n/plan_issue_localizations.dart';
 import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/student.dart';
@@ -58,37 +60,89 @@ class _CancelKeyboardMoveIntent extends Intent {
   const _CancelKeyboardMoveIntent();
 }
 
-String _roomRowLabel(int row, int rows) {
-  if (row == 0) return 'rang devant';
-  if (row == rows - 1) return 'rang du fond';
-  return 'rang ${row + 1} sur $rows';
+String _roomRowLabel(AppLocalizations l10n, int row, int rows) {
+  if (row == 0) return l10n.roomRowFront;
+  if (row == rows - 1) return l10n.roomRowBack;
+  return l10n.roomRowPosition(row + 1, rows);
 }
 
-String _roomColumnLabel(int column) => 'colonne ${column + 1}';
+String _roomColumnLabel(AppLocalizations l10n, int column) =>
+    l10n.roomColumnPosition(column + 1);
 
-String _facingLabel(Facing facing) => switch (facing) {
-  Facing.nord => 'face au tableau',
-  Facing.est => 'face vers la droite',
-  Facing.sud => 'face au fond de la salle',
-  Facing.ouest => 'face vers la gauche',
+String _facingLabel(AppLocalizations l10n, Facing facing) => switch (facing) {
+  Facing.nord => l10n.facingNorth,
+  Facing.est => l10n.facingEast,
+  Facing.sud => l10n.facingSouth,
+  Facing.ouest => l10n.facingWest,
 };
 
-String _editorSeatLabel(Room room, int row, int column) {
+String _editorSeatLabel(AppLocalizations l10n, Room room, int row, int column) {
   final position =
-      '${_roomRowLabel(row, room.rows)}, ${_roomColumnLabel(column)}';
-  if (!room.isSeat(row, column)) return 'Case vide, $position';
-  return 'Place, $position, ${_facingLabel(room.facingOf(row, column))}';
+      '${_roomRowLabel(l10n, row, room.rows)}, ${_roomColumnLabel(l10n, column)}';
+  if (!room.isSeat(row, column)) return l10n.emptyCellPosition(position);
+  return l10n.seatPosition(
+    position,
+    _facingLabel(l10n, room.facingOf(row, column)),
+  );
 }
 
-String _colAisleLabel(Room room, int column) =>
-    'Couloir entre ${_roomColumnLabel(column)} et '
-    '${_roomColumnLabel(column + 1)}, '
-    '${room.hasColAisleAfter(column) ? 'actif' : 'inactif'}';
+String _colAisleLabel(AppLocalizations l10n, Room room, int column) =>
+    l10n.columnAisle(
+      _roomColumnLabel(l10n, column),
+      _roomColumnLabel(l10n, column + 1),
+      room.hasColAisleAfter(column) ? l10n.aisleActive : l10n.aisleInactive,
+    );
 
-String _rowAisleLabel(Room room, int row) =>
-    'Couloir entre ${_roomRowLabel(row, room.rows)} et '
-    '${_roomRowLabel(row + 1, room.rows)}, '
-    '${room.hasRowAisleAfter(row) ? 'actif' : 'inactif'}';
+String _rowAisleLabel(AppLocalizations l10n, Room room, int row) =>
+    l10n.rowAisle(
+      _roomRowLabel(l10n, row, room.rows),
+      _roomRowLabel(l10n, row + 1, room.rows),
+      room.hasRowAisleAfter(row) ? l10n.aisleActive : l10n.aisleInactive,
+    );
+
+String _genderLabel(AppLocalizations l10n, Gender gender) => switch (gender) {
+  Gender.fille => l10n.girl,
+  Gender.garcon => l10n.boy,
+  Gender.autre => l10n.unspecified,
+};
+
+String _levelLabel(AppLocalizations l10n, Level level) => switch (level) {
+  Level.faible => l10n.low,
+  Level.moyen => l10n.medium,
+  Level.fort => l10n.high,
+};
+
+String _energyLabel(AppLocalizations l10n, Energy energy) => switch (energy) {
+  Energy.calme => l10n.calm,
+  Energy.modere => l10n.moderate,
+  Energy.agite => l10n.restless,
+};
+
+String _sizeLabel(AppLocalizations l10n, StudentSize size) => switch (size) {
+  StudentSize.petit => l10n.small,
+  StudentSize.moyen => l10n.medium,
+  StudentSize.grand => l10n.tall,
+};
+
+String _editorSeatLabelFallback(Room room, int row, int column) {
+  final String rowLabel;
+  if (row == 0) {
+    rowLabel = 'rang devant';
+  } else if (row == room.rows - 1) {
+    rowLabel = 'rang du fond';
+  } else {
+    rowLabel = 'rang ${row + 1} sur ${room.rows}';
+  }
+  final position = '$rowLabel, colonne ${column + 1}';
+  if (!room.isSeat(row, column)) return 'Case vide, $position';
+  final facing = switch (room.facingOf(row, column)) {
+    Facing.nord => 'face au tableau',
+    Facing.est => 'face vers la droite',
+    Facing.sud => 'face au fond de la salle',
+    Facing.ouest => 'face vers la gauche',
+  };
+  return 'Place, $position, $facing';
+}
 
 /// Bornes de la taille de police RENDUE d'un prénom, et sa part de la largeur
 /// de case.
@@ -423,7 +477,7 @@ class _FrontBanner extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        '⬇  DEVANT (tableau)',
+        AppLocalizations.of(context)?.frontOfRoom ?? '⬇  DEVANT (tableau)',
         style: Theme.of(context).textTheme.labelMedium,
       ),
     );
@@ -548,10 +602,16 @@ class _FittedGrid extends StatelessWidget {
     // seulement le fin trait peint — sinon la cible (2–4 px) est presque
     // impossible à toucher, surtout pour retirer un couloir existant.
     void toggle() => onToggleAisle!(c);
+    final l10n = AppLocalizations.of(context);
     return Semantics(
       button: true,
-      label: _colAisleLabel(room, c),
-      hint: 'Activer pour ajouter ou retirer le couloir.',
+      label: l10n == null
+          ? 'Couloir entre colonne ${c + 1} et colonne ${c + 2}, '
+                '${room.hasColAisleAfter(c) ? 'actif' : 'inactif'}'
+          : _colAisleLabel(l10n, room, c),
+      hint:
+          l10n?.aisleToggleHint ??
+          'Activer pour ajouter ou retirer le couloir.',
       onTap: toggle,
       child: FocusableActionDetector(
         shortcuts: {
@@ -626,10 +686,17 @@ class _FittedGrid extends StatelessWidget {
     );
     if (!_editor) return gap;
     void toggle() => onToggleRowAisle!(r);
+    final l10n = AppLocalizations.of(context);
     return Semantics(
       button: true,
-      label: _rowAisleLabel(room, r),
-      hint: 'Activer pour ajouter ou retirer le couloir.',
+      label: l10n == null
+          ? 'Couloir entre rang ${r + 1} sur ${room.rows} et '
+                'rang ${r + 2} sur ${room.rows}, '
+                '${room.hasRowAisleAfter(r) ? 'actif' : 'inactif'}'
+          : _rowAisleLabel(l10n, room, r),
+      hint:
+          l10n?.aisleToggleHint ??
+          'Activer pour ajouter ou retirer le couloir.',
       onTap: toggle,
       child: FocusableActionDetector(
         shortcuts: {
@@ -666,9 +733,11 @@ class RoomEditorGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     return Semantics(
       container: true,
       label:
+          l10n?.roomGridLabel(room.rows, room.cols, room.capacity) ??
           'Plan de la salle, ${room.rows} rangs, ${room.cols} colonnes, ${room.capacity} places.',
       child: _FittedGrid(
         room: room,
@@ -680,7 +749,7 @@ class RoomEditorGrid extends StatelessWidget {
           room.toggleRowAisle(r);
           onChanged();
         },
-        cellBuilder: (r, c) => _buildCell(cs, r, c),
+        cellBuilder: (r, c) => _buildCell(cs, l10n, r, c),
       ),
     );
   }
@@ -688,7 +757,7 @@ class RoomEditorGrid extends StatelessWidget {
   /// Une case de l'éditeur : gestes (voir le commentaire sur `onTap`
   /// ci-dessous) et rendu (icône pivotée + bord de dossier, voir
   /// [_facingRotationAngle] / [_backrestBar]).
-  Widget _buildCell(ColorScheme cs, int r, int c) {
+  Widget _buildCell(ColorScheme cs, AppLocalizations? l10n, int r, int c) {
     final isSeat = room.isSeat(r, c);
     // Case vide : le seul geste est d'y poser une place. Place existante :
     // le tap la fait tourner (geste répété après avoir posé un modèle),
@@ -698,13 +767,16 @@ class RoomEditorGrid extends StatelessWidget {
     void removeSeat() => _removeSeat(r, c);
     return Semantics(
       button: true,
-      label: _editorSeatLabel(room, r, c),
+      label: l10n == null
+          ? _editorSeatLabelFallback(room, r, c)
+          : _editorSeatLabel(l10n, room, r, c),
       hint: isSeat
-          ? 'Activer pour faire tourner la place. Supprimer avec la touche Suppr.'
-          : 'Activer pour ajouter une place.',
+          ? l10n?.seatRotateHint ??
+                'Activer pour faire tourner la place. Supprimer avec la touche Suppr.'
+          : l10n?.seatAddHint ?? 'Activer pour ajouter une place.',
       onTap: primaryAction,
       customSemanticsActions: isSeat
-          ? _removeSeatSemanticsAction(removeSeat)
+          ? _removeSeatSemanticsAction(l10n, removeSeat)
           : null,
       child: FocusableActionDetector(
         shortcuts: _editorShortcuts(isSeat),
@@ -743,8 +815,13 @@ class RoomEditorGrid extends StatelessWidget {
   }
 
   Map<CustomSemanticsAction, VoidCallback> _removeSeatSemanticsAction(
+    AppLocalizations? l10n,
     VoidCallback removeSeat,
-  ) => {CustomSemanticsAction(label: 'Supprimer la place'): removeSeat};
+  ) => {
+    CustomSemanticsAction(
+      label: l10n?.removeSeatAction ?? 'Supprimer la place',
+    ): removeSeat,
+  };
 
   Map<ShortcutActivator, Intent> _editorShortcuts(bool isSeat) => {
     SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
@@ -995,31 +1072,38 @@ class _PlanGridState extends State<PlanGrid> {
   }
 
   String _planSeatLabel(
+    AppLocalizations? l10n,
     int row,
     int column,
     Student? student,
     _SeatRenderContext context,
   ) {
-    final position =
-        '${_roomRowLabel(row, cls.room.rows)}, ${_roomColumnLabel(column)}';
+    final position = l10n == null
+        ? 'rang ${row + 1} sur ${cls.room.rows}, colonne ${column + 1}'
+        : '${_roomRowLabel(l10n, row, cls.room.rows)}, ${_roomColumnLabel(l10n, column)}';
     if (student == null) {
-      return 'Place libre, $position, ${_facingLabel(context.facing)}';
+      if (l10n == null) return 'Place libre, $position';
+      return l10n.freeSeatLabel(position, _facingLabel(l10n, context.facing));
     }
+    if (l10n == null) return 'Élève ${student.fullName}, $position';
     final issues = context.result?.issuesFor(student.id) ?? const <PlanIssue>[];
-    final details = <String>[
-      'Élève ${student.fullName}',
+    final issueSuffix = issues.isEmpty
+        ? ''
+        : ', ${issues.map((issue) => localizedPlanIssue(issue, l10n, cls.studentById)).join(', ')}';
+    final selectedSuffix = _keyboardSourceSeat == Room.keyOf(row, column)
+        ? ', ${l10n.keyboardMoveSelected}'
+        : '';
+    return l10n.studentSeatLabel(
+      student.fullName,
       position,
-      _facingLabel(context.facing),
-      'genre ${student.gender.label}',
-      'niveau ${student.level.label}',
-      'énergie ${student.energy.label}',
-      'taille ${student.size.label}',
-      student.poorEyesight ? 'mauvaise vue' : 'bonne vue',
-      if (issues.isNotEmpty) issues.map((issue) => issue.label).join(', '),
-      if (_keyboardSourceSeat == Room.keyOf(row, column))
-        'sélectionné pour déplacement',
-    ];
-    return details.join(', ');
+      _facingLabel(l10n, context.facing),
+      _genderLabel(l10n, student.gender),
+      _levelLabel(l10n, student.level),
+      _energyLabel(l10n, student.energy),
+      _sizeLabel(l10n, student.size),
+      student.poorEyesight ? l10n.poorEyesight : l10n.goodEyesight,
+      '$issueSuffix$selectedSuffix',
+    );
   }
 
   void _activateSeat(
@@ -1027,6 +1111,7 @@ class _PlanGridState extends State<PlanGrid> {
     String targetSeat,
     Student? student,
   ) {
+    final l10n = AppLocalizations.of(context);
     final source = _keyboardSourceSeat;
     if (source != null) {
       if (source != targetSeat) widget.onSwap(source, targetSeat);
@@ -1034,8 +1119,8 @@ class _PlanGridState extends State<PlanGrid> {
       SemanticsService.sendAnnouncement(
         View.of(context),
         source == targetSeat
-            ? 'Déplacement annulé.'
-            : 'Élève déplacé vers la nouvelle place.',
+            ? l10n?.moveCancelled ?? 'Déplacement annulé.'
+            : l10n?.studentMoved ?? 'Élève déplacé vers la nouvelle place.',
         TextDirection.ltr,
       );
       return;
@@ -1048,10 +1133,12 @@ class _PlanGridState extends State<PlanGrid> {
     String seatKey,
     Student student,
   ) {
+    final l10n = AppLocalizations.of(context);
     setState(() => _keyboardSourceSeat = seatKey);
     SemanticsService.sendAnnouncement(
       View.of(context),
-      '${student.fullName} sélectionné. Choisissez une place puis activez-la.',
+      l10n?.studentMoveStarted(student.fullName) ??
+          '${student.fullName} sélectionné. Choisissez une place puis activez-la.',
       TextDirection.ltr,
     );
   }
@@ -1061,7 +1148,7 @@ class _PlanGridState extends State<PlanGrid> {
     setState(() => _keyboardSourceSeat = null);
     SemanticsService.sendAnnouncement(
       View.of(context),
-      'Déplacement annulé.',
+      AppLocalizations.of(context)?.moveCancelled ?? 'Déplacement annulé.',
       TextDirection.ltr,
     );
   }
@@ -1075,6 +1162,7 @@ class _PlanGridState extends State<PlanGrid> {
     required _SeatRenderContext renderContext,
     required Widget child,
   }) {
+    final l10n = AppLocalizations.of(context);
     final selectingMove = _keyboardSourceSeat != null;
     final actions = <Type, Action<Intent>>{
       ActivateIntent: CallbackAction<ActivateIntent>(
@@ -1108,19 +1196,24 @@ class _PlanGridState extends State<PlanGrid> {
     };
     return Semantics(
       button: student != null || selectingMove,
-      label: _planSeatLabel(row, column, student, renderContext),
+      label: _planSeatLabel(l10n, row, column, student, renderContext),
       hint: selectingMove
-          ? 'Activer pour déplacer l’élève sélectionné ici. Échap annule.'
+          ? l10n?.moveToSelectedSeatHint ??
+                'Activer pour déplacer l’élève sélectionné ici. Échap annule.'
           : student == null
-          ? 'Place disponible pour le déplacement au clavier.'
-          : 'Activer pour les détails. Appuyer sur M pour déplacer cet élève.',
+          ? l10n?.freeSeatMoveHint ??
+                'Place disponible pour le déplacement au clavier.'
+          : l10n?.seatDetailsMoveHint ??
+                'Activer pour les détails. Appuyer sur M pour déplacer cet élève.',
       onTap: student != null || selectingMove
           ? () => _activateSeat(context, seatKey, student)
           : null,
       customSemanticsActions: student == null
           ? null
           : {
-              CustomSemanticsAction(label: 'Déplacer cet élève'): () =>
+              CustomSemanticsAction(
+                label: l10n?.moveStudentAction ?? 'Déplacer cet élève',
+              ): () =>
                   _startKeyboardMove(context, seatKey, student),
             },
       child: FocusableActionDetector(

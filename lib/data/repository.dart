@@ -28,6 +28,7 @@ class Repository {
   static const _savedRoomsBackupKey = 'plandeclasse_saved_rooms_v1_backup';
   static const _savedRoomsCorruptKey = 'plandeclasse_saved_rooms_v1_corrupt';
   static const _genderColorPaletteKey = 'plandeclasse_gender_color_palette_v1';
+  static const _localePreferenceKey = 'plandeclasse_locale_preference_v1';
 
   Future<List<ClassGroup>> load() async => (await loadClassesWithStatus()).data;
 
@@ -76,6 +77,16 @@ class Repository {
   Future<void> saveGenderColorPalette(String palette) async {
     final prefs = await SharedPreferences.getInstance();
     await _setString(prefs, _genderColorPaletteKey, palette);
+  }
+
+  Future<String?> loadLocalePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_localePreferenceKey);
+  }
+
+  Future<void> saveLocalePreference(String localePreference) async {
+    final prefs = await SharedPreferences.getInstance();
+    await _setString(prefs, _localePreferenceKey, localePreference);
   }
 
   /// Taille/position de la fenêtre desktop (Windows/macOS/Linux), ou `null`

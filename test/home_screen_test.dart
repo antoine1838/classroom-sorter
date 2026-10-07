@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/student.dart';
@@ -50,7 +51,14 @@ Future<AppState> _pump(
   if (initialised) await state.init();
   state.classes.addAll(classes);
 
-  await tester.pumpWidget(MaterialApp(home: HomeScreen(state: state)));
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: const Locale('fr'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: HomeScreen(state: state),
+    ),
+  );
   await tester.pumpAndSettle();
   return state;
 }
@@ -71,7 +79,14 @@ void main() {
     addTearDown(() => t.binding.setSurfaceSize(null));
 
     final state = AppState();
-    await t.pumpWidget(MaterialApp(home: HomeScreen(state: state)));
+    await t.pumpWidget(
+      MaterialApp(
+        locale: const Locale('fr'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: HomeScreen(state: state),
+      ),
+    );
     await t.pump();
 
     expect(state.loading, isTrue);

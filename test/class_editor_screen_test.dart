@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plandeclasse/app_state.dart';
 import 'package:plandeclasse/engine/plan_generation.dart';
 import 'package:plandeclasse/engine/seating_engine.dart';
+import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/rule.dart';
@@ -56,6 +57,9 @@ Future<AppState> _pump(
   final state = AppState()..classes.add(cls);
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('fr'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(
         state: state,
         cls: cls,
@@ -164,6 +168,9 @@ void main() {
     // le test passerait sans rien prouver.
     await t.pumpWidget(
       MaterialApp(
+        locale: const Locale('fr'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Builder(
           builder: (context) => Scaffold(
             body: TextButton(
@@ -990,7 +997,7 @@ void main() {
       expect(cls.rules.single.type, RuleType.separate);
       expect(cls.rules.single.studentAId, 'stu2');
       expect(
-        find.textContaining('Séparer Prenom2 Nom2 et Prenom1 Nom1'),
+        find.textContaining('Séparer Prenom2 Nom2 / Prenom1 Nom1'),
         findsOneWidget,
       );
       expect(find.textContaining('Obligatoire'), findsOneWidget);
@@ -1029,7 +1036,7 @@ void main() {
       expect(cls.rules.single.type, RuleType.fixedSeat);
       expect(cls.rules.single.seatRow, 1);
       expect(cls.rules.single.seatCol, 2);
-      expect(find.textContaining('place ligne 2, colonne 3'), findsOneWidget);
+      expect(find.textContaining('Rang 2, Colonne 3'), findsOneWidget);
     });
 
     testWidgets('une place désactivée est refusée', (t) async {
@@ -1066,7 +1073,7 @@ void main() {
 
       await t.tap(find.widgetWithText(FilledButton, 'Règle'));
       await t.pumpAndSettle();
-      await _pickDropdown(t, 'Type de règle', 'Doit être devant');
+      await _pickDropdown(t, 'Type de règle', 'Devant le tableau');
 
       // Deux rangs au lieu d'un. Le passage par 3 puis retour à 2 vérifie au
       // passage que le compteur descend aussi, et qu'il est borné à 1.
@@ -1094,7 +1101,10 @@ void main() {
       expect(rule.type, RuleType.frontZone);
       expect(rule.frontRows, 2);
       expect(rule.hard, isFalse);
-      expect(find.textContaining('à 2 rang(s) du tableau'), findsOneWidget);
+      expect(
+        find.textContaining('Prenom0 Nom0 Devant le tableau (2)'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Préférence'), findsOneWidget);
     });
 
@@ -1126,7 +1136,7 @@ void main() {
       await _tab(t, 'Règles');
 
       expect(
-        find.textContaining('Rapprocher Prenom0 Nom0 et Prenom1 Nom1'),
+        find.textContaining('Rapprocher Prenom0 Nom0 / Prenom1 Nom1'),
         findsOneWidget,
       );
 
@@ -1156,7 +1166,7 @@ void main() {
       await _pump(t, cls);
       await _tab(t, 'Règles');
 
-      expect(find.textContaining('Séparer ? et Prenom1 Nom1'), findsOneWidget);
+      expect(find.textContaining('Séparer ? / Prenom1 Nom1'), findsOneWidget);
     });
   });
 

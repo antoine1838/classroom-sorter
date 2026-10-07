@@ -53,12 +53,12 @@ void main() {
       issues: const [
         PlanIssue(
           severity: IssueSeverity.hard,
-          label: 'dur',
+          kind: PlanIssueKind.studentNotNearBoard,
           studentIds: ['hard'],
         ),
         PlanIssue(
           severity: IssueSeverity.soft,
-          label: 'souple',
+          kind: PlanIssueKind.unplacedStudents,
           studentIds: ['soft'],
         ),
       ],
@@ -108,12 +108,12 @@ void main() {
         issues: const [
           PlanIssue(
             severity: IssueSeverity.hard,
-            label: 'dur',
+            kind: PlanIssueKind.studentNotNearBoard,
             studentIds: ['hard'],
           ),
           PlanIssue(
             severity: IssueSeverity.soft,
-            label: 'souple',
+            kind: PlanIssueKind.unplacedStudents,
             studentIds: ['soft'],
           ),
         ],

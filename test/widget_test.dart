@@ -10,6 +10,6 @@ void main() {
     await tester.pumpWidget(const ClassroomSortApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Mes classes'), findsOneWidget);
+    expect(find.text('My classes'), findsOneWidget);
   });
 }

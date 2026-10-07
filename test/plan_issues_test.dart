@@ -84,7 +84,7 @@ void main() {
         isNull,
         reason: 'C n\'est concerné par rien',
       );
-      expect(res.reasonsFor('a').single, contains('à séparer'));
+      expect(res.reasonsFor('a').single.kind, PlanIssueKind.separateStudents);
       expect(
         res.violations,
         hasLength(1),
@@ -133,7 +133,10 @@ void main() {
       final res = SeatingEngine(cls).evaluate();
 
       expect(_flagged(res), {'a', 'b'});
-      expect(res.reasonsFor('b').single, contains('ne sont pas voisins'));
+      expect(
+        res.reasonsFor('b').single.kind,
+        PlanIssueKind.studentsNotTogether,
+      );
     });
 
     test('« devant » : seul l\'élève visé est marqué', () {
@@ -157,7 +160,10 @@ void main() {
       expect(_flagged(res), {
         'a',
       }, reason: 'une règle à un seul élève ne doit pas marquer le voisin');
-      expect(res.reasonsFor('a').single, contains('près du tableau'));
+      expect(
+        res.reasonsFor('a').single.kind,
+        PlanIssueKind.studentNotNearBoard,
+      );
     });
 
     test('« place imposée » non honorée : l\'élève est marqué', () {
@@ -180,7 +186,10 @@ void main() {
 
       expect(_flagged(res), {'a'});
       expect(res.severityFor('a'), IssueSeverity.hard);
-      expect(res.reasonsFor('a').single, contains('place imposée'));
+      expect(
+        res.reasonsFor('a').single.kind,
+        PlanIssueKind.studentNotAtFixedSeat,
+      );
     });
 
     test('deux places imposées identiques : le second élève est marqué', () {
@@ -211,7 +220,7 @@ void main() {
         IssueSeverity.hard,
         reason: 'B est celui dont la place imposée était déjà prise',
       );
-      expect(res.reasonsFor('b').single, contains('déjà occupée'));
+      expect(res.reasonsFor('b').single.kind, PlanIssueKind.fixedSeatOccupied);
     });
 
     test('deux places imposées souples identiques restent des préférences', () {
@@ -245,7 +254,7 @@ void main() {
         hasLength(1),
         reason: 'une préférence impossible ne doit jamais devenir dure',
       );
-      expect(res.warnings.single, contains('place imposée'));
+      expect(res.warnings.single.kind, PlanIssueKind.studentNotAtFixedSeat);
       expect(_flagged(res), hasLength(1));
     });
 
@@ -324,8 +333,8 @@ void main() {
       final reasons = res.reasonsFor('a');
       expect(reasons, hasLength(2));
       expect(
-        reasons.first,
-        contains('à séparer'),
+        reasons.first.kind,
+        PlanIssueKind.separateStudents,
         reason: 'les motifs les plus graves passent devant',
       );
     });
@@ -439,8 +448,10 @@ void main() {
 
       expect(_flagged(res), {'a', 'b'});
       expect(res.severityFor('a'), IssueSeverity.soft);
-      expect(res.reasonsFor('a').single, contains('agités'));
-      final note = res.balance.firstWhere((n) => n.label.contains('agités'));
+      expect(res.reasonsFor('a').single.kind, PlanIssueKind.restlessNeighbors);
+      final note = res.balance.firstWhere(
+        (n) => n.kind == PlanIssueKind.restlessNeighbors,
+      );
       expect(note.ok, isFalse);
       expect(note.studentIds.toSet(), {'a', 'b'});
     });
@@ -510,7 +521,7 @@ void main() {
       expect(_flagged(res), {
         'a',
       }, reason: 'b est déjà dans la moitié avant, c n\'a pas ce critère');
-      expect(res.reasonsFor('a').single, contains('Mauvaise vue'));
+      expect(res.reasonsFor('a').single.kind, PlanIssueKind.poorEyesightAtBack);
     });
 
     test('grand devant petit : les deux élèves de la paire sont marqués', () {
@@ -536,7 +547,7 @@ void main() {
         'a',
         'b',
       }, reason: 'c\'est la position relative qui pose problème, pas un seul');
-      expect(res.reasonsFor('b').single, contains('Tailles'));
+      expect(res.reasonsFor('b').single.kind, PlanIssueKind.tallBlocksShort);
     });
 
     test('objectif atteint : la note existe mais ne marque personne', () {

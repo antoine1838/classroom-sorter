@@ -27,11 +27,9 @@ class _AddImportToolbar extends StatelessWidget {
     required this.viewToggle,
   });
 
-  static const _addTooltip = 'Ajouter un élève';
-  static const _importTooltip = "Importer une liste d'élèves";
-
   @override
   Widget build(BuildContext context) {
+    final l10n = _l10n(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
@@ -42,13 +40,13 @@ class _AddImportToolbar extends StatelessWidget {
               IconButton.filled(
                 onPressed: onAdd,
                 icon: const Icon(Icons.person_add_alt),
-                tooltip: _addTooltip,
+                tooltip: l10n.addStudent,
               ),
               const SizedBox(width: 8),
               IconButton.filledTonal(
                 onPressed: onImport,
                 icon: const Icon(Icons.playlist_add),
-                tooltip: _importTooltip,
+                tooltip: l10n.importStudentList,
               ),
               const SizedBox(width: 8),
               viewToggle,
@@ -59,16 +57,19 @@ class _AddImportToolbar extends StatelessWidget {
         Widget addBtn = FilledButton.icon(
           onPressed: onAdd,
           icon: const Icon(Icons.person_add_alt),
-          label: Text(short ? 'Ajout' : 'Ajouter'),
+          label: Text(short ? l10n.addShort : l10n.add),
         );
         Widget importBtn = FilledButton.tonalIcon(
           onPressed: onImport,
           icon: const Icon(Icons.playlist_add),
-          label: Text(short ? 'Import' : 'Importer une liste'),
+          label: Text(short ? l10n.importShort : l10n.importStudentList),
         );
         if (short) {
-          addBtn = Tooltip(message: _addTooltip, child: addBtn);
-          importBtn = Tooltip(message: _importTooltip, child: importBtn);
+          addBtn = Tooltip(message: l10n.addStudent, child: addBtn);
+          importBtn = Tooltip(
+            message: l10n.importStudentList,
+            child: importBtn,
+          );
         }
         return Row(
           children: [
@@ -99,13 +100,14 @@ const double _kHeaderH = 34;
 /// Une valeur possible d'un champ-colonne : rendu (icône ou barre, pour la
 /// Taille) et libellé complet affiché dans l'info-bulle de la cellule.
 class _AttrValue {
+  final String id;
   final String label;
   final IconData? icon;
 
   /// Hauteur d'une barre dessinée à la place d'une icône (Taille) :
   /// prioritaire sur [icon] quand elle est renseignée.
   final double? barHeight;
-  const _AttrValue(this.label, {this.icon, this.barHeight});
+  const _AttrValue(this.id, this.label, {this.icon, this.barHeight});
 }
 
 /// Un champ de la matrice : une seule colonne. Toucher une cellule fait
@@ -113,12 +115,14 @@ class _AttrValue {
 /// valeur de repli (affichée en gris, contrairement aux autres en couleur
 /// d'accent) et sert d'état initial pour un nouvel élève.
 class _AttrField {
+  final String id;
   final String label;
   final List<_AttrValue> values;
   final int defaultIndex;
   final int Function(Student) indexOf;
   final void Function(Student, int) setIndex;
   const _AttrField(
+    this.id,
     this.label,
     this.values,
     this.defaultIndex,
@@ -128,13 +132,14 @@ class _AttrField {
 }
 
 /// Définition des colonnes de la matrice — une par champ (voir [_AttrField]).
-final List<_AttrField> _attrFields = [
+List<_AttrField> _attrFields(AppLocalizations l10n) => [
   _AttrField(
-    'Genre',
-    const [
-      _AttrValue('Garçon', icon: Icons.male),
-      _AttrValue('Fille', icon: Icons.female),
-      _AttrValue('Non précisé', icon: Icons.person_outline),
+    'gender',
+    l10n.gender,
+    [
+      _AttrValue('boy', l10n.boy, icon: Icons.male),
+      _AttrValue('girl', l10n.girl, icon: Icons.female),
+      _AttrValue('unspecified', l10n.unspecified, icon: Icons.person_outline),
     ],
     2,
     (s) => switch (s.gender) {
@@ -145,11 +150,12 @@ final List<_AttrField> _attrFields = [
     (s, i) => s.gender = const [Gender.garcon, Gender.fille, Gender.autre][i],
   ),
   _AttrField(
-    'Niveau',
-    const [
-      _AttrValue('Faible', icon: Icons.arrow_downward),
-      _AttrValue('Moyen', icon: Icons.remove),
-      _AttrValue('Fort', icon: Icons.arrow_upward),
+    'level',
+    l10n.level,
+    [
+      _AttrValue('low', l10n.low, icon: Icons.arrow_downward),
+      _AttrValue('medium', l10n.medium, icon: Icons.remove),
+      _AttrValue('high', l10n.high, icon: Icons.arrow_upward),
     ],
     1,
     (s) => switch (s.level) {
@@ -160,11 +166,12 @@ final List<_AttrField> _attrFields = [
     (s, i) => s.level = const [Level.faible, Level.moyen, Level.fort][i],
   ),
   _AttrField(
-    'Énergie',
-    const [
-      _AttrValue('Calme', icon: Icons.self_improvement),
-      _AttrValue('Modéré', icon: Icons.horizontal_rule),
-      _AttrValue('Agité', icon: Icons.bolt),
+    'energy',
+    l10n.energy,
+    [
+      _AttrValue('calm', l10n.calm, icon: Icons.self_improvement),
+      _AttrValue('moderate', l10n.moderate, icon: Icons.horizontal_rule),
+      _AttrValue('restless', l10n.restless, icon: Icons.bolt),
     ],
     1,
     (s) => switch (s.energy) {
@@ -175,11 +182,12 @@ final List<_AttrField> _attrFields = [
     (s, i) => s.energy = const [Energy.calme, Energy.modere, Energy.agite][i],
   ),
   _AttrField(
-    'Taille',
-    const [
-      _AttrValue('Petit', barHeight: 8),
-      _AttrValue('Moyen', barHeight: 14),
-      _AttrValue('Grand', barHeight: 20),
+    'size',
+    l10n.size,
+    [
+      _AttrValue('small', l10n.small, barHeight: 8),
+      _AttrValue('medium', l10n.medium, barHeight: 14),
+      _AttrValue('tall', l10n.tall, barHeight: 20),
     ],
     1,
     (s) => switch (s.size) {
@@ -194,11 +202,13 @@ final List<_AttrField> _attrFields = [
     ][i],
   ),
   _AttrField(
-    'Vue',
-    const [
-      _AttrValue('Bonne vue', icon: Icons.visibility),
+    'eyesight',
+    l10n.eyesight,
+    [
+      _AttrValue('good', l10n.goodEyesight, icon: Icons.visibility),
       _AttrValue(
-        'Mauvaise vue (objectif : rapprocher du tableau)',
+        'poor',
+        '${l10n.poorEyesight} (${l10n.moveNearBoard})',
         icon: Icons.visibility_off,
       ),
     ],
@@ -251,6 +261,7 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
 
   AppState get state;
   ClassGroup get cls;
+  List<_AttrField> get _fields => _attrFields(_l10n(context));
   ClassGroupOps get _ops => ClassGroupOps(cls, commit: state.touch);
   String get _instructions;
   Widget get _viewToggle;
@@ -298,7 +309,7 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
         ),
         Expanded(
           child: cls.students.isEmpty
-              ? const Center(child: Text('Aucun élève. Ajoutez-en un !'))
+              ? Center(child: Text(_l10n(context).noStudents))
               : LayoutBuilder(
                   builder: (context, constraints) {
                     _computeWidths(constraints.maxWidth);
@@ -508,18 +519,19 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> _importList(BuildContext context) async {
+    final l10n = _l10n(context);
     final ctrl = TextEditingController();
     final text = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Importer des élèves'),
+        title: Text(l10n.importStudentsTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Un élève par ligne, format « Prénom Nom ».'),
+            Text(l10n.importStudentsInstructions),
             Text(
-              'Prénom composé ? Reliez-le par un tiret (ex. Paul-Henri Dupond).',
+              l10n.importStudentsHyphenHint,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
@@ -528,9 +540,9 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
               autofocus: true,
               maxLines: 8,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: 'Camille Durand\nSami Ben Ali\n…',
+                hintText: l10n.importStudentsExample,
               ),
             ),
           ],
@@ -538,11 +550,11 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, ctrl.text),
-            child: const Text('Importer'),
+            child: Text(l10n.import),
           ),
         ],
       ),
@@ -550,9 +562,9 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
     if (text == null) return;
     final count = _ops.importStudentsFromLines(text, newId);
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$count élève(s) importé(s).')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_l10n(context).studentsImported(count))),
+      );
     }
   }
 }
@@ -562,7 +574,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
   // Largeurs adaptatives de la matrice, recalculées à chaque build selon la
   // largeur disponible (voir _computeWidths). Une largeur par colonne (pas
   // une seule partagée) : voir la doc de _computeWidths.
-  List<double> _colWidths = List.filled(_attrFields.length, _kCellW);
+  List<double> _colWidths = List.filled(5, _kCellW);
 
   @override
   AppState get state => widget.state;
@@ -605,14 +617,14 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
   /// restant, comme avant.
   @override
   void _computeWidths(double maxWidth) {
-    final cols = _attrFields.length;
+    final cols = _fields.length;
     final seps = (cols - 1).toDouble(); // séparateurs de 1 px
     final headStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
       fontWeight: FontWeight.w600,
       fontSize: 8.5,
     );
     final minWidths = [
-      for (final f in _attrFields) _minColWidth(f.label, headStyle),
+      for (final f in _fields) _minColWidth(f.label, headStyle),
     ];
     if (maxWidth >= _kColShrinkStartW) {
       _colWidths = List.filled(cols, _kCellW);
@@ -677,9 +689,9 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
     // « Énergie » dépasse alors la largeur max d'une colonne ([_kCellW]) —
     // le clamp de _minColWidth la tronquait quand même (voir _computeWidths).
     final attrHeadStyle = style?.copyWith(fontSize: 8.5);
-    for (var g = 0; g < _attrFields.length; g++) {
+    for (var g = 0; g < _fields.length; g++) {
       if (g > 0) out.add(_vSep(cs));
-      final field = _attrFields[g];
+      final field = _fields[g];
       out.add(
         SizedBox(
           width: _colWidths[g],
@@ -706,9 +718,9 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
   @override
   Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
     final cells = <Widget>[];
-    for (var g = 0; g < _attrFields.length; g++) {
+    for (var g = 0; g < _fields.length; g++) {
       if (g > 0) cells.add(_vSep(cs));
-      cells.add(_cycleCell(cs, _attrFields[g], s, _colWidths[g]));
+      cells.add(_cycleCell(cs, _fields[g], s, _colWidths[g]));
     }
     return Container(
       height: _kRowH,
@@ -728,7 +740,7 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
     final value = field.values[idx];
     final color = idx == field.defaultIndex ? cs.outlineVariant : cs.primary;
     return SizedBox(
-      key: ValueKey('attrCell_${field.label}_${s.id}'),
+      key: ValueKey('attrCell_${field.id}_${s.id}'),
       width: width,
       child: Tooltip(
         message: value.label,
@@ -815,8 +827,8 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
   void _computeWidths(double maxWidth) {
     // -1 par champ : la valeur par défaut (neutre) n'a pas de colonne dédiée,
     // elle est représentée par « rien n'est cochée » (voir _valueHeaderCells).
-    final cols = _attrFields.fold<int>(0, (n, f) => n + f.values.length - 1);
-    final seps = (_attrFields.length - 1).toDouble(); // séparateurs de 1 px
+    final cols = _fields.fold<int>(0, (n, f) => n + f.values.length - 1);
+    final seps = (_fields.length - 1).toDouble(); // séparateurs de 1 px
     var cellW = _kCompleteCellW;
     if (maxWidth - (cellW * cols + seps) < _kNameMinW) {
       cellW = ((maxWidth - _kNameMinW - seps) / cols).clamp(
@@ -887,15 +899,15 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
 
   List<Widget> _groupHeaderCells(ColorScheme cs, TextStyle? style) {
     final out = <Widget>[];
-    for (var g = 0; g < _attrFields.length; g++) {
+    for (var g = 0; g < _fields.length; g++) {
       if (g > 0) out.add(_vSep(cs));
       // -1 : pas de colonne pour la valeur par défaut du champ.
       out.add(
         SizedBox(
-          width: (_attrFields[g].values.length - 1) * _cellW,
+          width: (_fields[g].values.length - 1) * _cellW,
           child: Center(
             child: Text(
-              _attrFields[g].label,
+              _fields[g].label,
               style: style,
               overflow: TextOverflow.ellipsis,
             ),
@@ -908,9 +920,9 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
 
   List<Widget> _valueHeaderCells(ColorScheme cs, TextStyle? style) {
     final out = <Widget>[];
-    for (var g = 0; g < _attrFields.length; g++) {
+    for (var g = 0; g < _fields.length; g++) {
       if (g > 0) out.add(_vSep(cs));
-      final field = _attrFields[g];
+      final field = _fields[g];
       for (var k = 0; k < field.values.length; k++) {
         if (k == field.defaultIndex) continue;
         final v = field.values[k];
@@ -942,9 +954,9 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
   @override
   Widget _buildAttrRow(ColorScheme cs, Student s, int i) {
     final cells = <Widget>[];
-    for (var g = 0; g < _attrFields.length; g++) {
+    for (var g = 0; g < _fields.length; g++) {
       if (g > 0) cells.add(_vSep(cs));
-      final field = _attrFields[g];
+      final field = _fields[g];
       final active = field.indexOf(s);
       for (var k = 0; k < field.values.length; k++) {
         if (k == field.defaultIndex) continue;
@@ -952,7 +964,7 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
           _checkCell(
             cs,
             key: ValueKey(
-              'completeCell_${field.label}_${field.values[k].label}_${s.id}',
+              'completeCell_${field.id}_${field.values[k].id}_${s.id}',
             ),
             on: active == k,
             onTap: () {
@@ -1030,23 +1042,21 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
   }
 
   Future<void> _confirmDelete() async {
+    final l10n = _l10n(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Supprimer cet élève ?'),
-        content: Text(
-          '« ${widget.initial.fullName} » sera retiré de la classe, ainsi '
-          'que ses règles et sa place dans le plan.',
-        ),
+        title: Text(l10n.deleteStudentTitle),
+        content: Text(l10n.deleteStudentDescription(widget.initial.fullName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -1059,14 +1069,15 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _l10n(context);
     final isNew = widget.onDelete == null;
     return AlertDialog(
       title: Row(
         children: [
-          Expanded(child: Text(isNew ? 'Nouvel élève' : "Modifier l'élève")),
+          Expanded(child: Text(isNew ? l10n.newStudent : l10n.editStudent)),
           if (!isNew)
             IconButton(
-              tooltip: 'Supprimer',
+              tooltip: l10n.delete,
               icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
               onPressed: _confirmDelete,
             ),
@@ -1080,69 +1091,73 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               controller: _first,
               autofocus: true,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Prénom'),
+              decoration: InputDecoration(labelText: l10n.firstName),
             ),
             TextField(
               controller: _last,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Nom'),
+              decoration: InputDecoration(labelText: l10n.lastName),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<Gender>(
               initialValue: _gender,
-              decoration: const InputDecoration(labelText: 'Genre'),
+              decoration: InputDecoration(labelText: l10n.gender),
               items: [
                 for (final g in Gender.values)
-                  DropdownMenuItem(value: g, child: Text(g.label)),
+                  DropdownMenuItem(
+                    value: g,
+                    child: Text(_genderLabel(l10n, g)),
+                  ),
               ],
               onChanged: (v) => setState(() => _gender = v ?? _gender),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<Level>(
               initialValue: _level,
-              decoration: const InputDecoration(labelText: 'Niveau'),
+              decoration: InputDecoration(labelText: l10n.level),
               items: [
                 for (final l in Level.values)
-                  DropdownMenuItem(value: l, child: Text(l.label)),
+                  DropdownMenuItem(value: l, child: Text(_levelLabel(l10n, l))),
               ],
               onChanged: (v) => setState(() => _level = v ?? _level),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<Energy>(
               initialValue: _energy,
-              decoration: const InputDecoration(labelText: 'Énergie'),
+              decoration: InputDecoration(labelText: l10n.energy),
               items: [
                 for (final t in Energy.values)
-                  DropdownMenuItem(value: t, child: Text(t.label)),
+                  DropdownMenuItem(
+                    value: t,
+                    child: Text(_energyLabel(l10n, t)),
+                  ),
               ],
               onChanged: (v) => setState(() => _energy = v ?? _energy),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<StudentSize>(
               initialValue: _size,
-              decoration: const InputDecoration(labelText: 'Taille'),
+              decoration: InputDecoration(labelText: l10n.size),
               items: [
                 for (final t in StudentSize.values)
-                  DropdownMenuItem(value: t, child: Text(t.label)),
+                  DropdownMenuItem(value: t, child: Text(_sizeLabel(l10n, t))),
               ],
               onChanged: (v) => setState(() => _size = v ?? _size),
             ),
             const SizedBox(height: 4),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Mauvaise vue'),
-              subtitle: const Text(
-                'À rapprocher du tableau (objectif d\'équilibre)',
-              ),
+              title: Text(l10n.poorEyesight),
+              subtitle: Text(l10n.poorEyesightSubtitle),
               value: _poorEyesight,
               onChanged: (v) => setState(() => _poorEyesight = v),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _notes,
-              decoration: const InputDecoration(
-                labelText: 'Notes (facultatif)',
-                hintText: 'Ex. lunettes, tutorat…',
+              decoration: InputDecoration(
+                labelText: l10n.notesOptional,
+                hintText: l10n.notesHint,
               ),
             ),
           ],
@@ -1151,7 +1166,7 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(
@@ -1168,9 +1183,33 @@ class _StudentFormDialogState extends State<_StudentFormDialog> {
               notes: _notes.text.trim(),
             ),
           ),
-          child: const Text('Enregistrer'),
+          child: Text(l10n.save),
         ),
       ],
     );
   }
 }
+
+String _genderLabel(AppLocalizations l10n, Gender value) => switch (value) {
+  Gender.fille => l10n.girl,
+  Gender.garcon => l10n.boy,
+  Gender.autre => l10n.unspecified,
+};
+
+String _levelLabel(AppLocalizations l10n, Level value) => switch (value) {
+  Level.faible => l10n.low,
+  Level.moyen => l10n.medium,
+  Level.fort => l10n.high,
+};
+
+String _energyLabel(AppLocalizations l10n, Energy value) => switch (value) {
+  Energy.calme => l10n.calm,
+  Energy.modere => l10n.moderate,
+  Energy.agite => l10n.restless,
+};
+
+String _sizeLabel(AppLocalizations l10n, StudentSize value) => switch (value) {
+  StudentSize.petit => l10n.small,
+  StudentSize.moyen => l10n.medium,
+  StudentSize.grand => l10n.tall,
+};

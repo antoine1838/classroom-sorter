@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../actions/class_group_ops.dart';
 import '../app_state.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/classroom.dart';
 import 'class_editor_screen.dart';
 import 'settings_screen.dart';
@@ -15,18 +16,19 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mes classes'),
+        title: Text(l10n.myClasses),
         actions: [
           IconButton(
             icon: const Icon(Icons.auto_awesome_outlined),
-            tooltip: 'Ajouter la classe de démo (6ème B)',
+            tooltip: l10n.addDemoClass,
             onPressed: () => _addDemoClass(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Réglages',
+            tooltip: l10n.settings,
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => SettingsScreen(state: state)),
             ),
@@ -36,7 +38,7 @@ class HomeScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addClass(context),
         icon: const Icon(Icons.add),
-        label: const Text('Nouvelle classe'),
+        label: Text(l10n.newClass),
       ),
       body: ListenableBuilder(listenable: state, builder: _buildBody),
     );
@@ -50,7 +52,26 @@ class HomeScreen extends StatelessWidget {
     final message = state.persistenceMessage;
     return message == null
         ? content
-        : _withPersistenceBanner(context, content, message);
+        : _withPersistenceBanner(
+            context,
+            content,
+            _localizedPersistenceMessage(context, message),
+          );
+  }
+
+  String _localizedPersistenceMessage(BuildContext context, String fallback) {
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return fallback;
+    final messages = state.persistenceNotices.map(
+      (notice) => switch (notice) {
+        PersistenceNotice.classesRecovered => l10n.persistenceClassesRecovered,
+        PersistenceNotice.roomsRecovered => l10n.persistenceRoomsRecovered,
+        PersistenceNotice.classesCorrupted => l10n.persistenceClassesCorrupted,
+        PersistenceNotice.roomsCorrupted => l10n.persistenceRoomsCorrupted,
+        PersistenceNotice.saveFailed => l10n.persistenceSaveFailed,
+      },
+    );
+    return messages.isEmpty ? fallback : messages.join('\n');
   }
 
   Widget _buildClassesContent(BuildContext context) {
@@ -73,13 +94,17 @@ class HomeScreen extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         leading: CircleAvatar(child: Text('${c.students.length}')),
-        title: Text(c.name.isEmpty ? 'Classe' : c.name),
+        title: Text(
+          c.name.isEmpty
+              ? AppLocalizations.of(context)!.classDefaultName
+              : c.name,
+        ),
         subtitle: Text(
           '${c.students.length} élève(s) · ${c.room.capacity} place(s)',
         ),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline),
-          tooltip: 'Supprimer',
+          tooltip: AppLocalizations.of(context)!.delete,
           onPressed: () => _confirmDelete(context, c),
         ),
         onTap: () => _open(context, c),
@@ -108,11 +133,11 @@ class HomeScreen extends StatelessWidget {
             if (state.canRetryPersistence)
               TextButton(
                 onPressed: state.retryPersistence,
-                child: const Text('Réessayer'),
+                child: Text(AppLocalizations.of(context)!.retry),
               ),
             TextButton(
               onPressed: state.dismissPersistenceMessage,
-              child: const Text('Fermer'),
+              child: Text(AppLocalizations.of(context)!.close),
             ),
           ],
         ),
@@ -132,9 +157,9 @@ class HomeScreen extends StatelessWidget {
   Future<void> _addClass(BuildContext context) async {
     final name = await _promptText(
       context,
-      title: 'Nom de la classe',
-      hint: 'Ex. 6ème B',
-      okLabel: 'Créer',
+      title: AppLocalizations.of(context)!.className,
+      hint: AppLocalizations.of(context)!.classNameHint,
+      okLabel: AppLocalizations.of(context)!.create,
     );
     if (name == null) return;
     final c = state.addClass(name);
@@ -170,16 +195,18 @@ class HomeScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Supprimer la classe ?'),
-        content: Text('« ${c.name} » sera définitivement supprimée.'),
+        title: Text(AppLocalizations.of(context)!.deleteClassTitle),
+        content: Text(
+          AppLocalizations.of(context)!.deleteClassDescription(c.name),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -210,7 +237,7 @@ Future<String?> _promptText(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, ctrl.text.trim()),
@@ -238,13 +265,12 @@ class _EmptyState extends StatelessWidget {
             Icon(Icons.chair_alt_outlined, size: 72, color: cs.primary),
             const SizedBox(height: 16),
             Text(
-              'Aucune classe pour le moment',
+              AppLocalizations.of(context)!.noClasses,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'Créez une classe, ajoutez vos élèves, définissez vos règles, '
-              'puis générez un plan de classe automatiquement.',
+              AppLocalizations.of(context)!.emptyClassesDescription,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -255,7 +281,7 @@ class _EmptyState extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: onAdd,
                     icon: const Icon(Icons.add),
-                    label: const Text('Créer ma première classe'),
+                    label: Text(AppLocalizations.of(context)!.createFirstClass),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -263,7 +289,7 @@ class _EmptyState extends StatelessWidget {
                   child: FilledButton.tonalIcon(
                     onPressed: onAddDemo,
                     icon: const Icon(Icons.auto_awesome_outlined),
-                    label: const Text('Classe de démo'),
+                    label: Text(AppLocalizations.of(context)!.demoClass),
                   ),
                 ),
               ],

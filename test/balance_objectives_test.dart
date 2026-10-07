@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/screens/class_editor_screen.dart';
@@ -15,6 +16,9 @@ Future<void> _pumpRulesTab(WidgetTester tester, ClassGroup cls) async {
   final state = AppState();
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('fr'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(state: state, cls: cls),
     ),
   );
@@ -37,7 +41,7 @@ void main() {
       );
       await _pumpRulesTab(tester, cls);
 
-      final title = find.text('Objectifs d\'équilibre');
+      final title = find.text('Objectifs d’équilibre');
       expect(title, findsOneWidget);
       expect(
         find.ancestor(of: title, matching: find.byType(ListTile)),
