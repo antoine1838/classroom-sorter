@@ -87,6 +87,75 @@ void main() {
   });
 
   testWidgets(
+    'le thème sombre associe les fonds de sévérité à un texte lisible',
+    (t) async {
+      final cls =
+          ClassGroup(
+              id: 'c',
+              room: Room(rows: 1, cols: 3),
+              students: [
+                Student(id: 'hard', firstName: 'Hard'),
+                Student(id: 'soft', firstName: 'Soft'),
+                Student(id: 'clean', firstName: 'Clean'),
+              ],
+            )
+            ..assignment[Room.keyOf(0, 0)] = 'hard'
+            ..assignment[Room.keyOf(0, 1)] = 'soft'
+            ..assignment[Room.keyOf(0, 2)] = 'clean';
+      final result = PlanResult(
+        assignment: cls.assignment,
+        unplacedStudentIds: const [],
+        issues: const [
+          PlanIssue(
+            severity: IssueSeverity.hard,
+            label: 'dur',
+            studentIds: ['hard'],
+          ),
+          PlanIssue(
+            severity: IssueSeverity.soft,
+            label: 'souple',
+            studentIds: ['soft'],
+          ),
+        ],
+        balance: const [],
+        score: 0,
+      );
+      final theme = ThemeData(
+        colorSchemeSeed: const Color(0xFF3F51B5),
+        brightness: Brightness.dark,
+        useMaterial3: true,
+      );
+
+      await t.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: PlanGrid(cls: cls, onSwap: (_, _) {}, result: result),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+
+      Color background(String id) =>
+          (_seatContainer(t, id).decoration as BoxDecoration).color!;
+      Text label(String id, String value) => t.widget<Text>(
+        find.descendant(
+          of: find.byKey(ValueKey('seat_$id')),
+          matching: find.text(value),
+        ),
+      );
+
+      final scheme = theme.colorScheme;
+      expect(background('hard'), scheme.errorContainer);
+      expect(background('soft'), scheme.tertiaryContainer);
+      expect(background('clean'), scheme.surface);
+      expect(label('hard', 'Hard').style!.color, scheme.onErrorContainer);
+      expect(label('soft', 'Soft').style!.color, scheme.onTertiaryContainer);
+      expect(label('clean', 'Clean').style!.color, scheme.onSurface);
+    },
+  );
+
+  testWidgets(
     'le genre se replie sur un liseré de 4px au bord gauche, muet pour « autre »',
     (t) async {
       final cls =
