@@ -289,9 +289,16 @@ SeatMetrics seatMetrics(
 /// concerné par aucun problème.
 Color _severityBackground(IssueSeverity? severity, ColorScheme cs) =>
     switch (severity) {
-      IssueSeverity.hard => const Color(0xFFF3AFAF),
-      IssueSeverity.soft => const Color(0xFFFFD98A),
+      IssueSeverity.hard => cs.errorContainer,
+      IssueSeverity.soft => cs.tertiaryContainer,
       null => cs.surface,
+    };
+
+Color _severityForeground(IssueSeverity? severity, ColorScheme cs) =>
+    switch (severity) {
+      IssueSeverity.hard => cs.onErrorContainer,
+      IssueSeverity.soft => cs.onTertiaryContainer,
+      null => cs.onSurface,
     };
 
 /// Couleurs (garçon, fille) d'une palette. Publique pour l'aperçu affiché
@@ -347,13 +354,18 @@ Alignment _backrestAlignment(Facing facing) => switch (facing) {
 /// et les cartes d'élève de [PlanGrid] pour un rendu identique. [width] est
 /// la largeur de la case (fixe, [kCell], dans l'éditeur ; variable, mise à
 /// l'échelle, dans le plan).
-Widget _backrestBar(Facing facing, {required double width, Key? key}) {
+Widget _backrestBar(
+  Facing facing, {
+  required double width,
+  required Color color,
+  Key? key,
+}) {
   final horizontal = facing == Facing.nord || facing == Facing.sud;
   return Container(
     key: key,
     width: horizontal ? width * 0.5 : 3,
     height: horizontal ? 3 : kCell * 0.5,
-    color: _cornerIconColor,
+    color: color,
   );
 }
 
@@ -368,7 +380,6 @@ double _facingRotationAngle(Facing facing) => -facing.index * (pi / 2);
 
 // Icônes de coin : affichées seulement quand la valeur sort de l'ordinaire
 // (Moyen / Modéré / Bonne vue restent muets).
-const _cornerIconColor = Color(0xFF3A3A3A);
 const _kCornerIconSize = 13.0;
 
 // Largeur de la barre de taille : centrée sous l'icône de niveau (même bord
@@ -797,7 +808,11 @@ class RoomEditorGrid extends StatelessWidget {
               Positioned.fill(
                 child: Align(
                   alignment: _backrestAlignment(room.facingOf(row, column)),
-                  child: _backrestBar(room.facingOf(row, column), width: kCell),
+                  child: _backrestBar(
+                    room.facingOf(row, column),
+                    width: kCell,
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
               ),
           ],
@@ -1134,6 +1149,8 @@ class _PlanGridState extends State<PlanGrid> {
     final sizeBarHeight = _sizeCornerBarHeight(student.size);
     final width = ctx.metrics.cell;
     final severity = ctx.result?.severityFor(student.id);
+    final background = _severityBackground(severity, cs);
+    final foreground = _severityForeground(severity, cs);
     final stripeColor = _genderStripeColor(student.gender, genderPalette);
     final outline = hovering || keyboardSelected ? cs.primary : cs.outline;
     final outlineWidth = hovering || keyboardSelected ? 2.4 : 1.0;
@@ -1141,7 +1158,7 @@ class _PlanGridState extends State<PlanGrid> {
       width: width,
       height: kCell,
       decoration: BoxDecoration(
-        color: _severityBackground(severity, cs),
+        color: background,
         border: Border.all(color: outline, width: outlineWidth),
         borderRadius: BorderRadius.circular(8),
         boxShadow: elevated
@@ -1151,16 +1168,19 @@ class _PlanGridState extends State<PlanGrid> {
       padding: const EdgeInsets.all(kSeatPadding),
       child: Stack(
         children: [
-          Center(child: _seatLabel(student, ctx.labels, ctx.metrics)),
+          Center(
+            child: _seatLabel(
+              student,
+              ctx.labels,
+              ctx.metrics,
+              foreground: foreground,
+            ),
+          ),
           if (levelIcon != null)
             Positioned(
               top: 0,
               left: 0,
-              child: Icon(
-                levelIcon,
-                size: _kCornerIconSize,
-                color: _cornerIconColor,
-              ),
+              child: Icon(levelIcon, size: _kCornerIconSize, color: foreground),
             ),
           if (energyIcon != null)
             Positioned(
@@ -1169,7 +1189,7 @@ class _PlanGridState extends State<PlanGrid> {
               child: Icon(
                 energyIcon,
                 size: _kCornerIconSize,
-                color: _cornerIconColor,
+                color: foreground,
               ),
             ),
           if (sizeBarHeight != null)
@@ -1180,19 +1200,19 @@ class _PlanGridState extends State<PlanGrid> {
                 width: _kSizeBarWidth,
                 height: sizeBarHeight,
                 decoration: BoxDecoration(
-                  color: _cornerIconColor,
+                  color: foreground,
                   borderRadius: BorderRadius.circular(1),
                 ),
               ),
             ),
           if (student.poorEyesight)
-            const Positioned(
+            Positioned(
               bottom: 0,
               right: 0,
               child: Icon(
                 Icons.visibility_off,
                 size: _kCornerIconSize,
-                color: _cornerIconColor,
+                color: foreground,
               ),
             ),
         ],
@@ -1245,6 +1265,7 @@ class _PlanGridState extends State<PlanGrid> {
                 child: _backrestBar(
                   ctx.facing,
                   width: width,
+                  color: foreground,
                   key: ValueKey('backrest_${student.id}'),
                 ),
               ),
@@ -1279,8 +1300,9 @@ class _PlanGridState extends State<PlanGrid> {
   Widget _seatLabel(
     Student student,
     Map<String, String> labels,
-    SeatMetrics metrics,
-  ) {
+    SeatMetrics metrics, {
+    required Color foreground,
+  }) {
     if (!metrics.showsFirstName) {
       return Text(
         labels[student.id] ?? student.initials,
@@ -1288,6 +1310,7 @@ class _PlanGridState extends State<PlanGrid> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: metrics.initialsFontSize,
+          color: foreground,
         ),
       );
     }
@@ -1311,6 +1334,7 @@ class _PlanGridState extends State<PlanGrid> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: metrics.nameFontSize,
+              color: foreground,
             ),
           ),
           if (lastInitial.isNotEmpty)
@@ -1319,7 +1343,7 @@ class _PlanGridState extends State<PlanGrid> {
               maxLines: 1,
               style: TextStyle(
                 fontSize: metrics.nameFontSize * 0.8,
-                color: _cornerIconColor,
+                color: foreground.withValues(alpha: 0.8),
               ),
             ),
         ],
