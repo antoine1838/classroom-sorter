@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/student.dart';
@@ -17,6 +18,9 @@ Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls) async {
   final state = AppState()..studentsViewMode = StudentsViewMode.complete;
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('fr'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(state: state, cls: cls),
     ),
   );
@@ -49,53 +53,53 @@ void main() {
 
       // Niveau : Moyen (défaut) -> Fort -> Moyen -> Faible -> Moyen.
       expect(s.level, Level.moyen);
-      await tapValue('Niveau', 'Fort');
+      await tapValue('level', 'high');
       expect(s.level, Level.fort);
-      await tapValue('Niveau', 'Fort');
+      await tapValue('level', 'high');
       expect(s.level, Level.moyen);
-      await tapValue('Niveau', 'Faible');
+      await tapValue('level', 'low');
       expect(s.level, Level.faible);
-      await tapValue('Niveau', 'Faible');
+      await tapValue('level', 'low');
       expect(s.level, Level.moyen);
 
       // Genre : Non précisé (défaut) -> Garçon -> Non précisé -> Fille -> Non précisé.
       expect(s.gender, Gender.autre);
-      await tapValue('Genre', 'Garçon');
+      await tapValue('gender', 'boy');
       expect(s.gender, Gender.garcon);
-      await tapValue('Genre', 'Garçon');
+      await tapValue('gender', 'boy');
       expect(s.gender, Gender.autre);
-      await tapValue('Genre', 'Fille');
+      await tapValue('gender', 'girl');
       expect(s.gender, Gender.fille);
-      await tapValue('Genre', 'Fille');
+      await tapValue('gender', 'girl');
       expect(s.gender, Gender.autre);
 
       // Énergie : Modéré (défaut) -> Agité -> Modéré -> Calme -> Modéré.
       expect(s.energy, Energy.modere);
-      await tapValue('Énergie', 'Agité');
+      await tapValue('energy', 'restless');
       expect(s.energy, Energy.agite);
-      await tapValue('Énergie', 'Agité');
+      await tapValue('energy', 'restless');
       expect(s.energy, Energy.modere);
-      await tapValue('Énergie', 'Calme');
+      await tapValue('energy', 'calm');
       expect(s.energy, Energy.calme);
-      await tapValue('Énergie', 'Calme');
+      await tapValue('energy', 'calm');
       expect(s.energy, Energy.modere);
 
       // Taille : Moyen (défaut) -> Grand -> Moyen -> Petit -> Moyen.
       expect(s.size, StudentSize.moyen);
-      await tapValue('Taille', 'Grand');
+      await tapValue('size', 'tall');
       expect(s.size, StudentSize.grand);
-      await tapValue('Taille', 'Grand');
+      await tapValue('size', 'tall');
       expect(s.size, StudentSize.moyen);
-      await tapValue('Taille', 'Petit');
+      await tapValue('size', 'small');
       expect(s.size, StudentSize.petit);
-      await tapValue('Taille', 'Petit');
+      await tapValue('size', 'small');
       expect(s.size, StudentSize.moyen);
 
       // Vue : Bonne vue (défaut) -> Mauvaise vue -> Bonne vue.
       expect(s.poorEyesight, isFalse);
-      await tapValue('Vue', 'Mauvaise vue (objectif : rapprocher du tableau)');
+      await tapValue('eyesight', 'poor');
       expect(s.poorEyesight, isTrue);
-      await tapValue('Vue', 'Mauvaise vue (objectif : rapprocher du tableau)');
+      await tapValue('eyesight', 'poor');
       expect(s.poorEyesight, isFalse);
     },
   );
@@ -115,6 +119,9 @@ void main() {
       final state = AppState()..studentsViewMode = StudentsViewMode.complete;
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('fr'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: ClassEditorScreen(state: state, cls: cls),
         ),
       );

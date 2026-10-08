@@ -13,8 +13,6 @@ class _RoomTab extends StatelessWidget {
 
   /// Libellé partagé par le bouton et les deux boîtes de dialogue
   /// d'enregistrement (mise à jour ou nouvelle salle).
-  static const _kSaveRoomLabel = 'Enregistrer la salle';
-
   ClassGroupOps get _ops => ClassGroupOps(cls, commit: state.touch);
 
   void _resize({int? rows, int? cols}) {
@@ -26,6 +24,7 @@ class _RoomTab extends StatelessWidget {
   /// un simple -1 rang/colonne), puis remplace la salle et nettoie le plan
   /// des places devenues hors grille — comme le fait déjà [_resize].
   Future<void> _pickLayout(BuildContext context) async {
+    final l10n = _l10n(context);
     final result = await showDialog<(Room, String?)>(
       context: context,
       builder: (_) => _RoomLayoutDialog(
@@ -41,19 +40,16 @@ class _RoomTab extends StatelessWidget {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Remplacer la disposition ?'),
-          content: Text(
-            '${cls.assignment.length} élève(s) sont placé(s) sur le plan '
-            'actuel. Appliquer cette disposition les retirera du plan.',
-          ),
+          title: Text(l10n.replaceLayoutTitle),
+          content: Text(l10n.replaceLayoutDescription(cls.assignment.length)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Remplacer'),
+              child: Text(l10n.replace),
             ),
           ],
         ),
@@ -68,26 +64,27 @@ class _RoomTab extends StatelessWidget {
   /// salle enregistrée ([ClassGroup.savedRoomId]), propose de la mettre à
   /// jour plutôt que d'en créer une nouvelle sans y être invité.
   Future<void> _saveRoom(BuildContext context) async {
+    final l10n = _l10n(context);
     final origin = state.savedRoomById(cls.savedRoomId);
 
     if (origin != null) {
       final choice = await showDialog<_SaveRoomChoice>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text(_kSaveRoomLabel),
-          content: Text('Cette salle provient de « ${origin.name} ».'),
+          title: Text(l10n.saveRoom),
+          content: Text(l10n.roomFromSaved(origin.name)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler'),
+              child: Text(l10n.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, _SaveRoomChoice.asNew),
-              child: const Text('Enregistrer comme nouvelle salle'),
+              child: Text(l10n.saveAsNewRoom),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, _SaveRoomChoice.update),
-              child: Text('Mettre à jour « ${origin.name} »'),
+              child: Text(l10n.updateRoom(origin.name)),
             ),
           ],
         ),
@@ -107,25 +104,26 @@ class _RoomTab extends StatelessWidget {
   /// entrée — en remplaçant une salle existante du même nom si l'utilisateur
   /// le confirme.
   Future<void> _saveRoomAsNew(BuildContext context) async {
+    final l10n = _l10n(context);
     final ctrl = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text(_kSaveRoomLabel),
+        title: Text(l10n.saveRoom),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Ex. B204'),
+          decoration: InputDecoration(hintText: l10n.roomNameHint),
           onSubmitted: (v) => Navigator.pop(context, v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: const Text('Enregistrer'),
+            child: Text(l10n.save),
           ),
         ],
       ),
@@ -143,19 +141,16 @@ class _RoomTab extends StatelessWidget {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Remplacer la salle ?'),
-          content: Text(
-            'Une salle nommée « $name » existe déjà. La remplacer par '
-            'celle-ci ?',
-          ),
+          title: Text(l10n.replaceRoomTitle),
+          content: Text(l10n.replaceRoomDescription(name)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Remplacer'),
+              child: Text(l10n.replace),
             ),
           ],
         ),
@@ -170,11 +165,6 @@ class _RoomTab extends StatelessWidget {
     state.touch();
   }
 
-  static const _helpText =
-      'Touchez une case vide pour y poser une place, une place pour la '
-      'faire tourner. Appui long ou clic droit sur une place pour la '
-      'retirer. Touchez l\'espace entre deux cases pour ajouter un '
-      'couloir : les élèves de part et d\'autre ne seront plus voisins.';
   static const _helpStyle = TextStyle(fontSize: 12);
 
   /// Hauteur intrinsèque de la rangée de compteurs (Rangs/Colonnes/places/
@@ -184,7 +174,7 @@ class _RoomTab extends StatelessWidget {
   double _controlsRowHeight(BuildContext context) {
     final labelH = _wrappedTextHeight(
       context,
-      'Colonnes',
+      _l10n(context).columns,
       Theme.of(context).textTheme.labelMedium,
       double.infinity,
     );
@@ -216,8 +206,9 @@ class _RoomTab extends StatelessWidget {
     final room = cls.room;
     final missing = cls.students.length - room.capacity;
     final warningText = missing > 0
-        ? '${room.capacity} place(s) pour ${cls.students.length} '
-              'élève(s) — $missing élève(s) ne seront pas placé(s).'
+        ? _l10n(
+            context,
+          ).roomCapacityWarning(room.capacity, cls.students.length, missing)
         : null;
 
     return LayoutBuilder(
@@ -228,7 +219,7 @@ class _RoomTab extends StatelessWidget {
         }
         final helpH = _wrappedTextHeight(
           context,
-          _helpText,
+          _l10n(context).roomHelp,
           _helpStyle,
           constraints.maxWidth - 24,
         );
@@ -255,20 +246,20 @@ class _RoomTab extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _Stepper(
-                          label: 'Rangs',
+                          label: _l10n(context).rows,
                           value: room.rows,
                           onMinus: () => _resize(rows: room.rows - 1),
                           onPlus: () => _resize(rows: room.rows + 1),
                         ),
                         _Stepper(
-                          label: 'Colonnes',
+                          label: _l10n(context).columns,
                           value: room.cols,
                           onMinus: () => _resize(cols: room.cols - 1),
                           onPlus: () => _resize(cols: room.cols + 1),
                         ),
                         Chip(
                           avatar: const Icon(Icons.event_seat, size: 18),
-                          label: Text('${room.capacity} places'),
+                          label: Text(_l10n(context).seatsCount(room.capacity)),
                         ),
                         if (state.savedRoomById(cls.savedRoomId) != null)
                           Chip(
@@ -286,7 +277,7 @@ class _RoomTab extends StatelessWidget {
                             Icons.dashboard_customize_outlined,
                             size: 18,
                           ),
-                          label: const Text('Disposition'),
+                          label: Text(_l10n(context).layout),
                         ),
                         OutlinedButton.icon(
                           onPressed: () => _saveRoom(context),
@@ -294,7 +285,7 @@ class _RoomTab extends StatelessWidget {
                             Icons.bookmark_add_outlined,
                             size: 18,
                           ),
-                          label: const Text(_kSaveRoomLabel),
+                          label: Text(_l10n(context).saveRoom),
                         ),
                       ],
                     ),
@@ -341,9 +332,9 @@ class _RoomTab extends StatelessWidget {
                   // et l'alerte de capacité restent visibles — cède la place
                   // à la grille plutôt que de la faire déborder.
                   if (showHelp)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(_helpText, style: _helpStyle),
+                      child: Text(_l10n(context).roomHelp, style: _helpStyle),
                     ),
                   const SizedBox(height: 8),
                 ],

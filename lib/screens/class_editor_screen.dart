@@ -11,6 +11,9 @@ import '../engine/plan_evaluation_signature.dart';
 import '../engine/plan_generation.dart';
 import '../engine/plan_issue.dart';
 import '../engine/seating_engine.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../l10n/generated/app_localizations_fr.dart';
+import '../l10n/plan_issue_localizations.dart';
 import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/room_layouts.dart';
@@ -26,6 +29,30 @@ part 'class_editor/students_tab.dart';
 part 'class_editor/rules_tab.dart';
 part 'class_editor/plan_tab.dart';
 
+/// Uses French as a safe fallback for isolated widget tests that mount this
+/// screen without the application's localization delegates.
+AppLocalizations _l10n(BuildContext context) =>
+    _ClassEditorLocalizations.maybeOf(context) ??
+    AppLocalizations.of(context) ??
+    AppLocalizationsFr();
+
+class _ClassEditorLocalizations extends InheritedWidget {
+  const _ClassEditorLocalizations({
+    required this.localizations,
+    required super.child,
+  });
+
+  final AppLocalizations localizations;
+
+  static AppLocalizations? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_ClassEditorLocalizations>()
+      ?.localizations;
+
+  @override
+  bool updateShouldNotify(_ClassEditorLocalizations oldWidget) =>
+      localizations != oldWidget.localizations;
+}
+
 /// Le contrôle qui ouvre le rapport, quelle que soit la disposition.
 const kReportButtonKey = Key('plan-report-button');
 
@@ -36,11 +63,19 @@ const kClassBackKey = Key('class-back');
 const kClassNameBarKey = Key('class-name-bar');
 
 /// Les quatre onglets de l'écran, dans l'ordre.
+/// French defaults retained for layout-focused tests.
 const kClassTabs = <({IconData icon, String label})>[
   (icon: Icons.grid_on, label: 'Salle'),
   (icon: Icons.people_alt_outlined, label: 'Élèves'),
   (icon: Icons.rule, label: 'Règles'),
   (icon: Icons.event_seat, label: 'Plan'),
+];
+
+List<({IconData icon, String label})> _classTabs(AppLocalizations l10n) => [
+  (icon: Icons.grid_on, label: l10n.roomTab),
+  (icon: Icons.people_alt_outlined, label: l10n.studentsTab),
+  (icon: Icons.rule, label: l10n.rulesTab),
+  (icon: Icons.event_seat, label: l10n.planTab),
 ];
 
 /// Largeur du bouton retour, et respiration minimale autour d'un libellé
@@ -63,7 +98,7 @@ const double _kTabLabelBreathing = 32;
 bool _tabLabelsFit(BuildContext context, double width) {
   final style = Theme.of(context).textTheme.labelLarge;
   var widest = 0.0;
-  for (final tab in kClassTabs) {
+  for (final tab in _classTabs(_l10n(context))) {
     final painter = TextPainter(
       text: TextSpan(text: tab.label, style: style),
       textDirection: TextDirection.ltr,
@@ -72,7 +107,8 @@ bool _tabLabelsFit(BuildContext context, double width) {
     widest = max(widest, painter.width);
   }
   return width >=
-      _kBackButtonWidth + kClassTabs.length * (widest + _kTabLabelBreathing);
+      _kBackButtonWidth +
+          _classTabs(_l10n(context)).length * (widest + _kTabLabelBreathing);
 }
 
 /// Nom de la classe sur une ligne fine, au-dessus des onglets.
@@ -116,7 +152,9 @@ class _ClassNameBar extends StatelessWidget {
                 child: ListenableBuilder(
                   listenable: state,
                   builder: (_, _) => Text(
-                    cls.name.isEmpty ? 'Classe' : cls.name,
+                    cls.name.isEmpty
+                        ? _l10n(context).classDefaultName
+                        : cls.name,
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -258,12 +296,15 @@ class ClassEditorScreen extends StatelessWidget {
   ///
   /// Sans libellé, un [Tab] fait 46 dp de haut au lieu de 72 : les 26 dp gagnés
   /// paient presque entièrement la barre du nom de classe.
-  static TabBar _tabsFor({required bool labels}) => TabBar(
+  static TabBar _tabsFor(
+    BuildContext context, {
+    required bool labels,
+  }) => TabBar(
     // Non scrollable : les 4 onglets se répartissent sur toute la largeur de
     // l'écran (adaptatif), sans défilement ni espace vide.
     isScrollable: false,
     tabs: [
-      for (final t in kClassTabs)
+      for (final t in _classTabs(_l10n(context)))
         labels
             ? Tab(icon: Icon(t.icon), text: t.label)
             // Sans libellé visible, l'icône seule ne dit plus son nom :
@@ -294,56 +335,64 @@ class ClassEditorScreen extends StatelessWidget {
     final navBarMinimum = _looksLikeLandscapePhone(MediaQuery.sizeOf(context))
         ? const EdgeInsets.only(left: 48, right: 48)
         : const EdgeInsets.only(bottom: 48);
-    return DefaultTabController(
-      length: 4,
-      child: Scaffold(
-        body: SafeArea(
-          minimum: navBarMinimum,
-          child: Column(
-            children: [
-              _ClassNameBar(
-                state: state,
-                cls: cls,
-                onRename: () => _rename(context),
-              ),
-              Material(
-                color: Theme.of(context).colorScheme.surface,
-                child: LayoutBuilder(
-                  builder: (context, constraints) => Row(
-                    children: [
-                      BackButton(
-                        key: kClassBackKey,
-                        onPressed: () => Navigator.maybePop(context),
-                      ),
-                      Expanded(
-                        child: _tabsFor(
-                          labels: _tabLabelsFit(context, constraints.maxWidth),
+    final l10n = _l10n(context);
+    return _ClassEditorLocalizations(
+      localizations: l10n,
+      child: DefaultTabController(
+        length: 4,
+        child: Scaffold(
+          body: SafeArea(
+            minimum: navBarMinimum,
+            child: Column(
+              children: [
+                _ClassNameBar(
+                  state: state,
+                  cls: cls,
+                  onRename: () => _rename(context),
+                ),
+                Material(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Row(
+                      children: [
+                        BackButton(
+                          key: kClassBackKey,
+                          onPressed: () => Navigator.maybePop(context),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: _tabsFor(
+                            context,
+                            labels: _tabLabelsFit(
+                              context,
+                              constraints.maxWidth,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: ListenableBuilder(
-                  listenable: state,
-                  builder: (context, _) => TabBarView(
-                    children: [
-                      _RoomTab(state: state, cls: cls),
-                      _StudentsTab(state: state, cls: cls),
-                      _RulesTab(state: state, cls: cls),
-                      _PlanTab(
-                        state: state,
-                        cls: cls,
-                        planGenerator:
-                            planGenerator ??
-                            const PlanGenerationService().generate,
-                      ),
-                    ],
+                Expanded(
+                  child: ListenableBuilder(
+                    listenable: state,
+                    builder: (context, _) => TabBarView(
+                      children: [
+                        _RoomTab(state: state, cls: cls),
+                        _StudentsTab(state: state, cls: cls),
+                        _RulesTab(state: state, cls: cls),
+                        _PlanTab(
+                          state: state,
+                          cls: cls,
+                          planGenerator:
+                              planGenerator ??
+                              const PlanGenerationService().generate,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -355,16 +404,16 @@ class ClassEditorScreen extends StatelessWidget {
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Renommer la classe'),
+        title: Text(_l10n(context).renameClass),
         content: TextField(controller: ctrl, autofocus: true),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text(_l10n(context).cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: const Text('OK'),
+            child: Text(_l10n(context).ok),
           ),
         ],
       ),

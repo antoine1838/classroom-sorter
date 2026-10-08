@@ -1,6 +1,7 @@
 // Tests unitaires du moteur d'affectation.
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plandeclasse/engine/plan_issue.dart';
 import 'package:plandeclasse/engine/seating_engine.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
@@ -144,7 +145,7 @@ void main() {
     expect(res.assignment[back], 'a');
     expect(res.hasHardViolations, isFalse);
     expect(res.warnings, hasLength(1));
-    expect(res.warnings.single, contains('place imposée'));
+    expect(res.warnings.single.kind, PlanIssueKind.studentNotAtFixedSeat);
   });
 
   test('contrainte « devant » respectée', () {
@@ -225,7 +226,9 @@ void main() {
     expect(res.violations, isEmpty);
     // …et la note d'équilibre correspondante est présente et satisfaite.
     expect(
-      res.balance.any((n) => n.label.contains('Mauvaise vue') && n.ok),
+      res.balance.any(
+        (n) => n.kind == PlanIssueKind.poorEyesightAtBack && n.ok,
+      ),
       isTrue,
     );
   });
@@ -245,7 +248,7 @@ void main() {
 
     expect(res.violations, isEmpty);
     expect(
-      res.balance.any((n) => n.label.contains('Mauvaise vue')),
+      res.balance.any((n) => n.kind == PlanIssueKind.poorEyesightAtBack),
       isFalse,
       reason: 'objectif désactivé : aucune note « mauvaise vue »',
     );
@@ -273,7 +276,10 @@ void main() {
       isFalse,
       reason: 'A (grand) ne devrait pas être directement devant B (petit)',
     );
-    expect(res.balance.any((n) => n.label.contains('Tailles') && n.ok), isTrue);
+    expect(
+      res.balance.any((n) => n.kind == PlanIssueKind.tallBlocksShort && n.ok),
+      isTrue,
+    );
   });
 
   test('objectif « éviter grand devant petit » désactivé : aucune note', () {
@@ -289,7 +295,10 @@ void main() {
 
     final res = SeatingEngine(cls, seed: 4).generate();
 
-    expect(res.balance.any((n) => n.label.contains('Tailles')), isFalse);
+    expect(
+      res.balance.any((n) => n.kind == PlanIssueKind.tallBlocksShort),
+      isFalse,
+    );
   });
 
   test('objectif « mélanger les niveaux » : Moyen est ignoré', () {
@@ -306,7 +315,9 @@ void main() {
     final res = SeatingEngine(cls, seed: 1).generate();
 
     expect(
-      res.balance.any((n) => n.label.contains('niveaux') && n.ok),
+      res.balance.any(
+        (n) => n.kind == PlanIssueKind.sameLevelNeighbors && n.ok,
+      ),
       isTrue,
       reason: 'deux Moyen voisins ne doivent pas compter comme même niveau',
     );

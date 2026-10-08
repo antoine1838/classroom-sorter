@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/student.dart';
@@ -24,6 +25,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     final seat = tester.getSemantics(
       find.bySemanticsLabel('Place, rang devant, colonne 1, face au tableau'),
@@ -149,5 +151,27 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
     expect(key.currentState!.scale, 1);
+  });
+
+  testWidgets('les libellés d’accessibilité de la salle sont localisés', (
+    tester,
+  ) async {
+    final room = Room(rows: 1, cols: 1);
+    final semantics = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: RoomEditorGrid(room: room, onChanged: () {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('⬇  FRONT (board)'), findsOneWidget);
+    semantics.dispose();
   });
 }

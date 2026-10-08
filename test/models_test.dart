@@ -42,26 +42,6 @@ void main() {
     });
   });
 
-  group('Student — libellés des attributs', () {
-    test('chaque valeur a un libellé affichable', () {
-      expect(Gender.fille.label, 'Fille');
-      expect(Gender.garcon.label, 'Garçon');
-      expect(Gender.autre.label, 'Non précisé');
-
-      expect(Level.faible.label, 'Faible');
-      expect(Level.moyen.label, 'Moyen');
-      expect(Level.fort.label, 'Fort');
-
-      expect(Energy.calme.label, 'Calme');
-      expect(Energy.modere.label, 'Modéré');
-      expect(Energy.agite.label, 'Agité');
-
-      expect(StudentSize.petit.label, 'Petit');
-      expect(StudentSize.moyen.label, 'Moyen');
-      expect(StudentSize.grand.label, 'Grand');
-    });
-  });
-
   group('Student — sérialisation', () {
     test('aller-retour JSON sans perte', () {
       final s = Student(
@@ -146,17 +126,6 @@ void main() {
   });
 
   group('Rule', () {
-    test('chaque type a un libellé et une description', () {
-      for (final t in RuleType.values) {
-        expect(t.label, isNotEmpty, reason: '${t.name} sans libellé');
-        expect(t.description, isNotEmpty, reason: '${t.name} sans description');
-      }
-      expect(RuleType.fixedSeat.label, 'Place imposée');
-      expect(RuleType.frontZone.label, 'Doit être devant');
-      expect(RuleType.separate.label, 'Séparer');
-      expect(RuleType.keepTogether.label, 'Rapprocher');
-    });
-
     test('seules « séparer » et « rapprocher » demandent un second élève', () {
       expect(RuleType.separate.needsSecondStudent, isTrue);
       expect(RuleType.keepTogether.needsSecondStudent, isTrue);

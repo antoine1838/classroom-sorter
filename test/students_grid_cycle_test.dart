@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/student.dart';
@@ -16,6 +17,9 @@ Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls) async {
   final state = AppState()..studentsViewMode = StudentsViewMode.compact;
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('fr'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(state: state, cls: cls),
     ),
   );
@@ -39,52 +43,52 @@ void main() {
       );
       await _pumpEditor(tester, cls);
 
-      Future<void> tapField(String label) async {
-        await tester.tap(find.byKey(ValueKey('attrCell_${label}_${s.id}')));
+      Future<void> tapField(String field) async {
+        await tester.tap(find.byKey(ValueKey('attrCell_${field}_${s.id}')));
         await tester.pumpAndSettle();
       }
 
       // Niveau : Moyen (défaut) -> Fort -> Faible -> Moyen.
       expect(s.level, Level.moyen);
-      await tapField('Niveau');
+      await tapField('level');
       expect(s.level, Level.fort);
-      await tapField('Niveau');
+      await tapField('level');
       expect(s.level, Level.faible);
-      await tapField('Niveau');
+      await tapField('level');
       expect(s.level, Level.moyen);
 
       // Genre : Non précisé (défaut) -> Garçon -> Fille -> Non précisé.
       expect(s.gender, Gender.autre);
-      await tapField('Genre');
+      await tapField('gender');
       expect(s.gender, Gender.garcon);
-      await tapField('Genre');
+      await tapField('gender');
       expect(s.gender, Gender.fille);
-      await tapField('Genre');
+      await tapField('gender');
       expect(s.gender, Gender.autre);
 
       // Énergie : Modéré (défaut) -> Agité -> Calme -> Modéré.
       expect(s.energy, Energy.modere);
-      await tapField('Énergie');
+      await tapField('energy');
       expect(s.energy, Energy.agite);
-      await tapField('Énergie');
+      await tapField('energy');
       expect(s.energy, Energy.calme);
-      await tapField('Énergie');
+      await tapField('energy');
       expect(s.energy, Energy.modere);
 
       // Taille : Moyen (défaut) -> Grand -> Petit -> Moyen.
       expect(s.size, StudentSize.moyen);
-      await tapField('Taille');
+      await tapField('size');
       expect(s.size, StudentSize.grand);
-      await tapField('Taille');
+      await tapField('size');
       expect(s.size, StudentSize.petit);
-      await tapField('Taille');
+      await tapField('size');
       expect(s.size, StudentSize.moyen);
 
       // Vue : Bonne vue (défaut) -> Mauvaise vue -> Bonne vue.
       expect(s.poorEyesight, isFalse);
-      await tapField('Vue');
+      await tapField('eyesight');
       expect(s.poorEyesight, isTrue);
-      await tapField('Vue');
+      await tapField('eyesight');
       expect(s.poorEyesight, isFalse);
     },
   );

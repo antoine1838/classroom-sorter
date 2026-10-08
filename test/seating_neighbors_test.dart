@@ -12,6 +12,7 @@
 /// donne 0 violation, une règle « dure » insatisfiable en donne au moins une.
 library;
 
+import 'package:plandeclasse/engine/plan_issue.dart';
 import 'package:plandeclasse/engine/seating_engine.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
@@ -190,7 +191,9 @@ void main() {
             'les places imposées ne sont pas voisines : aucune règle dure ne porte dessus',
       );
       expect(
-        res.balance.any((n) => n.label.contains('Tailles') && !n.ok),
+        res.balance.any(
+          (n) => n.kind == PlanIssueKind.tallBlocksShort && !n.ok,
+        ),
         isTrue,
         reason: 'le couloir coupe le voisinage mais pas la gêne de vue',
       );

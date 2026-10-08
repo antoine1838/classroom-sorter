@@ -4,11 +4,11 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
 import 'data/repository.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
 
 bool get _isDesktop =>
@@ -87,22 +87,26 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
   @override
   Widget build(BuildContext context) {
     const seed = Color(0xFF3F51B5);
-    return MaterialApp(
-      title: 'Plan de classe',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: seed,
-        useMaterial3: true,
-        brightness: Brightness.light,
+    return ListenableBuilder(
+      listenable: _state,
+      builder: (context, _) => MaterialApp(
+        onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorSchemeSeed: seed,
+          useMaterial3: true,
+          brightness: Brightness.light,
+        ),
+        darkTheme: ThemeData(
+          colorSchemeSeed: seed,
+          useMaterial3: true,
+          brightness: Brightness.dark,
+        ),
+        locale: _state.locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: HomeScreen(state: _state),
       ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: seed,
-        useMaterial3: true,
-        brightness: Brightness.dark,
-      ),
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      supportedLocales: const [Locale('fr')],
-      home: HomeScreen(state: _state),
     );
   }
 }

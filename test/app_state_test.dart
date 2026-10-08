@@ -53,6 +53,25 @@ void main() {
   );
 
   test(
+    'LocalePreference : système par défaut, anglais persistant après changement',
+    () async {
+      final state = AppState();
+      await state.init();
+      expect(state.localePreference, LocalePreference.system);
+      expect(state.locale, isNull);
+
+      state.setLocalePreference(LocalePreference.english);
+      expect(state.locale?.languageCode, 'en');
+      await state.flushPendingSaves();
+
+      final reloaded = AppState();
+      await reloaded.init();
+      expect(reloaded.localePreference, LocalePreference.english);
+      expect(reloaded.locale?.languageCode, 'en');
+    },
+  );
+
+  test(
     'les modifications reçues pendant une écriture sont coalescées',
     () async {
       final repo = _BlockingRepository();

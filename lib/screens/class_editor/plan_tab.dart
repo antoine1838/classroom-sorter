@@ -81,9 +81,7 @@ class _PlanTabState extends State<_PlanTab> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('La génération du plan a échoué. Réessayez.'),
-          ),
+          SnackBar(content: Text(_l10n(context).generationFailed)),
         );
       }
     } finally {
@@ -160,7 +158,9 @@ class _PlanTabState extends State<_PlanTab> {
     // (court) masque le besoin de « Régénérer » (long), qui se coupe alors en
     // plein mot avant que le palier ne bascule.
     var widest = _labelledWidth(context, _generateLabel);
-    if (hasPlan) widest = max(widest, _labelledWidth(context, 'Valider'));
+    if (hasPlan) {
+      widest = max(widest, _labelledWidth(context, _l10n(context).validate));
+    }
     var needMain = widest * (hasPlan ? 2 : 1);
     if (hasPlan) needMain += _kPlanBarGap;
 
@@ -178,18 +178,21 @@ class _PlanTabState extends State<_PlanTab> {
     return _PlanLabels.none;
   }
 
-  String get _generateLabel =>
-      cls.assignment.isNotEmpty ? 'Régénérer' : 'Générer le plan';
+  String get _generateLabel => cls.assignment.isNotEmpty
+      ? _l10n(context).regenerate
+      : _l10n(context).generatePlan;
 
   /// Résumé porté par le bouton du rapport.
   String get _reportLabel {
     final result = _result;
-    if (result == null || result.isClean) return 'Rapport';
+    if (result == null || result.isClean) {
+      return _l10n(context).report;
+    }
     // Une contrainte dure prime ; sinon on annonce les points perfectibles,
     // objectifs d'équilibre compris.
     return result.hardCount > 0
-        ? '${result.hardCount} problème(s)'
-        : '${result.softCount} à améliorer';
+        ? _l10n(context).problemsCount(result.hardCount)
+        : _l10n(context).improvementsCount(result.softCount);
   }
 
   Widget _controlBar({required bool vertical, required _PlanLabels labels}) {
@@ -233,7 +236,7 @@ class _PlanTabState extends State<_PlanTab> {
     const icon = Icon(Icons.fact_check);
     if (!labelled) {
       return IconButton.filledTonal(
-        tooltip: 'Valider',
+        tooltip: _l10n(context).validate,
         onPressed: _validate,
         icon: icon,
       );
@@ -242,13 +245,13 @@ class _PlanTabState extends State<_PlanTab> {
       child: FilledButton.tonalIcon(
         onPressed: _validate,
         icon: icon,
-        label: const Text('Valider'),
+        label: Text(_l10n(context).validate),
       ),
     );
   }
 
   Widget _recenterControl() => IconButton(
-    tooltip: 'Recentrer',
+    tooltip: _l10n(context).recenter,
     onPressed: () => setState(() => _viewport.currentState?.recenter()),
     icon: const Icon(Icons.center_focus_strong),
   );
@@ -314,19 +317,19 @@ class _PlanTabState extends State<_PlanTab> {
       final r when r.hardCount > 0 => (
         Icons.error_outline,
         cs.error,
-        '${r.hardCount} contrainte(s) non respectée(s)',
+        _l10n(context).constraintsNotMet(r.hardCount),
       ),
       final r when r.softCount > 0 => (
         Icons.warning_amber,
         _kSoftColour,
-        '${r.softCount} point(s) perfectible(s)',
+        _l10n(context).improvableCount(r.softCount),
       ),
       _ => (
         Icons.check_circle_outline,
         // Explicitement vert : laisser la couleur par défaut donnait une
         // coche grise, indiscernable d'un état neutre.
         _kCleanColour,
-        'Toutes les règles et tous les objectifs sont respectés',
+        _l10n(context).allGoalsMet,
       ),
     };
 
@@ -354,16 +357,12 @@ class _PlanTabState extends State<_PlanTab> {
 
   Widget _grid() {
     if (cls.students.isEmpty) {
-      return const Center(
-        child: Text('Ajoutez des élèves, puis générez le plan.'),
-      );
+      return Center(child: Text(_l10n(context).addStudentsThenGenerate));
     }
     if (cls.assignment.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Appuyez sur « Générer le plan ».\n'
-          'Astuce : ensuite, faites glisser un élève sur une autre place '
-          'pour ajuster à la main.',
+          _l10n(context).generatePlanHint,
           textAlign: TextAlign.center,
         ),
       );
@@ -390,6 +389,7 @@ class _PlanTabState extends State<_PlanTab> {
   /// glyphes redeviennent indevinables), les motifs de problème s'il y en a,
   /// et un accès direct au formulaire d'édition existant.
   void _showSeatDetail(BuildContext context, Student student) {
+    final l10n = _l10n(context);
     final issues = _result?.issuesFor(student.id) ?? const <PlanIssue>[];
     showModalBottomSheet<void>(
       context: context,
@@ -407,18 +407,18 @@ class _PlanTabState extends State<_PlanTab> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
-              _SeatDetailAttributes(student: student),
+              _SeatDetailAttributes(student: student, l10n: l10n),
               if (issues.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                const Text(
-                  'À signaler',
+                Text(
+                  l10n.toNote,
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 for (final issue in issues)
                   _ReportLine(
                     icon: issue.isHard ? Icons.error : Icons.warning_amber,
                     color: issue.isHard ? Colors.red.shade600 : _kSoftColour,
-                    text: issue.label,
+                    text: localizedPlanIssue(issue, l10n, cls.studentById),
                   ),
               ],
               const SizedBox(height: 16),
@@ -428,7 +428,7 @@ class _PlanTabState extends State<_PlanTab> {
                   _editStudentFromPlan(student);
                 },
                 icon: const Icon(Icons.edit),
-                label: const Text('Modifier l\'élève'),
+                label: Text(l10n.editStudent),
               ),
             ],
           ),
@@ -465,6 +465,7 @@ class _PlanTabState extends State<_PlanTab> {
 
   /// Le rapport complet, en feuille.
   void _showReport(BuildContext context) {
+    final l10n = _l10n(context);
     final result = _result;
     if (result == null) return;
     final unplaced = result.unplacedStudentIds;
@@ -478,12 +479,16 @@ class _PlanTabState extends State<_PlanTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ReportCard(result: result),
+              _ReportCard(result: result, l10n: l10n, cls: cls),
               if (unplaced.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Non placés : ${unplaced.map((id) => cls.studentById(id)?.fullName ?? '?').join(', ')}',
+                    l10n.unplacedStudents(
+                      unplaced
+                          .map((id) => cls.studentById(id)?.fullName ?? '?')
+                          .join(', '),
+                    ),
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -500,16 +505,17 @@ class _PlanTabState extends State<_PlanTab> {
 /// glyphes de la place resteraient indevinables sans cette feuille.
 class _SeatDetailAttributes extends StatelessWidget {
   final Student student;
-  const _SeatDetailAttributes({required this.student});
+  final AppLocalizations l10n;
+  const _SeatDetailAttributes({required this.student, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
     final lines = <String>[
-      student.gender.label,
-      'Niveau : ${student.level.label}',
-      'Énergie : ${student.energy.label}',
-      'Taille : ${student.size.label}',
-      student.poorEyesight ? 'Mauvaise vue' : 'Bonne vue',
+      _genderLabel(l10n, student.gender),
+      l10n.attributeLevel(_levelLabel(l10n, student.level)),
+      l10n.attributeEnergy(_energyLabel(l10n, student.energy)),
+      l10n.attributeSize(_sizeLabel(l10n, student.size)),
+      student.poorEyesight ? l10n.poorEyesight : l10n.goodEyesight,
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,11 +540,17 @@ class _SeatDetailAttributes extends StatelessWidget {
 
 class _ReportCard extends StatelessWidget {
   final PlanResult result;
-  const _ReportCard({required this.result});
+  final AppLocalizations l10n;
+  final ClassGroup cls;
+  const _ReportCard({
+    required this.result,
+    required this.l10n,
+    required this.cls,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final ok = result.violations.isEmpty && result.warnings.isEmpty;
+    final ok = result.isClean;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -546,32 +558,35 @@ class _ReportCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (ok)
-              const _ReportLine(
+              _ReportLine(
                 icon: Icons.check_circle,
                 color: Colors.green,
-                text: 'Toutes les règles sont respectées 🎉',
+                text: l10n.allRulesMet,
               ),
             for (final v in result.violations)
               _ReportLine(
                 icon: Icons.error,
                 color: Colors.red.shade600,
-                text: v,
+                text: localizedPlanIssue(v, l10n, cls.studentById),
               ),
             for (final w in result.warnings)
               _ReportLine(
                 icon: Icons.warning_amber,
                 color: Colors.orange.shade700,
-                text: w,
+                text: localizedPlanIssue(w, l10n, cls.studentById),
               ),
             if (result.balance.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text('Équilibre', style: Theme.of(context).textTheme.labelMedium),
+              Text(
+                l10n.balance,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
               const SizedBox(height: 2),
               for (final n in result.balance)
                 _ReportLine(
                   icon: n.ok ? Icons.check_circle_outline : Icons.info_outline,
                   color: n.ok ? Colors.green : Colors.orange.shade700,
-                  text: n.label,
+                  text: localizedBalanceNote(n, l10n),
                 ),
             ],
           ],
