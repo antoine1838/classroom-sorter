@@ -547,11 +547,11 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
   }
 
   Widget _savedRoomsList() {
+    final l10n = _l10n(context);
     final rooms = _sortedSavedRooms;
     if (rooms.isEmpty) {
       return Text(
-        'Aucune salle enregistrée. Utilisez « Enregistrer la salle » dans '
-        'l\'onglet Salle.',
+        l10n.noSavedRooms,
         style: Theme.of(context).textTheme.bodySmall,
       );
     }
@@ -588,7 +588,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                         children: [
                           Text(saved.name),
                           Text(
-                            '${saved.room.capacity} places',
+                            l10n.seatsCount(saved.room.capacity),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -600,8 +600,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
             ),
           ),
         Text(
-          'Appui long ou clic droit sur une salle pour la renommer ou la '
-          'supprimer.',
+          l10n.savedRoomActionsHint,
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -610,21 +609,22 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _l10n(context);
     final room = _build();
     return AlertDialog(
-      title: const Text('Disposition de la salle'),
+      title: Text(l10n.roomLayoutTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _choiceWrap<RoomLayoutKind>(
-              options: const [
-                (RoomLayoutKind.rangees, 'Rangées'),
-                (RoomLayoutKind.u, 'U'),
-                (RoomLayoutKind.ilots, 'Îlots'),
-                (RoomLayoutKind.blanche, 'Vide'),
-                (RoomLayoutKind.mesSalles, 'Mes salles'),
+              options: [
+                (RoomLayoutKind.rangees, l10n.layoutRows),
+                (RoomLayoutKind.u, l10n.layoutU),
+                (RoomLayoutKind.ilots, l10n.layoutIslands),
+                (RoomLayoutKind.blanche, l10n.layoutEmpty),
+                (RoomLayoutKind.mesSalles, l10n.myRooms),
               ],
               selected: _kind,
               onChanged: (v) => setState(() => _kind = v),
@@ -638,8 +638,10 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                   _preview(room!),
                   const SizedBox(height: 8),
                   Text(
-                    'Conserve la taille actuelle de la salle '
-                    '(${widget.initialRows} × ${widget.initialCols}).',
+                    l10n.layoutKeepsSize(
+                      widget.initialRows,
+                      widget.initialCols,
+                    ),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -651,7 +653,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                   _preview(room!),
                   const SizedBox(height: 8),
                   _Stepper(
-                    label: 'Profondeur des bras',
+                    label: l10n.armDepth,
                     value: _armDepth,
                     onMinus: () => setState(
                       () => _armDepth = (_armDepth - 1).clamp(1, 10),
@@ -663,7 +665,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      'Bras doubles',
+                      l10n.doubleArms,
                       style: Theme.of(context).textTheme.labelMedium,
                     ),
                     value: _doubleArm,
@@ -678,13 +680,13 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                   _preview(room!),
                   const SizedBox(height: 8),
                   _choiceWrap<int>(
-                    options: const [(4, 'Tables de 4'), (6, 'Tables de 6')],
+                    options: [(4, l10n.tablesOf(4)), (6, l10n.tablesOf(6))],
                     selected: _islandSize,
                     onChanged: (v) => setState(() => _islandSize = v),
                   ),
                   const SizedBox(height: 8),
                   _Stepper(
-                    label: 'Nombre d\'îlots par rang',
+                    label: l10n.islandsPerRow,
                     value: _islandCount,
                     onMinus: () => setState(
                       () => _islandCount = (_islandCount - 1).clamp(1, 8),
@@ -695,7 +697,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                   ),
                   const SizedBox(height: 8),
                   _Stepper(
-                    label: 'Nombre de rangs d\'îlots',
+                    label: l10n.islandRows,
                     value: _islandRows,
                     onMinus: () => setState(
                       () => _islandRows = (_islandRows - 1).clamp(1, 4),
@@ -714,7 +716,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: room == null
@@ -725,7 +727,7 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
                       ? _selectedSavedRoomId
                       : null,
                 )),
-          child: const Text('Appliquer'),
+          child: Text(l10n.apply),
         ),
       ],
     );

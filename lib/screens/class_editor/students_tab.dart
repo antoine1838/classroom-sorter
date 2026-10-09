@@ -407,15 +407,14 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
   /// par les deux vues, qui l'insèrent chacune dans leur propre en-tête
   /// (largeur de ligne différente selon le nombre de rangées d'en-tête).
   Widget _buildNameHeaderCell(ColorScheme cs, TextStyle? style) {
+    final l10n = _l10n(context);
     return Container(
       width: _nameW,
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: cs.outlineVariant)),
       ),
       child: Tooltip(
-        message: _sortByName
-            ? 'Trié par nom (A→Z) — toucher pour revenir à l\'ordre d\'ajout'
-            : 'Toucher pour trier par nom (A→Z)',
+        message: _sortByName ? l10n.sortedByName : l10n.sortByName,
         child: InkWell(
           onTap: () => setState(() => _sortByName = !_sortByName),
           child: Padding(
@@ -425,7 +424,7 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Élève', style: style),
+                  Text(l10n.student, style: style),
                   const SizedBox(width: 4),
                   Icon(
                     Icons.sort_by_alpha,
@@ -582,16 +581,13 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
   ClassGroup get cls => widget.cls;
 
   @override
-  String get _instructions =>
-      'Touchez une case pour faire défiler ses valeurs. Touchez le nom '
-      'd\'un élève pour le renommer, ajouter une note ou le supprimer. '
-      'Touchez l\'en-tête « Élève » pour trier par nom.';
+  String get _instructions => _l10n(context).compactInstructions;
 
   @override
   Widget get _viewToggle => IconButton.outlined(
     onPressed: () => state.setStudentsViewMode(StudentsViewMode.complete),
     icon: const Icon(Icons.table_rows_outlined),
-    tooltip: 'Passer à la vue complète',
+    tooltip: _l10n(context).switchToComplete,
   );
 
   /// Largeur minimale d'une colonne : juste assez pour son libellé complet
@@ -805,16 +801,13 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
   ClassGroup get cls => widget.cls;
 
   @override
-  String get _instructions =>
-      'Touchez une case pour cocher/décocher. Touchez le nom d\'un élève '
-      'pour le renommer, ajouter une note ou le supprimer. Touchez '
-      'l\'en-tête « Élève » pour trier par nom.';
+  String get _instructions => _l10n(context).completeInstructions;
 
   @override
   Widget get _viewToggle => IconButton.outlined(
     onPressed: () => state.setStudentsViewMode(StudentsViewMode.compact),
     icon: const Icon(Icons.view_week_outlined),
-    tooltip: 'Passer à la vue compacte',
+    tooltip: _l10n(context).switchToCompact,
   );
 
   /// Les cases-valeurs gardent leur largeur confortable ([_kCompleteCellW])
