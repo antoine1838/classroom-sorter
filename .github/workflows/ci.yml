@@ -64,6 +64,13 @@ jobs:
       - name: Compiler le Web
         run: flutter build web --release
 
+      - name: Publier le build Web
+        uses: actions/upload-artifact@v7
+        with:
+          name: classroom-sorter-web
+          path: build/web
+          if-no-files-found: error
+
   build-windows:
     runs-on: windows-latest
     steps:
@@ -81,6 +88,13 @@ jobs:
 
       - name: Compiler Windows
         run: flutter build windows --release
+
+      - name: Publier le build Windows
+        uses: actions/upload-artifact@v7
+        with:
+          name: classroom-sorter-windows
+          path: build/windows/x64/runner/Release
+          if-no-files-found: error
 
   benchmark-seating-engine:
     if: github.event_name == 'pull_request'
