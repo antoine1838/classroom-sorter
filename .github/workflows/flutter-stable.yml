@@ -36,6 +36,13 @@ jobs:
       - name: Compiler le Web
         run: flutter build web --release
 
+      - name: Publier le build Web
+        uses: actions/upload-artifact@v7
+        with:
+          name: classroom-sorter-web-latest-stable
+          path: build/web
+          if-no-files-found: error
+
   build-windows-latest-stable:
     runs-on: windows-latest
     steps:
@@ -53,3 +60,10 @@ jobs:
 
       - name: Compiler Windows
         run: flutter build windows --release
+
+      - name: Publier le build Windows
+        uses: actions/upload-artifact@v7
+        with:
+          name: classroom-sorter-windows-latest-stable
+          path: build/windows/x64/runner/Release
+          if-no-files-found: error
