@@ -24,6 +24,54 @@ jobs:
       - name: Récupérer les dépendances
         run: flutter pub get
 
+      - name: Publier le rapport des dépendances obsolètes
+        run: |
+          flutter pub outdated --json > /tmp/pub-outdated.json
+          python3 - <<'PY'
+          import json
+          import os
+
+          with open("/tmp/pub-outdated.json", encoding="utf-8") as report:
+              packages = json.load(report)["packages"]
+
+          def version(entry, field):
+              value = entry.get(field)
+              return value["version"] if value else "—"
+
+          outdated = [
+              package for package in packages
+              if version(package, "current") != version(package, "latest")
+          ]
+          
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## Dépendances Pub obsolètes\n\n")
+              summary.write(
+                  "Rapport informatif : Dependabot reste chargé de créer les PR de mise à jour.\n\n"
+              )
+              if not outdated:
+                  summary.write("Toutes les dépendances sont à jour.\n")
+              else:
+                  summary.write(
+                      "| Dépendance | Type | Actuelle | Compatible | Dernière | Statut |\n"
+                  )
+                  summary.write("| --- | --- | ---: | ---: | ---: | --- |\n")
+                  for package in outdated:
+                      current = version(package, "current")
+                      upgradable = version(package, "upgradable")
+                      resolvable = version(package, "resolvable")
+                      latest = version(package, "latest")
+                      if current != upgradable:
+                          status = "Mise à jour compatible"
+                      elif current != resolvable:
+                          status = "Modification de contrainte requise"
+                      else:
+                          status = "Bloquée par une dépendance parente ou le SDK"
+                      summary.write(
+                          f"| `{package['package']}` | {package['kind']} | "
+                          f"{current} | {upgradable} | {latest} | {status} |\n"
+                      )
+          PY
+
       # Le format est contrôlé avec le SDK épinglé dans ci.yml : une évolution
       # du formateur ne doit pas transformer ce contrôle de compatibilité en
       # faux échec.
