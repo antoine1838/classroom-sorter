@@ -103,6 +103,7 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
           brightness: Brightness.dark,
         ),
         locale: _state.locale,
+        themeMode: _state.themeMode,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: HomeScreen(state: _state),

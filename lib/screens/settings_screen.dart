@@ -111,6 +111,30 @@ class SettingsScreen extends StatelessWidget {
               onSelectionChanged: (selection) =>
                   state.setLocalePreference(selection.first),
             ),
+            const SizedBox(height: 24),
+            Text(l10n.theme, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(l10n.themeDescription, style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 12),
+            SegmentedButton<ThemePreference>(
+              segments: [
+                ButtonSegment(
+                  value: ThemePreference.system,
+                  label: Text(l10n.themeSystem),
+                ),
+                ButtonSegment(
+                  value: ThemePreference.light,
+                  label: Text(l10n.themeLight),
+                ),
+                ButtonSegment(
+                  value: ThemePreference.dark,
+                  label: Text(l10n.themeDark),
+                ),
+              ],
+              selected: {state.themePreference},
+              onSelectionChanged: (selection) =>
+                  state.setThemePreference(selection.first),
+            ),
           ],
         ),
       ),

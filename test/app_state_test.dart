@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -68,6 +69,25 @@ void main() {
       await reloaded.init();
       expect(reloaded.localePreference, LocalePreference.english);
       expect(reloaded.locale?.languageCode, 'en');
+    },
+  );
+
+  test(
+    'ThemePreference : système par défaut, sombre persistant après changement',
+    () async {
+      final state = AppState();
+      await state.init();
+      expect(state.themePreference, ThemePreference.system);
+      expect(state.themeMode, ThemeMode.system);
+
+      state.setThemePreference(ThemePreference.dark);
+      expect(state.themeMode, ThemeMode.dark);
+      await state.flushPendingSaves();
+
+      final reloaded = AppState();
+      await reloaded.init();
+      expect(reloaded.themePreference, ThemePreference.dark);
+      expect(reloaded.themeMode, ThemeMode.dark);
     },
   );
 
