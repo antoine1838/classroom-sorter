@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart' show Locale;
 
@@ -34,6 +35,8 @@ enum StudentsViewMode { complete, compact }
 
 enum LocalePreference { system, french, english }
 
+enum ThemePreference { system, light, dark }
+
 /// Types de messages de persistance affichés par l'interface.
 ///
 /// L'état conserve l'événement, l'écran fournit le texte localisé.
@@ -51,6 +54,7 @@ typedef _PersistenceBatch = ({
   String? viewMode,
   String? palette,
   String? localePreference,
+  String? themePreference,
 });
 
 class AppState extends ChangeNotifier {
@@ -64,6 +68,7 @@ class AppState extends ChangeNotifier {
   StudentsViewMode studentsViewMode = StudentsViewMode.complete;
   GenderColorPalette genderColorPalette = GenderColorPalette.tealCorail;
   LocalePreference localePreference = LocalePreference.system;
+  ThemePreference themePreference = ThemePreference.system;
 
   String? _loadNotice;
   bool _loadNoticeIsError = false;
@@ -76,6 +81,7 @@ class AppState extends ChangeNotifier {
   String? _pendingStudentsViewMode;
   String? _pendingGenderColorPalette;
   String? _pendingLocalePreference;
+  String? _pendingThemePreference;
   Future<void>? _persistenceLoop;
 
   String? get persistenceMessage => _saveError ?? _loadNotice;
@@ -108,6 +114,11 @@ class AppState extends ChangeNotifier {
       (preference) => preference.name == rawLocalePreference,
       orElse: () => LocalePreference.system,
     );
+    final rawThemePreference = await _repo.loadThemePreference();
+    themePreference = ThemePreference.values.firstWhere(
+      (preference) => preference.name == rawThemePreference,
+      orElse: () => ThemePreference.system,
+    );
     loading = false;
     notifyListeners();
   }
@@ -138,6 +149,20 @@ class AppState extends ChangeNotifier {
     if (localePreference == preference) return;
     localePreference = preference;
     _pendingLocalePreference = preference.name;
+    notifyListeners();
+    _startPersistence();
+  }
+
+  ThemeMode get themeMode => switch (themePreference) {
+    ThemePreference.system => ThemeMode.system,
+    ThemePreference.light => ThemeMode.light,
+    ThemePreference.dark => ThemeMode.dark,
+  };
+
+  void setThemePreference(ThemePreference preference) {
+    if (themePreference == preference) return;
+    themePreference = preference;
+    _pendingThemePreference = preference.name;
     notifyListeners();
     _startPersistence();
   }
@@ -234,7 +259,8 @@ class AppState extends ChangeNotifier {
       _savedRoomsDirty ||
       _pendingStudentsViewMode != null ||
       _pendingGenderColorPalette != null ||
-      _pendingLocalePreference != null;
+      _pendingLocalePreference != null ||
+      _pendingThemePreference != null;
 
   /// Une seule boucle d'écriture à la fois. Les modifications reçues pendant
   /// une sauvegarde sont regroupées dans le passage suivant, avec l'état le
@@ -265,12 +291,14 @@ class AppState extends ChangeNotifier {
       viewMode: _pendingStudentsViewMode,
       palette: _pendingGenderColorPalette,
       localePreference: _pendingLocalePreference,
+      themePreference: _pendingThemePreference,
     );
     _classesDirty = false;
     _savedRoomsDirty = false;
     _pendingStudentsViewMode = null;
     _pendingGenderColorPalette = null;
     _pendingLocalePreference = null;
+    _pendingThemePreference = null;
     return batch;
   }
 
@@ -298,6 +326,9 @@ class AppState extends ChangeNotifier {
     }
     if (batch.localePreference != null) {
       await attempt(() => _repo.saveLocalePreference(batch.localePreference!));
+    }
+    if (batch.themePreference != null) {
+      await attempt(() => _repo.saveThemePreference(batch.themePreference!));
     }
     return firstError;
   }
@@ -327,6 +358,7 @@ class AppState extends ChangeNotifier {
     _pendingStudentsViewMode = studentsViewMode.name;
     _pendingGenderColorPalette = genderColorPalette.name;
     _pendingLocalePreference = localePreference.name;
+    _pendingThemePreference = themePreference.name;
     _startPersistence();
   }
 

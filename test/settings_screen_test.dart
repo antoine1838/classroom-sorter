@@ -125,6 +125,21 @@ void main() {
     expect(state.locale?.languageCode, 'en');
   });
 
+  testWidgets('choisir Sombre met à jour la préférence de thème', (t) async {
+    final state = await _pump(t);
+
+    expect(find.text('Thème'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Sombre'), 200);
+    expect(find.text('Clair'), findsOneWidget);
+    expect(find.text('Sombre'), findsOneWidget);
+
+    await t.tap(find.text('Sombre'));
+    await t.pumpAndSettle();
+
+    expect(state.themePreference, ThemePreference.dark);
+    expect(state.themeMode, ThemeMode.dark);
+  });
+
   testWidgets('les réglages sont affichés en anglais', (t) async {
     final state = AppState();
     await state.init();
@@ -134,6 +149,7 @@ void main() {
 
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Theme'), findsOneWidget);
     expect(find.text('Students view'), findsOneWidget);
   });
 
