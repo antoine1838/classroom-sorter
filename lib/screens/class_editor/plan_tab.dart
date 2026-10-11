@@ -113,8 +113,8 @@ class _PlanTabState extends State<_PlanTab> {
       child: _grid(),
     );
 
-    // Les mêmes trois commandes dans les deux cas : seule leur disposition
-    // change. En rail, elles ne coûtent plus de hauteur.
+    // Les mêmes commandes dans les deux cas : seule leur disposition change.
+    // En rail, elles ne coûtent plus de hauteur.
     if (rail) {
       return Row(
         children: [
@@ -135,8 +135,7 @@ class _PlanTabState extends State<_PlanTab> {
     if (vertical) return _controlBar(vertical: true, labels: _PlanLabels.none);
     // Même esprit que la barre d'outils de l'onglet Élèves : sous un certain
     // seuil, on ne garde que les icônes. Mais le seuil ne peut pas être une
-    // constante — il dépend du NOMBRE de contrôles présents, et c'est le bouton
-    // Rapport, arrivé en dernier, qui faisait déborder la rangée.
+    // constante — il dépend du nombre de contrôles présents.
     return LayoutBuilder(
       builder: (context, constraints) => _controlBar(
         vertical: false,
@@ -164,15 +163,23 @@ class _PlanTabState extends State<_PlanTab> {
     var needMain = widest * (hasPlan ? 2 : 1);
     if (hasPlan) needMain += _kPlanBarGap;
 
-    // needMain compte déjà l'espace entre les deux boutons principaux : il ne
-    // reste à prévoir que celui qui précède le rapport.
-    final chrome = _kPlanBarPadding + (hasReport ? _kPlanBarGap : 0);
+    // needMain compte déjà l'espace entre les deux boutons principaux. Chaque
+    // commande restante ajoute son icône et l'espace qui la précède.
+    final trailingIcons =
+        (hasReport ? 1 : 0) +
+        (hasPlan ? 2 : 0) +
+        ((_viewport.currentState?.isZoomed ?? false) ? 1 : 0);
+    final chrome = _kPlanBarPadding + _kPlanBarGap * trailingIcons;
 
     if (hasReport &&
-        width >= needMain + _labelledWidth(context, _reportLabel) + chrome) {
+        width >=
+            needMain +
+                _labelledWidth(context, _reportLabel) +
+                _kIconMinW * (trailingIcons - 1) +
+                chrome) {
       return _PlanLabels.all;
     }
-    if (width >= needMain + (hasReport ? _kIconMinW : 0) + chrome) {
+    if (width >= needMain + _kIconMinW * trailingIcons + chrome) {
       return _PlanLabels.mainOnly;
     }
     return _PlanLabels.none;
@@ -201,6 +208,7 @@ class _PlanTabState extends State<_PlanTab> {
       _generateControl(labelled: mainLabelled),
       if (cls.assignment.isNotEmpty) _validateControl(labelled: mainLabelled),
       if (_result != null) _reportControl(labelled: labels == _PlanLabels.all),
+      if (cls.assignment.isNotEmpty) ...[_zoomInControl(), _zoomOutControl()],
       if (_viewport.currentState?.isZoomed ?? false) _recenterControl(),
     ];
     return _spacedBar(children, vertical: vertical, labelled: mainLabelled);
@@ -254,6 +262,18 @@ class _PlanTabState extends State<_PlanTab> {
     tooltip: _l10n(context).recenter,
     onPressed: () => setState(() => _viewport.currentState?.recenter()),
     icon: const Icon(Icons.center_focus_strong),
+  );
+
+  Widget _zoomInControl() => IconButton(
+    tooltip: _l10n(context).zoomIn,
+    onPressed: () => _viewport.currentState?.zoomIn(),
+    icon: const Icon(Icons.zoom_in),
+  );
+
+  Widget _zoomOutControl() => IconButton(
+    tooltip: _l10n(context).zoomOut,
+    onPressed: () => _viewport.currentState?.zoomOut(),
+    icon: const Icon(Icons.zoom_out),
   );
 
   /// Dispose les contrôles en rangée ou en colonne, séparés d'un espace.
