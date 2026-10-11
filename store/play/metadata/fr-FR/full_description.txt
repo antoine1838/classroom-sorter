@@ -38,9 +38,10 @@ Générer et ajuster
 • Pas satisfait ? « Régénérer » propose une nouvelle disposition.
 
 Lisible sur tout écran
-• La salle s'affiche entière, aussi bien en portrait (avec zoom à deux doigts, ou à la molette de souris sur ordinateur) qu'en paysage.
+• La salle s'affiche entière, aussi bien en portrait (zoom à deux doigts, à la molette de souris, ou via les boutons de zoom) qu'en paysage.
 • Le prénom de chaque élève s'affiche dès que la place le permet, sinon des initiales non ambiguës (deux élèves aux mêmes initiales restent distingués).
 • Les couleurs du repère garçon/fille affiché sur chaque place se personnalisent (5 palettes au choix) dans les réglages.
+• Thème clair, sombre ou automatique, au choix dans les réglages.
 
 RESPECT DE LA VIE PRIVÉE
 • 100 % hors-ligne, données stockées uniquement sur l'appareil.

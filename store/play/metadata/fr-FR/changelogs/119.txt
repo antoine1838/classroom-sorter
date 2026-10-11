@@ -1,4 +1,5 @@
-• Sauvegardes locales fiabilisées, avec récupération automatique en cas de données endommagées.
-• Les préférences de place cèdent désormais correctement devant les règles obligatoires.
-• Supprimer une place retire aussi l'affectation de l'élève concerné.
-• Les données élèves sont exclues des sauvegardes et transferts automatiques Android.
+Nouveautés 1.12.0 :
+• Réglages : choix du thème clair, sombre ou automatique.
+• Plan : boutons de zoom avant/arrière, en plus du pincement et de la molette.
+• Interface disponible en anglais.
+• Correction des contrastes du plan en mode sombre.

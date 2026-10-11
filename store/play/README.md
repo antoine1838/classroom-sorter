@@ -36,6 +36,11 @@ cases à cocher).
 vert canard/corail au lieu du bleu/rose d'origine, issue #27 — palette
 réglable en Réglages, voir le sélecteur ajouté à cette version).
 
+**Refaites partiellement pour la 1.12.0** (2 des 8) : `06-plan` et
+`08-plan-paysage`, pour montrer les nouveaux boutons de zoom avant/arrière
+dans la barre de commandes du Plan (issue #24). Les autres captures sont
+inchangées.
+
 ### Contraintes de dimensions (⚠️ vérifié le 2026-08-25)
 
 Les captures servent **deux** slots de la Play Console, téléphone et
