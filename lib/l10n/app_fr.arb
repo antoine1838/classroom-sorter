@@ -173,6 +173,8 @@
   "generatePlan": "Générer le plan",
   "regenerate": "Régénérer",
   "validate": "Valider",
+  "zoomIn": "Agrandir le plan",
+  "zoomOut": "Réduire le plan",
   "recenter": "Recentrer",
   "report": "Rapport",
   "problemsCount": "{count} problème(s)",

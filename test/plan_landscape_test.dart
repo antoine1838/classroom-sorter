@@ -541,6 +541,26 @@ void main() {
       expect(viewport.isZoomed, isTrue);
     });
 
+    testWidgets('les boutons de zoom contrôlent la fenêtre du plan', (t) async {
+      await _pump(t, _cls(), _landscape);
+
+      expect(find.byIcon(Icons.zoom_in), findsOneWidget);
+      expect(find.byIcon(Icons.zoom_out), findsOneWidget);
+
+      await t.tap(find.byIcon(Icons.zoom_in));
+      await t.pumpAndSettle();
+
+      final viewport = t.state<PlanViewportState>(find.byType(PlanViewport));
+      expect(viewport.isZoomed, isTrue);
+      expect(find.byIcon(Icons.center_focus_strong), findsOneWidget);
+
+      await t.tap(find.byIcon(Icons.zoom_out));
+      await t.pumpAndSettle();
+
+      expect(viewport.isZoomed, isFalse);
+      expect(find.byIcon(Icons.center_focus_strong), findsNothing);
+    });
+
     testWidgets('en paysage, « recentrer » apparaît une fois zoomé', (t) async {
       await _pump(t, _cls(), _landscape);
 
