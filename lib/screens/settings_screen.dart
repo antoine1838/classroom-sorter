@@ -49,7 +49,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 l10n.studentsViewDescription,
-                style: TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 12),
               SegmentedButton<StudentsViewMode>(
@@ -77,7 +77,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 l10n.genderColorsDescription,
-                style: TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 12),
               Wrap(
