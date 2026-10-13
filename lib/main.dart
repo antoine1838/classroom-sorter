@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
@@ -18,6 +19,10 @@ const _kDefaultWindowSize = Size(1280, 800);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Android 15+ impose ce mode aux applications ciblant l'API 35. Le déclarer
+  // explicitement évite une différence de rendu suivant la version de Flutter
+  // et fait des insets une responsabilité visible des écrans.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   if (_isDesktop) {
     await windowManager.ensureInitialized();
     final saved = await Repository().loadWindowBounds();

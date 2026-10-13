@@ -185,6 +185,13 @@ void main() {
     testWidgets('l\'état vide explique quoi faire', (t) async {
       await _pump(t);
 
+      expect(
+        find.byWidgetPredicate((widget) {
+          return widget is SafeArea && !widget.top && widget.bottom;
+        }),
+        findsOneWidget,
+        reason: 'le contenu reste hors des barres système en bord à bord',
+      );
       expect(find.text('Aucune classe pour le moment'), findsOneWidget);
       expect(find.text('Créer ma première classe'), findsOneWidget);
       expect(find.text('Classe de démo'), findsOneWidget);

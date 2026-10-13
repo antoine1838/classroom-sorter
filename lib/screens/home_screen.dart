@@ -52,7 +52,13 @@ class HomeScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: Text(l10n.newClass),
       ),
-      body: ListenableBuilder(listenable: state, builder: _buildBody),
+      // L'AppBar traite déjà l'encoche supérieure. Le contenu et l'action de
+      // création doivent en revanche rester hors des barres latérales et de
+      // navigation quand Android impose le rendu bord à bord.
+      body: SafeArea(
+        top: false,
+        child: ListenableBuilder(listenable: state, builder: _buildBody),
+      ),
     );
   }
 

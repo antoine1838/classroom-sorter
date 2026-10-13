@@ -42,6 +42,13 @@ void main() {
   ) async {
     final state = await _pump(t);
 
+    expect(
+      find.byWidgetPredicate((widget) {
+        return widget is SafeArea && !widget.top && widget.bottom;
+      }),
+      findsOneWidget,
+      reason: 'les réglages restent accessibles au-dessus de la navigation',
+    );
     expect(find.text('Réglages'), findsOneWidget);
     expect(find.text('Vue Élèves'), findsOneWidget);
     expect(find.text('Complète'), findsOneWidget);
