@@ -9,7 +9,10 @@ import '../l10n/generated/app_localizations.dart';
 import '../models/classroom.dart';
 import '../tutorial/tutorial_guide.dart';
 import 'class_editor_screen.dart';
+import 'faq_screen.dart';
 import 'settings_screen.dart';
+
+enum _HomeHelpAction { currentScreen, faq }
 
 class HomeScreen extends StatelessWidget {
   final AppState state;
@@ -39,11 +42,28 @@ class HomeScreen extends StatelessWidget {
             tooltip: l10n.tutorialTitle,
             onPressed: () => _startTutorial(context),
           ),
-          IconButton(
+          PopupMenuButton<_HomeHelpAction>(
             icon: const Icon(Icons.help_outline),
             tooltip: l10n.homeHelp,
-            onPressed: () =>
-                showTutorialGuide(context, topic: TutorialTopic.home),
+            onSelected: (action) => switch (action) {
+              _HomeHelpAction.currentScreen => showTutorialGuide(
+                context,
+                topic: TutorialTopic.home,
+              ),
+              _HomeHelpAction.faq => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const FaqScreen())),
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: _HomeHelpAction.currentScreen,
+                child: Text(l10n.homeHelp),
+              ),
+              PopupMenuItem(
+                value: _HomeHelpAction.faq,
+                child: Text(l10n.faqTitle),
+              ),
+            ],
           ),
         ],
       ),
