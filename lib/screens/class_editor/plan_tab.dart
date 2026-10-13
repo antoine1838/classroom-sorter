@@ -432,7 +432,7 @@ class _PlanTabState extends State<_PlanTab> {
                 const SizedBox(height: 12),
                 Text(
                   l10n.toNote,
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 for (final issue in issues)
                   _ReportLine(
