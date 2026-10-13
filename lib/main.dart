@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
@@ -16,8 +17,16 @@ bool get _isDesktop =>
 
 const _kDefaultWindowSize = Size(1280, 800);
 
+/// Active explicitement le rendu qui s'étend sous les barres système.
+///
+/// Android 15+ l'impose aux applications ciblant l'API 35. Le déclarer évite
+/// une différence de rendu suivant la version de Flutter.
+Future<void> configureEdgeToEdge() =>
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await configureEdgeToEdge();
   if (_isDesktop) {
     await windowManager.ensureInitialized();
     final saved = await Repository().loadWindowBounds();

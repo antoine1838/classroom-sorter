@@ -33,109 +33,123 @@ class SettingsScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settings)),
-      body: ListenableBuilder(
-        listenable: state,
-        builder: (context, _) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text(
-              l10n.studentsView,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(l10n.studentsViewDescription, style: TextStyle(fontSize: 12)),
-            const SizedBox(height: 12),
-            SegmentedButton<StudentsViewMode>(
-              segments: [
-                ButtonSegment(
-                  value: StudentsViewMode.complete,
-                  label: Text(l10n.studentsViewComplete),
-                  icon: const Icon(Icons.table_rows_outlined),
-                ),
-                ButtonSegment(
-                  value: StudentsViewMode.compact,
-                  label: Text(l10n.studentsViewCompact),
-                  icon: const Icon(Icons.view_week_outlined),
-                ),
-              ],
-              selected: {state.studentsViewMode},
-              onSelectionChanged: (selection) =>
-                  state.setStudentsViewMode(selection.first),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              l10n.genderColors,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(l10n.genderColorsDescription, style: TextStyle(fontSize: 12)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final palette in GenderColorPalette.values)
-                  ChoiceChip(
-                    avatar: _paletteIcon(palette),
-                    showCheckmark: false,
-                    label: Text(_paletteLabel(palette, l10n)),
-                    selected: state.genderColorPalette == palette,
-                    onSelected: (_) => state.setGenderColorPalette(palette),
+      // L'AppBar couvre l'inset supérieur ; les réglages restent quant à eux
+      // accessibles au-dessus de la barre de navigation en bord à bord.
+      body: SafeArea(
+        top: false,
+        child: ListenableBuilder(
+          listenable: state,
+          builder: (context, _) => ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                l10n.studentsView,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.studentsViewDescription,
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<StudentsViewMode>(
+                segments: [
+                  ButtonSegment(
+                    value: StudentsViewMode.complete,
+                    label: Text(l10n.studentsViewComplete),
+                    icon: const Icon(Icons.table_rows_outlined),
                   ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text(l10n.language, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              l10n.languageDescription,
-              style: const TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            SegmentedButton<LocalePreference>(
-              segments: [
-                ButtonSegment(
-                  value: LocalePreference.system,
-                  label: Text(l10n.languageSystem),
-                ),
-                ButtonSegment(
-                  value: LocalePreference.french,
-                  label: Text(l10n.languageFrench),
-                ),
-                ButtonSegment(
-                  value: LocalePreference.english,
-                  label: Text(l10n.languageEnglish),
-                ),
-              ],
-              selected: {state.localePreference},
-              onSelectionChanged: (selection) =>
-                  state.setLocalePreference(selection.first),
-            ),
-            const SizedBox(height: 24),
-            Text(l10n.theme, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(l10n.themeDescription, style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 12),
-            SegmentedButton<ThemePreference>(
-              segments: [
-                ButtonSegment(
-                  value: ThemePreference.system,
-                  label: Text(l10n.themeSystem),
-                ),
-                ButtonSegment(
-                  value: ThemePreference.light,
-                  label: Text(l10n.themeLight),
-                ),
-                ButtonSegment(
-                  value: ThemePreference.dark,
-                  label: Text(l10n.themeDark),
-                ),
-              ],
-              selected: {state.themePreference},
-              onSelectionChanged: (selection) =>
-                  state.setThemePreference(selection.first),
-            ),
-          ],
+                  ButtonSegment(
+                    value: StudentsViewMode.compact,
+                    label: Text(l10n.studentsViewCompact),
+                    icon: const Icon(Icons.view_week_outlined),
+                  ),
+                ],
+                selected: {state.studentsViewMode},
+                onSelectionChanged: (selection) =>
+                    state.setStudentsViewMode(selection.first),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                l10n.genderColors,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.genderColorsDescription,
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final palette in GenderColorPalette.values)
+                    ChoiceChip(
+                      avatar: _paletteIcon(palette),
+                      showCheckmark: false,
+                      label: Text(_paletteLabel(palette, l10n)),
+                      selected: state.genderColorPalette == palette,
+                      onSelected: (_) => state.setGenderColorPalette(palette),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                l10n.language,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.languageDescription,
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<LocalePreference>(
+                segments: [
+                  ButtonSegment(
+                    value: LocalePreference.system,
+                    label: Text(l10n.languageSystem),
+                  ),
+                  ButtonSegment(
+                    value: LocalePreference.french,
+                    label: Text(l10n.languageFrench),
+                  ),
+                  ButtonSegment(
+                    value: LocalePreference.english,
+                    label: Text(l10n.languageEnglish),
+                  ),
+                ],
+                selected: {state.localePreference},
+                onSelectionChanged: (selection) =>
+                    state.setLocalePreference(selection.first),
+              ),
+              const SizedBox(height: 24),
+              Text(l10n.theme, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(l10n.themeDescription, style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 12),
+              SegmentedButton<ThemePreference>(
+                segments: [
+                  ButtonSegment(
+                    value: ThemePreference.system,
+                    label: Text(l10n.themeSystem),
+                  ),
+                  ButtonSegment(
+                    value: ThemePreference.light,
+                    label: Text(l10n.themeLight),
+                  ),
+                  ButtonSegment(
+                    value: ThemePreference.dark,
+                    label: Text(l10n.themeDark),
+                  ),
+                ],
+                selected: {state.themePreference},
+                onSelectionChanged: (selection) =>
+                    state.setThemePreference(selection.first),
+              ),
+            ],
+          ),
         ),
       ),
     );
