@@ -1,0 +1,208 @@
+diff --git a/lib/main.dart b/lib/main.dart
+index 0f3991e..350ce84 100644
+--- a/lib/main.dart
++++ b/lib/main.dart
+@@ -1,16 +1,66 @@
+ /// Plan de classe — application d'affectation des élèves aux places.
+ library;
+ 
++import 'dart:convert';
+ import 'dart:io';
+ 
+ import 'package:flutter/material.dart';
++import 'package:flutter/services.dart' show rootBundle;
+ import 'package:window_manager/window_manager.dart';
+ 
+ import 'app_state.dart';
+ import 'data/repository.dart';
+ import 'l10n/generated/app_localizations.dart';
++import 'models/classroom.dart';
++import 'models/room_layouts.dart';
++import 'screens/class_editor_screen.dart';
+ import 'screens/home_screen.dart';
+ 
++ClassGroup _derive(ClassGroup base, String name, int count) {
++  final c = ClassGroup.fromJson({
++    ...base.toJson(),
++    'id': newId(),
++    'name': name,
++  });
++  for (final s in c.students.skip(count).toList()) {
++    c.students.remove(s);
++    c.purgeStudent(s.id);
++  }
++  return c;
++}
++
++Future<void> _maybeSetupScreenshot(AppState state) async {
++  final env = Platform.environment;
++  if (env['PDC_SHOT_DEMO'] != '1') return;
++  final en = env['PDC_SHOT_LOCALE'] == 'en';
++  state.themePreference = ThemePreference.light;
++  state.localePreference = en
++      ? LocalePreference.english
++      : LocalePreference.french;
++  state.studentsViewMode = env['PDC_SHOT_VIEW'] == 'compact'
++      ? StudentsViewMode.compact
++      : StudentsViewMode.complete;
++  final raw = await rootBundle.loadString(demoClassAsset);
++  final base = ClassGroup.fromJson(jsonDecode(raw) as Map<String, dynamic>);
++  final names = en
++      ? ['Grade 6B', 'Grade 7A', 'Grade 9C']
++      : ['6ème B', '5ème A', '3ème C'];
++  base.name = names[0];
++  if (env['PDC_SHOT_LAYOUT'] == 'ilots') {
++    base.room = buildIlotsLayout(islandSize: 4, islandCount: 3, islandRows: 3);
++    base.assignment.clear();
++  }
++  if (env['PDC_SHOT_FORCE_VIOLATION'] == '1') {
++    final a = base.assignment;
++    final tmp = a['0,0'];
++    a['0,0'] = a['3,2']!;
++    a['3,2'] = tmp!;
++  }
++  state.classes = env['PDC_SHOT_TAB'] == 'home'
++      ? [base, _derive(base, names[1], 17), _derive(base, names[2], 12)]
++      : [base];
++}
++
+ bool get _isDesktop =>
+     Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+ 
+@@ -37,11 +87,15 @@ void main() async {
+       },
+     );
+   }
+-  runApp(const ClassroomSortApp());
++  final state = AppState();
++  await state.init();
++  await _maybeSetupScreenshot(state);
++  runApp(ClassroomSortApp(state: state));
+ }
+ 
+ class ClassroomSortApp extends StatefulWidget {
+-  const ClassroomSortApp({super.key});
++  final AppState state;
++  const ClassroomSortApp({super.key, required this.state});
+ 
+   @override
+   State<ClassroomSortApp> createState() => _ClassroomSortAppState();
+@@ -49,16 +103,29 @@ class ClassroomSortApp extends StatefulWidget {
+ 
+ class _ClassroomSortAppState extends State<ClassroomSortApp>
+     with WindowListener {
+-  final AppState _state = AppState();
++  AppState get _state => widget.state;
+   final Repository _windowRepo = Repository();
+ 
+   @override
+   void initState() {
+     super.initState();
+-    _state.init();
+     if (_isDesktop) windowManager.addListener(this);
+   }
+ 
++  Widget _home() {
++    final tab = int.tryParse(Platform.environment['PDC_SHOT_TAB'] ?? '');
++    if (tab == null || _state.classes.isEmpty) {
++      return HomeScreen(state: _state);
++    }
++    return ClassEditorScreen(
++      state: _state,
++      cls: _state.classes.first,
++      initialIndex: tab,
++      autoValidatePlan: Platform.environment['PDC_SHOT_FORCE_VIOLATION'] == '1',
++      openSeat: Platform.environment['PDC_SHOT_OPEN_SEAT'],
++    );
++  }
++
+   @override
+   void dispose() {
+     if (_isDesktop) windowManager.removeListener(this);
+@@ -106,7 +173,7 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
+         themeMode: _state.themeMode,
+         localizationsDelegates: AppLocalizations.localizationsDelegates,
+         supportedLocales: AppLocalizations.supportedLocales,
+-        home: HomeScreen(state: _state),
++        home: _home(),
+       ),
+     );
+   }
+diff --git a/lib/screens/class_editor/plan_tab.dart b/lib/screens/class_editor/plan_tab.dart
+index 57af659..5e4bbfd 100644
+--- a/lib/screens/class_editor/plan_tab.dart
++++ b/lib/screens/class_editor/plan_tab.dart
+@@ -8,10 +8,14 @@ class _PlanTab extends StatefulWidget {
+   final AppState state;
+   final ClassGroup cls;
+   final PlanGenerator planGenerator;
++  final bool autoValidatePlan;
++  final String? openSeat;
+   const _PlanTab({
+     required this.state,
+     required this.cls,
+     required this.planGenerator,
++    this.autoValidatePlan = false,
++    this.openSeat,
+   });
+ 
+   @override
+@@ -36,6 +40,19 @@ class _PlanTabState extends State<_PlanTab> {
+   ClassGroup get cls => widget.cls;
+   ClassGroupOps get _ops => ClassGroupOps(cls, commit: widget.state.touch);
+ 
++  @override
++  void initState() {
++    super.initState();
++    if (widget.autoValidatePlan) _setResult(SeatingEngine(cls).evaluate());
++    final seat = widget.openSeat;
++    if (seat != null && seat.isNotEmpty) {
++      WidgetsBinding.instance.addPostFrameCallback((_) {
++        final s = cls.studentById(seat);
++        if (s != null && mounted) _showSeatDetail(context, s);
++      });
++    }
++  }
++
+   @override
+   void didUpdateWidget(covariant _PlanTab oldWidget) {
+     super.didUpdateWidget(oldWidget);
+diff --git a/lib/screens/class_editor_screen.dart b/lib/screens/class_editor_screen.dart
+index f273df6..3a27038 100644
+--- a/lib/screens/class_editor_screen.dart
++++ b/lib/screens/class_editor_screen.dart
+@@ -285,11 +285,17 @@ class ClassEditorScreen extends StatelessWidget {
+   final AppState state;
+   final ClassGroup cls;
+   final PlanGenerator? planGenerator;
++  final int initialIndex;
++  final bool autoValidatePlan;
++  final String? openSeat;
+   const ClassEditorScreen({
+     super.key,
+     required this.state,
+     required this.cls,
+     this.planGenerator,
++    this.initialIndex = 0,
++    this.autoValidatePlan = false,
++    this.openSeat,
+   });
+ 
+   /// Les quatre onglets, avec ou sans libellés.
+@@ -340,6 +346,7 @@ class ClassEditorScreen extends StatelessWidget {
+       localizations: l10n,
+       child: DefaultTabController(
+         length: 4,
++        initialIndex: initialIndex,
+         child: Scaffold(
+           body: SafeArea(
+             minimum: navBarMinimum,
+@@ -386,6 +393,8 @@ class ClassEditorScreen extends StatelessWidget {
+                           planGenerator:
+                               planGenerator ??
+                               const PlanGenerationService().generate,
++                          autoValidatePlan: autoValidatePlan,
++                          openSeat: openSeat,
+                         ),
+                       ],
+                     ),

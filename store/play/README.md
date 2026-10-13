@@ -36,10 +36,11 @@ cases à cocher).
 vert canard/corail au lieu du bleu/rose d'origine, issue #27 — palette
 réglable en Réglages, voir le sélecteur ajouté à cette version).
 
-**Refaites partiellement pour la 1.12.0** (2 des 8) : `06-plan` et
-`08-plan-paysage`, pour montrer les nouveaux boutons de zoom avant/arrière
-dans la barre de commandes du Plan (issue #24). Les autres captures sont
-inchangées.
+**Refaites pour la 1.12.0** : les 8, en thème **clair** (forcé par le hook),
+pour montrer les boutons de zoom du Plan (issue #24) et fournir un jeu
+**anglais** dans `screenshots/en-US/` (classes « Grade 6B / 7A / 9C », mêmes
+élèves fictifs). Le jeu français reste dans `screenshots/`. Procédure et
+scripts : [`tools/README.md`](tools/README.md).
 
 ### Contraintes de dimensions (⚠️ vérifié le 2026-08-25)
 
@@ -80,8 +81,8 @@ courant dans **chaque** langue, et vérifient les limites de caractères.
 
 **Play Console, une fois** : Fiche Play Store → Gérer les traductions → ajouter
 l'anglais, puis coller `title.txt`, `short_description.txt` et
-`full_description.txt` d'`en-US/`. Les captures et visuels se reprennent de la
-langue par défaut tant qu'on n'en fournit pas d'anglais. À chaque release, les
+`full_description.txt` d'`en-US/`, et téléverser `screenshots/en-US/` comme captures
+anglaises (icône et bandeau se reprennent de la langue par défaut). À chaque release, les
 notes de version se saisissent par langue (`<fr-FR>…</fr-FR>` / `<en-US>…</en-US>`).
 
 **Côté Android** : le nom de l'appli est la ressource `app_name`
