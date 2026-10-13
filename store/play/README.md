@@ -8,13 +8,13 @@ Ressources de la fiche Play Store (appli Android). À copier dans la
 | Fichier | Champ Play | Spec |
 |---|---|---|
 | `icon-512.png` | Icône de l'appli | 512×512, PNG 32 bits, opaque |
-| `feature-graphic-1024x500.png` | Image mise en avant | 1024×500, PNG/JPEG 24 bits |
-| `screenshots/*.png` | Captures téléphone **et tablettes** | 8 (7 × 1080×1920 portrait + 1 × 1920×1080 paysage) |
+| `metadata/<langue>/feature-graphic-1024x500.png` | Image mise en avant (texte localisé : une par langue) | 1024×500, PNG/JPEG 24 bits |
+| `metadata/<langue>/screenshots/*.png` | Captures téléphone **et tablettes** | 8 (7 × 1080×1920 portrait + 1 × 1920×1080 paysage) |
 
 Icône et bandeau régénérés depuis l'icône de l'app via le skill
-`flutter-store-graphics` (`gen_feature_graphic.py`, `regen_platforms.py`).
+`flutter-store-graphics` (`gen_feature_graphic.py [en]`, sortie dans `metadata/<langue>/`, `regen_platforms.py`). Le bandeau contient du texte : une version par langue.
 
-Captures (`screenshots/`), prises sur le build Windows, une classe de démo
+Captures (`metadata/<langue>/screenshots/`), prises sur le build Windows, une classe de démo
 (noms fictifs), refaites en totalité pour la 1.10.0 :
 `01-accueil` (trois classes, pour ne pas montrer une liste presque vide),
 `02-salle` (**disposition en îlots** : 6×6, deux types de couloirs, élèves
@@ -38,8 +38,8 @@ réglable en Réglages, voir le sélecteur ajouté à cette version).
 
 **Refaites pour la 1.12.0** : les 8, en thème **clair** (forcé par le hook),
 pour montrer les boutons de zoom du Plan (issue #24) et fournir un jeu
-**anglais** dans `screenshots/en-US/` (classes « Grade 6B / 7A / 9C », mêmes
-élèves fictifs). Le jeu français reste dans `screenshots/`. Procédure et
+**anglais** dans `metadata/en-US/screenshots/` (classes « Grade 6B / 7A / 9C », mêmes
+élèves fictifs). Le jeu français reste dans `metadata/fr-FR/screenshots/`. Procédure et
 scripts : [`tools/README.md`](tools/README.md).
 
 ### Contraintes de dimensions (⚠️ vérifié le 2026-08-25)
@@ -81,7 +81,7 @@ courant dans **chaque** langue, et vérifient les limites de caractères.
 
 **Play Console, une fois** : Fiche Play Store → Gérer les traductions → ajouter
 l'anglais, puis coller `title.txt`, `short_description.txt` et
-`full_description.txt` d'`en-US/`, et téléverser `screenshots/en-US/` comme captures
+`full_description.txt` d'`en-US/`, et téléverser `metadata/en-US/screenshots/` comme captures
 anglaises (icône et bandeau se reprennent de la langue par défaut). À chaque release, les
 notes de version se saisissent par langue (`<fr-FR>…</fr-FR>` / `<en-US>…</en-US>`).
 

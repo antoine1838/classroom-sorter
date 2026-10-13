@@ -14,7 +14,7 @@ d'affectation avec un jeu de données réaliste et non dégénéré.
 ## `demo_class_6emeb.json`
 
 La classe de démo « 6ème B » (20 élèves) utilisée pour les 8 captures Play
-Store dans `store/play/screenshots/` : mêmes critères tirés indépendamment
+Store dans `store/play/metadata/<langue>/screenshots/` : mêmes critères tirés indépendamment
 (genre en tiers égaux), plus 4 règles couvrant les 4 types (place imposée,
 doit être devant, séparer, rapprocher) et un plan déjà généré qui les
 respecte toutes. Sert de référence si les captures doivent être reprises.

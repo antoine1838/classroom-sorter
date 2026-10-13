@@ -1,6 +1,6 @@
 # Captures Play : outillage
 
-Les captures `store/play/screenshots/` (fr) et `store/play/screenshots/en-US/` (en) sont prises sur le **build Windows**, pas sur Android.
+Les captures `store/play/metadata/fr-FR/screenshots/` (fr) et `store/play/metadata/en-US/screenshots/` (en) sont prises sur le **build Windows**, pas sur Android.
 
 1. `git apply store/play/tools/screenshot-hooks.patch` : hooks temporaires pilotés par variables `PDC_SHOT_*` (classe de démo en mémoire, thème clair forcé, langue, vue Élèves, disposition en îlots, place en violation, feuille de détail). Rien n'est persisté. Si le patch ne s'applique plus, relire `lib/main.dart`, `class_editor_screen.dart` et `class_editor/plan_tab.dart` et le refaire à la main.
 2. `flutter build windows --debug`.
