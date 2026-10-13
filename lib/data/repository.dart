@@ -30,6 +30,7 @@ class Repository {
   static const _genderColorPaletteKey = 'plandeclasse_gender_color_palette_v1';
   static const _localePreferenceKey = 'plandeclasse_locale_preference_v1';
   static const _themePreferenceKey = 'plandeclasse_theme_preference_v1';
+  static const _tutorialSeenKey = 'plandeclasse_tutorial_seen_v1';
 
   Future<List<ClassGroup>> load() async => (await loadClassesWithStatus()).data;
 
@@ -98,6 +99,19 @@ class Repository {
   Future<void> saveThemePreference(String themePreference) async {
     final prefs = await SharedPreferences.getInstance();
     await _setString(prefs, _themePreferenceKey, themePreference);
+  }
+
+  Future<bool> loadTutorialSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_tutorialSeenKey) ?? false;
+  }
+
+  Future<void> saveTutorialSeen(bool seen) async {
+    final prefs = await SharedPreferences.getInstance();
+    final written = await prefs.setBool(_tutorialSeenKey, seen);
+    if (!written) {
+      throw StateError('Impossible d\'écrire la préférence $_tutorialSeenKey.');
+    }
   }
 
   /// Taille/position de la fenêtre desktop (Windows/macOS/Linux), ou `null`

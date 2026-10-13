@@ -55,6 +55,7 @@ typedef _PersistenceBatch = ({
   String? palette,
   String? localePreference,
   String? themePreference,
+  bool? tutorialSeen,
 });
 
 class AppState extends ChangeNotifier {
@@ -69,6 +70,7 @@ class AppState extends ChangeNotifier {
   GenderColorPalette genderColorPalette = GenderColorPalette.tealCorail;
   LocalePreference localePreference = LocalePreference.system;
   ThemePreference themePreference = ThemePreference.system;
+  bool tutorialSeen = false;
 
   String? _loadNotice;
   bool _loadNoticeIsError = false;
@@ -82,6 +84,7 @@ class AppState extends ChangeNotifier {
   String? _pendingGenderColorPalette;
   String? _pendingLocalePreference;
   String? _pendingThemePreference;
+  bool? _pendingTutorialSeen;
   Future<void>? _persistenceLoop;
 
   String? get persistenceMessage => _saveError ?? _loadNotice;
@@ -119,6 +122,7 @@ class AppState extends ChangeNotifier {
       (preference) => preference.name == rawThemePreference,
       orElse: () => ThemePreference.system,
     );
+    tutorialSeen = await _repo.loadTutorialSeen();
     loading = false;
     notifyListeners();
   }
@@ -167,6 +171,14 @@ class AppState extends ChangeNotifier {
     _startPersistence();
   }
 
+  void markTutorialSeen() {
+    if (tutorialSeen) return;
+    tutorialSeen = true;
+    _pendingTutorialSeen = true;
+    notifyListeners();
+    _startPersistence();
+  }
+
   ClassGroup addClass(String name) {
     final c = ClassGroup(
       id: newId(),
@@ -181,12 +193,20 @@ class AppState extends ChangeNotifier {
   /// [demoClassAsset], avec un nouvel id pour ne jamais entrer en conflit
   /// avec une classe déjà ajoutée.
   Future<ClassGroup> addDemoClass() async {
-    final raw = await rootBundle.loadString(demoClassAsset);
-    final json = jsonDecode(raw) as Map<String, dynamic>;
-    final c = ClassGroup.fromJson({...json, 'id': newId()});
+    final c = await loadTemporaryDemoClass();
     classes.add(c);
     touch();
     return c;
+  }
+
+  /// Charge la démo pour le tutoriel sans l'ajouter ni la sauvegarder.
+  ///
+  /// L'éditeur peut la modifier normalement, mais [touch] ne sérialise que
+  /// [classes] : fermer le tutoriel ne laisse donc aucune classe d'exemple.
+  Future<ClassGroup> loadTemporaryDemoClass() async {
+    final raw = await rootBundle.loadString(demoClassAsset);
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    return ClassGroup.fromJson({...json, 'id': newId()});
   }
 
   void deleteClass(ClassGroup c) {
@@ -260,7 +280,8 @@ class AppState extends ChangeNotifier {
       _pendingStudentsViewMode != null ||
       _pendingGenderColorPalette != null ||
       _pendingLocalePreference != null ||
-      _pendingThemePreference != null;
+      _pendingThemePreference != null ||
+      _pendingTutorialSeen != null;
 
   /// Une seule boucle d'écriture à la fois. Les modifications reçues pendant
   /// une sauvegarde sont regroupées dans le passage suivant, avec l'état le
@@ -292,6 +313,7 @@ class AppState extends ChangeNotifier {
       palette: _pendingGenderColorPalette,
       localePreference: _pendingLocalePreference,
       themePreference: _pendingThemePreference,
+      tutorialSeen: _pendingTutorialSeen,
     );
     _classesDirty = false;
     _savedRoomsDirty = false;
@@ -299,6 +321,7 @@ class AppState extends ChangeNotifier {
     _pendingGenderColorPalette = null;
     _pendingLocalePreference = null;
     _pendingThemePreference = null;
+    _pendingTutorialSeen = null;
     return batch;
   }
 
@@ -330,6 +353,9 @@ class AppState extends ChangeNotifier {
     if (batch.themePreference != null) {
       await attempt(() => _repo.saveThemePreference(batch.themePreference!));
     }
+    if (batch.tutorialSeen != null) {
+      await attempt(() => _repo.saveTutorialSeen(batch.tutorialSeen!));
+    }
     return firstError;
   }
 
@@ -359,6 +385,7 @@ class AppState extends ChangeNotifier {
     _pendingGenderColorPalette = genderColorPalette.name;
     _pendingLocalePreference = localePreference.name;
     _pendingThemePreference = themePreference.name;
+    _pendingTutorialSeen = tutorialSeen;
     _startPersistence();
   }
 

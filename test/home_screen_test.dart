@@ -39,6 +39,15 @@ Future<void> _settleUntil(WidgetTester tester, bool Function() done) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _finishTutorial(WidgetTester tester) async {
+  for (var index = 0; index < 3; index++) {
+    await tester.tap(find.text('Suivant'));
+    await tester.pumpAndSettle();
+  }
+  await tester.tap(find.text('Fermer'));
+  await tester.pumpAndSettle();
+}
+
 /// Monte l'accueil. [initialised] à false laisse l'état en cours de chargement.
 Future<AppState> _pump(
   WidgetTester tester, {
@@ -66,7 +75,9 @@ Future<AppState> _pump(
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      'plandeclasse_tutorial_seen_v1': true,
+    });
     // rootBundle met en cache le Future de chargement d'un asset. Ce Future est
     // créé dans la zone d'horloge factice du test qui l'a demandé le premier ;
     // un test suivant qui l'attend verrait sa continuation planifiée dans cette
@@ -94,11 +105,67 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
+  testWidgets('propose le tutoriel au premier lancement', (t) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    await state.init();
+
+    await t.pumpWidget(
+      MaterialApp(
+        locale: const Locale('fr'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: HomeScreen(state: state),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    expect(find.text('Besoin d’un coup de main ?'), findsOneWidget);
+    await t.tap(find.text('Pas maintenant'));
+    await t.pumpAndSettle();
+    expect(state.tutorialSeen, isTrue);
+  });
+
+  testWidgets('le premier lancement ouvre le parcours de démonstration', (
+    t,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    await state.init();
+
+    await t.pumpWidget(
+      MaterialApp(
+        locale: const Locale('fr'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: HomeScreen(state: state),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('Démarrer le tutoriel'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Retrouvez vos classes ici'), findsOneWidget);
+    expect(find.text('Suivant'), findsOneWidget);
+    await t.tap(find.text('Suivant'));
+    await t.pumpAndSettle();
+    await _settleUntil(
+      t,
+      () => find.byType(ClassEditorScreen).evaluate().isNotEmpty,
+    );
+
+    expect(state.tutorialSeen, isTrue);
+    expect(state.classes, isEmpty, reason: 'la démo reste temporaire');
+  });
+
   testWidgets('une corruption des classes est signalée sans être écrasée', (
     t,
   ) async {
     const raw = 'données illisibles';
-    SharedPreferences.setMockInitialValues({'plandeclasse_classes_v1': raw});
+    SharedPreferences.setMockInitialValues({
+      'plandeclasse_classes_v1': raw,
+      'plandeclasse_tutorial_seen_v1': true,
+    });
 
     final state = await _pump(t);
 
@@ -346,6 +413,20 @@ void main() {
   });
 
   group('Barre d\'actions', () {
+    testWidgets('le bouton aide décrit l’accueil sans lancer le tutoriel', (
+      t,
+    ) async {
+      final state = await _pump(t);
+
+      await t.tap(find.byTooltip('Aide de l’accueil'));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('Retrouvez vos classes ici'), findsOneWidget);
+      expect(state.tutorialSeen, isTrue);
+      expect(state.classes, isEmpty);
+      expect(find.byType(ClassEditorScreen), findsNothing);
+    });
+
     testWidgets('l\'engrenage mène aux réglages', (t) async {
       await _pump(t);
 
@@ -368,6 +449,34 @@ void main() {
 
       expect(state.classes.map((c) => c.name), ['5ème A', '6ème B']);
       expect(find.byType(ClassEditorScreen), findsOneWidget);
+    });
+
+    testWidgets('le bouton aide relance le tutoriel sans créer de classe', (
+      t,
+    ) async {
+      final state = await _pump(t);
+
+      await t.tap(find.byTooltip('Découvrir Plan de classe'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('Retrouvez vos classes ici'), findsOneWidget);
+      expect(find.text('Suivant'), findsOneWidget);
+      await t.tap(find.text('Suivant'));
+      await t.pumpAndSettle();
+      await _settleUntil(
+        t,
+        () => find.byType(ClassEditorScreen).evaluate().isNotEmpty,
+      );
+      await _settleUntil(
+        t,
+        () => find.textContaining('salles enregistrées').evaluate().isNotEmpty,
+      );
+
+      expect(state.tutorialSeen, isTrue);
+      expect(state.classes, isEmpty);
+      expect(find.textContaining('salles enregistrées'), findsOneWidget);
+
+      await _finishTutorial(t);
+      expect(find.byType(ClassEditorScreen), findsNothing);
     });
   });
 }
