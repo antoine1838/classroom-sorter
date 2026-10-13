@@ -1,0 +1,51 @@
+Seating plan helps teachers build a classroom seating chart quickly: place your students automatically according to your own rules, then fine-tune by hand with a simple drag and drop.
+
+Everything works OFFLINE, right on your device. No data is sent over the Internet: your students' information stays with you.
+
+WHAT YOU CAN DO
+
+Design your room
+• Start from a ready-made template — Rows, U-shape or Groups (tables of 4 or 6, in one or several rows) — or from a blank page, then adjust cell by cell.
+• Add horizontal or vertical aisles to separate two seats that touch on the grid.
+• Rotate each seat to reflect the real orientation of the tables (groups, U-shape…) — a purely visual cue, with no effect on generated plans.
+• A message warns you, without ever blocking, if the room has too few seats for the class size.
+• The first row is the "front", on the board side.
+• Save a layout under a name to reuse it in another class; an already saved room can also be updated. A layout is suggested as soon as you create a class.
+
+Manage your students
+• Add them one by one or import a list.
+• For each student: first name, last name, gender, level (low / average / high), energy (calm / moderate / restless), height (short / medium / tall), poor eyesight, and free-form notes.
+
+Set your rules (per student or per pair)
+• Fixed seat: pin a student to a specific seat.
+• Near the board: keep a student close to the board, within N rows (eyesight, hearing, mobility…).
+• Keep apart: two students will never be neighbours.
+• Keep together: two students placed next to each other.
+• Each rule is either mandatory or a simple preference.
+
+Aim for balance across the whole class
+• Mix genders: avoid neighbours of the same gender.
+• Mix levels: don't create two Low neighbours or two High neighbours.
+• Separate restless students: avoid restless neighbours.
+• Poor eyesight: move the students concerned closer to the board (front half).
+• Avoid a tall student blocking a short one's view: in front of them, or beside them on an arm of the U.
+
+Generate and adjust
+• The plan is calculated automatically to respect your constraints as well as possible.
+• A report shows which rules and goals are met, and which cannot be.
+• Students affected by a problem are highlighted right on their seat; tap any seat to see all its details (full name, attributes, reasons).
+• Rearrange freely by drag and drop, then "Validate" to check that rules and balance are still respected.
+• Not happy? "Regenerate" proposes a new layout.
+
+Readable on any screen
+• The whole room is displayed, in portrait (pinch to zoom, mouse wheel on a computer, or zoom buttons) as well as in landscape.
+• Each student's first name is shown whenever the seat allows it, otherwise unambiguous initials (two students with the same initials stay distinguishable).
+• The colours of the boy/girl marker shown on each seat can be customised (5 palettes to choose from) in the settings.
+• Light, dark or automatic theme, selectable in the settings.
+
+PRIVACY
+• 100% offline, data stored only on the device.
+• No account, no ads, no tracking.
+• No Internet access permission.
+
+Ideal for primary, middle and high school teachers who want to save time at the start of the year or reorganise a class in minutes.

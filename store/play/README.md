@@ -73,7 +73,24 @@ obtenir la même « 6ème B » à 20 élèves (voir `test/fixtures/README.md`).
 
 ## Textes — `metadata/<locale>/`
 
-Un champ = un fichier (convention *fastlane*). Langue par défaut : `fr-FR`.
+Un champ = un fichier (convention *fastlane*). Langue par défaut : `fr-FR` ;
+`en-US` est la traduction anglaise (l'appli est bilingue depuis la 1.12.0).
+Le workflow et `test/release_workflow_test.dart` exigent le changelog du build
+courant dans **chaque** langue, et vérifient les limites de caractères.
+
+**Play Console, une fois** : Fiche Play Store → Gérer les traductions → ajouter
+l'anglais, puis coller `title.txt`, `short_description.txt` et
+`full_description.txt` d'`en-US/`. Les captures et visuels se reprennent de la
+langue par défaut tant qu'on n'en fournit pas d'anglais. À chaque release, les
+notes de version se saisissent par langue (`<fr-FR>…</fr-FR>` / `<en-US>…</en-US>`).
+
+**Côté Android** : le nom de l'appli est la ressource `app_name`
+(`res/values*/strings.xml`), `locales_config.xml` déclare fr/en (langue par
+appli, Android 13+) et `localeFilters` dans `build.gradle.kts` limite le bundle
+à ces deux langues, que Play lit pour annoncer les langues supportées. Côté iOS,
+`CFBundleLocalizations` déclare fr/en ; le nom affiché reste « Plan de classe »
+(un nom anglais demanderait un `InfoPlist.strings` référencé dans le projet
+Xcode, non testable ici).
 
 | Fichier | Champ Play | Limite |
 |---|---|---|

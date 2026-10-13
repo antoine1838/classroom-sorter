@@ -39,11 +39,13 @@ jobs:
 
           if [[ "$GITHUB_REF_TYPE" == "tag" ||
                 "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            CHANGELOG="store/play/metadata/fr-FR/changelogs/$APP_BUILD_NUMBER.txt"
-            if [[ ! -f "$CHANGELOG" ]]; then
-              echo "::error::Changelog Play Store manquant : $CHANGELOG"
-              exit 1
-            fi
+            for locale in fr-FR en-US; do
+              CHANGELOG="store/play/metadata/$locale/changelogs/$APP_BUILD_NUMBER.txt"
+              if [[ ! -f "$CHANGELOG" ]]; then
+                echo "::error::Changelog Play Store manquant : $CHANGELOG"
+                exit 1
+              fi
+            done
           fi
 
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"

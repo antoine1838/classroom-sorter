@@ -1,0 +1,5 @@
+What's new in 1.12.0:
+• Settings: choose a light, dark or automatic theme.
+• Plan: zoom in/out buttons, in addition to pinch and mouse wheel.
+• The interface is now available in English.
+• Fixed plan contrast in dark mode.

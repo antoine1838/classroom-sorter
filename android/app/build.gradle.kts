@@ -25,6 +25,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Play déduit les langues supportées des ressources du bundle : sans ce
+    // filtre, les traductions des bibliothèques en feraient annoncer des dizaines.
+    androidResources {
+        localeFilters += listOf("fr", "en")
+    }
+
     defaultConfig {
         applicationId = "com.antoine1838.plandeclasse"
         // You can update the following values to match your application needs.
