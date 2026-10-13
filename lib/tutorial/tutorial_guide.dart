@@ -226,7 +226,7 @@ _TutorialContent _contentFor(AppLocalizations l10n, TutorialTopic topic) =>
         body: l10n.tutorialHomeDetails,
       ),
       TutorialTopic.room => (
-        icon: Icons.meeting_room_outlined,
+        icon: Icons.grid_on,
         title: l10n.roomTab,
         body: l10n.tutorialRoomDetails,
       ),
@@ -241,7 +241,7 @@ _TutorialContent _contentFor(AppLocalizations l10n, TutorialTopic topic) =>
         body: l10n.tutorialRulesDetails,
       ),
       TutorialTopic.plan => (
-        icon: Icons.event_seat_outlined,
+        icon: Icons.event_seat,
         title: l10n.planTab,
         body: l10n.tutorialPlanDetails,
       ),

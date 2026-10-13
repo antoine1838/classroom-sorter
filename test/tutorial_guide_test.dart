@@ -42,13 +42,31 @@ void main() {
   });
 
   testWidgets('l’aide contextuelle couvre chaque onglet', (t) async {
-    for (final entry in <TutorialTopic, String>{
-      TutorialTopic.welcome: 'Découvrez les quatre étapes',
-      TutorialTopic.home: 'Retrouvez vos classes ici',
-      TutorialTopic.room: 'Créez ou choisissez une disposition',
-      TutorialTopic.students: 'Ajoutez ou importez les élèves',
-      TutorialTopic.rules: 'Les règles définissent les contraintes',
-      TutorialTopic.plan: 'Générez un plan, consultez son rapport',
+    for (final entry in <TutorialTopic, ({String text, IconData icon})>{
+      TutorialTopic.welcome: (
+        text: 'Découvrez les quatre étapes',
+        icon: Icons.school_outlined,
+      ),
+      TutorialTopic.home: (
+        text: 'Retrouvez vos classes ici',
+        icon: Icons.home_outlined,
+      ),
+      TutorialTopic.room: (
+        text: 'Créez ou choisissez une disposition',
+        icon: Icons.grid_on,
+      ),
+      TutorialTopic.students: (
+        text: 'Ajoutez ou importez les élèves',
+        icon: Icons.people_alt_outlined,
+      ),
+      TutorialTopic.rules: (
+        text: 'Les règles définissent les contraintes',
+        icon: Icons.rule_outlined,
+      ),
+      TutorialTopic.plan: (
+        text: 'Générez un plan, consultez son rapport',
+        icon: Icons.event_seat,
+      ),
     }.entries) {
       await t.pumpWidget(
         _app(
@@ -63,7 +81,8 @@ void main() {
 
       await t.tap(find.text('ouvrir'));
       await t.pumpAndSettle();
-      expect(find.textContaining(entry.value), findsOneWidget);
+      expect(find.textContaining(entry.value.text), findsOneWidget);
+      expect(find.byIcon(entry.value.icon), findsOneWidget);
       await t.tap(find.text('Fermer'));
       await t.pumpAndSettle();
     }

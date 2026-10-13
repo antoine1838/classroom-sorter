@@ -375,20 +375,32 @@ class ClassEditorScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.help_outline),
-                            tooltip: l10n.tutorialTitle,
-                            onPressed: () => showTutorialGuide(
-                              context,
-                              topic: switch (DefaultTabController.of(
+                          Builder(
+                            builder: (context) {
+                              final controller = DefaultTabController.of(
                                 context,
-                              ).index) {
-                                0 => TutorialTopic.room,
-                                1 => TutorialTopic.students,
-                                2 => TutorialTopic.rules,
-                                _ => TutorialTopic.plan,
-                              },
-                            ),
+                              );
+                              return AnimatedBuilder(
+                                animation: controller,
+                                builder: (context, _) {
+                                  final index = controller.index;
+                                  final tab = _classTabs(l10n)[index];
+                                  return IconButton(
+                                    icon: const Icon(Icons.help_outline),
+                                    tooltip: l10n.tabHelp(tab.label),
+                                    onPressed: () => showTutorialGuide(
+                                      context,
+                                      topic: switch (index) {
+                                        0 => TutorialTopic.room,
+                                        1 => TutorialTopic.students,
+                                        2 => TutorialTopic.rules,
+                                        _ => TutorialTopic.plan,
+                                      },
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ],
                       ),

@@ -3,6 +3,8 @@
   "appTitle": "Plan de classe",
   "settings": "Réglages",
   "tutorialTitle": "Découvrir Plan de classe",
+  "tabHelp": "Aide : {tab}",
+  "@tabHelp": {"placeholders": {"tab": {}}},
   "tutorialWelcomeTitle": "Besoin d’un coup de main ?",
   "tutorialWelcomeDescription": "Découvrez les quatre étapes pour créer un plan de classe. Une classe de démonstration temporaire sera utilisée et ne sera pas conservée.",
   "tutorialHomeDetails": "Retrouvez vos classes ici : touchez-en une pour la modifier, créez-en une avec « Nouvelle classe » et supprimez-la depuis son bouton dédié. « Classe de démonstration » ouvre un exemple complet pour tester l’application. Les réglages permettent notamment de choisir la langue, l’apparence et l’affichage des élèves.",
