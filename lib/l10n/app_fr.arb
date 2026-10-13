@@ -22,6 +22,8 @@
   "addDemoClass": "Ajouter la classe de démo (6ème B)",
   "newClass": "Nouvelle classe",
   "classDefaultName": "Classe",
+  "classSummary": "{students} élève(s) · {seats} place(s)",
+  "@classSummary": {"placeholders": {"students": {}, "seats": {}}},
   "delete": "Supprimer",
   "retry": "Réessayer",
   "close": "Fermer",

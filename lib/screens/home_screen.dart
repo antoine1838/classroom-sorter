@@ -100,7 +100,10 @@ class HomeScreen extends StatelessWidget {
               : c.name,
         ),
         subtitle: Text(
-          '${c.students.length} élève(s) · ${c.room.capacity} place(s)',
+          AppLocalizations.of(context)!.classSummary(
+            c.students.length,
+            c.room.capacity,
+          ),
         ),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline),

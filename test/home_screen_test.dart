@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
+import 'package:plandeclasse/l10n/generated/app_localizations_en.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/student.dart';
@@ -280,6 +281,13 @@ void main() {
       expect(find.text('6ème B'), findsOneWidget);
       expect(find.text('3 élève(s) · 8 place(s)'), findsOneWidget);
       expect(find.text('3'), findsOneWidget, reason: 'la pastille du effectif');
+    });
+
+    test('le résumé d\'une classe existe aussi en anglais', () {
+      expect(
+        AppLocalizationsEn().classSummary(3, 8),
+        '3 student(s) · 8 seat(s)',
+      );
     });
 
     testWidgets('une classe sans nom s\'affiche « Classe »', (t) async {
