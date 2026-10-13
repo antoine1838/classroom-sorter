@@ -20,6 +20,7 @@ import '../models/room_layouts.dart';
 import '../models/rule.dart';
 import '../models/saved_room.dart';
 import '../models/student.dart';
+import '../tutorial/tutorial_guide.dart';
 import '../widgets/plan_viewport.dart';
 import '../widgets/room_thumbnail.dart';
 import '../widgets/seat_grid.dart';
@@ -81,6 +82,7 @@ List<({IconData icon, String label})> _classTabs(AppLocalizations l10n) => [
 /// Largeur du bouton retour, et respiration minimale autour d'un libellé
 /// d'onglet.
 const double _kBackButtonWidth = 48;
+const double _kHelpButtonWidth = 48;
 
 /// Padding interne d'un [Tab] de chaque côté de son contenu
 /// (`kTabLabelPadding` dans le code source de Flutter = 16dp par côté, donc
@@ -108,6 +110,7 @@ bool _tabLabelsFit(BuildContext context, double width) {
   }
   return width >=
       _kBackButtonWidth +
+          _kHelpButtonWidth +
           _classTabs(_l10n(context)).length * (widest + _kTabLabelBreathing);
 }
 
@@ -285,11 +288,13 @@ class ClassEditorScreen extends StatelessWidget {
   final AppState state;
   final ClassGroup cls;
   final PlanGenerator? planGenerator;
+  final bool startTutorial;
   const ClassEditorScreen({
     super.key,
     required this.state,
     required this.cls,
     this.planGenerator,
+    this.startTutorial = false,
   });
 
   /// Les quatre onglets, avec ou sans libellés.
@@ -340,58 +345,76 @@ class ClassEditorScreen extends StatelessWidget {
       localizations: l10n,
       child: DefaultTabController(
         length: 4,
-        child: Scaffold(
-          body: SafeArea(
-            minimum: navBarMinimum,
-            child: Column(
-              children: [
-                _ClassNameBar(
-                  state: state,
-                  cls: cls,
-                  onRename: () => _rename(context),
-                ),
-                Material(
-                  color: Theme.of(context).colorScheme.surface,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => Row(
-                      children: [
-                        BackButton(
-                          key: kClassBackKey,
-                          onPressed: () => Navigator.maybePop(context),
-                        ),
-                        Expanded(
-                          child: _tabsFor(
-                            context,
-                            labels: _tabLabelsFit(
+        child: _TutorialOnOpen(
+          enabled: startTutorial,
+          child: Scaffold(
+            body: SafeArea(
+              minimum: navBarMinimum,
+              child: Column(
+                children: [
+                  _ClassNameBar(
+                    state: state,
+                    cls: cls,
+                    onRename: () => _rename(context),
+                  ),
+                  Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Row(
+                        children: [
+                          BackButton(
+                            key: kClassBackKey,
+                            onPressed: () => Navigator.maybePop(context),
+                          ),
+                          Expanded(
+                            child: _tabsFor(
                               context,
-                              constraints.maxWidth,
+                              labels: _tabLabelsFit(
+                                context,
+                                constraints.maxWidth,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          IconButton(
+                            icon: const Icon(Icons.help_outline),
+                            tooltip: l10n.tutorialTitle,
+                            onPressed: () => showTutorialGuide(
+                              context,
+                              topic: switch (DefaultTabController.of(
+                                context,
+                              ).index) {
+                                0 => TutorialTopic.room,
+                                1 => TutorialTopic.students,
+                                2 => TutorialTopic.rules,
+                                _ => TutorialTopic.plan,
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: ListenableBuilder(
-                    listenable: state,
-                    builder: (context, _) => TabBarView(
-                      children: [
-                        _RoomTab(state: state, cls: cls),
-                        _StudentsTab(state: state, cls: cls),
-                        _RulesTab(state: state, cls: cls),
-                        _PlanTab(
-                          state: state,
-                          cls: cls,
-                          planGenerator:
-                              planGenerator ??
-                              const PlanGenerationService().generate,
-                        ),
-                      ],
+                  Expanded(
+                    child: ListenableBuilder(
+                      listenable: state,
+                      builder: (context, _) => TabBarView(
+                        children: [
+                          _RoomTab(state: state, cls: cls),
+                          _StudentsTab(state: state, cls: cls),
+                          _RulesTab(state: state, cls: cls),
+                          _PlanTab(
+                            state: state,
+                            cls: cls,
+                            planGenerator:
+                                planGenerator ??
+                                const PlanGenerationService().generate,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -422,6 +445,35 @@ class ClassEditorScreen extends StatelessWidget {
       ClassGroupOps(cls, commit: state.touch).rename(name);
     }
   }
+}
+
+class _TutorialOnOpen extends StatefulWidget {
+  const _TutorialOnOpen({required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  State<_TutorialOnOpen> createState() => _TutorialOnOpenState();
+}
+
+class _TutorialOnOpenState extends State<_TutorialOnOpen> {
+  var _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!widget.enabled || _started) return;
+    _started = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await showEssentialTutorial(context);
+      if (mounted) Navigator.of(context).maybePop();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 // ---------------------------------------------------------------------------

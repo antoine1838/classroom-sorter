@@ -7,6 +7,7 @@ import '../actions/class_group_ops.dart';
 import '../app_state.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/classroom.dart';
+import '../tutorial/tutorial_guide.dart';
 import 'class_editor_screen.dart';
 import 'settings_screen.dart';
 
@@ -33,6 +34,17 @@ class HomeScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => SettingsScreen(state: state)),
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.school_outlined),
+            tooltip: l10n.tutorialTitle,
+            onPressed: () => _startTutorial(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: l10n.homeHelp,
+            onPressed: () =>
+                showTutorialGuide(context, topic: TutorialTopic.home),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -50,13 +62,19 @@ class HomeScreen extends StatelessWidget {
     }
     final content = _buildClassesContent(context);
     final message = state.persistenceMessage;
-    return message == null
+    final body = message == null
         ? content
         : _withPersistenceBanner(
             context,
             content,
             _localizedPersistenceMessage(context, message),
           );
+    return Stack(
+      children: [
+        body,
+        if (!state.tutorialSeen) _FirstTutorialPrompt(state: state),
+      ],
+    );
   }
 
   String _localizedPersistenceMessage(BuildContext context, String fallback) {
@@ -193,6 +211,24 @@ class HomeScreen extends StatelessWidget {
     if (context.mounted) _open(context, c);
   }
 
+  Future<void> _startTutorial(BuildContext context) async {
+    state.markTutorialSeen();
+    await showTutorialGuide(
+      context,
+      topic: TutorialTopic.home,
+      continuesTutorial: true,
+    );
+    if (!context.mounted) return;
+    final demo = await state.loadTemporaryDemoClass();
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ClassEditorScreen(state: state, cls: demo, startTutorial: true),
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(BuildContext context, ClassGroup c) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -215,6 +251,52 @@ class HomeScreen extends StatelessWidget {
     );
     if (ok == true) state.deleteClass(c);
   }
+}
+
+class _FirstTutorialPrompt extends StatefulWidget {
+  const _FirstTutorialPrompt({required this.state});
+
+  final AppState state;
+
+  @override
+  State<_FirstTutorialPrompt> createState() => _FirstTutorialPromptState();
+}
+
+class _FirstTutorialPromptState extends State<_FirstTutorialPrompt> {
+  bool _asked = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_asked) return;
+    _asked = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || widget.state.tutorialSeen) return;
+      final start = await showTutorialWelcome(context);
+      widget.state.markTutorialSeen();
+      if (start != true || !mounted) return;
+      await showTutorialGuide(
+        context,
+        topic: TutorialTopic.home,
+        continuesTutorial: true,
+      );
+      if (!mounted) return;
+      final demo = await widget.state.loadTemporaryDemoClass();
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ClassEditorScreen(
+            state: widget.state,
+            cls: demo,
+            startTutorial: true,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Petite boîte de dialogue « saisir un texte », réutilisable.

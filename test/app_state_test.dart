@@ -32,6 +32,7 @@ class _FailingRepository extends Repository {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test(
@@ -88,6 +89,27 @@ void main() {
       await reloaded.init();
       expect(reloaded.themePreference, ThemePreference.dark);
       expect(reloaded.themeMode, ThemeMode.dark);
+    },
+  );
+
+  test(
+    'le tutoriel est mémorisé et la démo temporaire n’est pas sauvegardée',
+    () async {
+      final state = AppState();
+      await state.init();
+      expect(state.tutorialSeen, isFalse);
+
+      state.markTutorialSeen();
+      await state.flushPendingSaves();
+
+      final demo = await state.loadTemporaryDemoClass();
+      expect(state.classes, isEmpty);
+      expect(demo.students, isNotEmpty);
+
+      final reloaded = AppState();
+      await reloaded.init();
+      expect(reloaded.tutorialSeen, isTrue);
+      expect(reloaded.classes, isEmpty);
     },
   );
 
