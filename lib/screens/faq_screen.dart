@@ -34,7 +34,9 @@ class FaqScreen extends StatelessWidget {
                 child: ExpansionTile(
                   title: Text(entry.question),
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  children: [Text(entry.answer)],
+                  expandedAlignment: Alignment.centerLeft,
+                  expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                  children: [Text(entry.answer, textAlign: TextAlign.start)],
                 ),
               ),
           ],

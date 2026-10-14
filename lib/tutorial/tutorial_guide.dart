@@ -196,14 +196,24 @@ class _TutorialPage extends StatelessWidget {
     final content = _contentFor(l10n, topic);
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(content.icon, size: 44),
+            Row(
+              children: [
+                Icon(content.icon),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    content.title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
-            Text(content.title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            Text(content.body, textAlign: TextAlign.center),
+            Text(content.body),
           ],
         ),
       ),

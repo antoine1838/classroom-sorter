@@ -83,6 +83,18 @@ void main() {
       await t.pumpAndSettle();
       expect(find.textContaining(entry.value.text), findsOneWidget);
       expect(find.byIcon(entry.value.icon), findsOneWidget);
+      expect(
+        find.textContaining('\n'),
+        findsOneWidget,
+        reason: 'une phrase par ligne, pas un bloc de texte',
+      );
+      final keywords = {
+        TutorialTopic.home: ['historique', 'export', 'import'],
+        TutorialTopic.plan: ['archiver', 'historique', 'PDF'],
+      }[entry.key];
+      for (final word in keywords ?? const <String>[]) {
+        expect(find.textContaining(word), findsOneWidget, reason: word);
+      }
       await t.tap(find.text('Fermer'));
       await t.pumpAndSettle();
     }
@@ -108,6 +120,12 @@ void main() {
       await t.tap(find.text('ouvrir'));
       await t.pumpAndSettle();
       expect(find.textContaining('salles enregistrées'), findsOneWidget);
+      final body = t.widget<Text>(find.textContaining('salles enregistrées'));
+      expect(
+        body.textAlign,
+        isNot(TextAlign.center),
+        reason: 'le texte est aligné à gauche, comme dans les autres aides',
+      );
 
       await t.tap(find.text('Suivant'));
       await t.pumpAndSettle();
