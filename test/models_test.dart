@@ -4,6 +4,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandeclasse/models/classroom.dart';
+import 'package:plandeclasse/models/plan_snapshot.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/rule.dart';
 import 'package:plandeclasse/models/saved_room.dart';
@@ -371,6 +372,41 @@ void main() {
       json.remove('savedRoomId');
       final back = ClassGroup.fromJson(json);
       expect(back.savedRoomId, isNull);
+    });
+
+    test('un instantané est sérialisé et indépendant de la classe', () {
+      final cls = ClassGroup(
+        id: 'c',
+        name: '6ème B',
+        students: [Student(id: 'a', firstName: 'Léa')],
+        assignment: {Room.keyOf(0, 0): 'a'},
+      );
+      final snapshot = PlanSnapshot.fromClassGroup(
+        id: 'snapshot',
+        label: 'Septembre',
+        source: cls,
+        createdAt: DateTime.utc(2026, 9, 1),
+      );
+      cls.snapshots.add(snapshot);
+      cls.students.first.firstName = 'Modifiée';
+      cls.assignment.clear();
+
+      final back = ClassGroup.fromJson(cls.toJson());
+      final restored = back.snapshots.single.toClassGroup(
+        id: 'copy',
+        name: '6ème B — Septembre (copie)',
+      );
+
+      expect(restored.students.single.firstName, 'Léa');
+      expect(restored.assignment[Room.keyOf(0, 0)], 'a');
+      expect(restored.snapshots, isEmpty);
+      expect(back.snapshots.single.createdAt, DateTime.utc(2026, 9, 1));
+    });
+
+    test('une sauvegarde antérieure sans historique reste lisible', () {
+      final json = ClassGroup(id: 'c', name: 'Test').toJson()
+        ..remove('snapshots');
+      expect(ClassGroup.fromJson(json).snapshots, isEmpty);
     });
   });
 

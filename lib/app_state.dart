@@ -16,6 +16,7 @@ import 'package:flutter/widgets.dart' show Locale;
 
 import 'data/repository.dart';
 import 'models/classroom.dart';
+import 'models/plan_snapshot.dart';
 import 'models/room.dart';
 import 'models/saved_room.dart';
 import 'models/student.dart' show GenderColorPalette;
@@ -212,6 +213,72 @@ class AppState extends ChangeNotifier {
   void deleteClass(ClassGroup c) {
     classes.remove(c);
     touch();
+  }
+
+  /// Archive explicitement l'état actuel de [source].
+  ///
+  /// Cette opération ne dépend pas de la validation du plan : l'utilisateur
+  /// choisit lui-même quand une version mérite d'être conservée.
+  PlanSnapshot archivePlan(ClassGroup source, String label) {
+    final snapshot = PlanSnapshot.fromClassGroup(
+      id: newId(),
+      label: label.trim(),
+      source: source,
+    );
+    source.snapshots.add(snapshot);
+    touch();
+    return snapshot;
+  }
+
+  void deletePlanSnapshot(ClassGroup source, String snapshotId) {
+    source.snapshots.removeWhere((snapshot) => snapshot.id == snapshotId);
+    touch();
+  }
+
+  /// Restaure un instantané dans une nouvelle classe, sans toucher à la classe
+  /// qui porte l'archive ni à l'archive elle-même.
+  ClassGroup restorePlanSnapshot(ClassGroup source, PlanSnapshot snapshot) {
+    final restored = snapshot.toClassGroup(
+      id: newId(),
+      name: _restoredClassName(source.name, snapshot.label),
+    );
+    classes.add(restored);
+    touch();
+    return restored;
+  }
+
+  /// Ajoute une classe importée sans réutiliser son identifiant local.
+  ClassGroup importClass(ClassGroup source) {
+    final base = source.name.trim().isEmpty ? 'Classe importée' : source.name;
+    final imported = ClassGroup.fromJson(source.toJson())
+      ..name = _uniqueClassName('$base (importée)');
+    // [id] est final : on recrée donc l'objet en remplaçant uniquement son id.
+    final data = imported.toJson()..['id'] = newId();
+    final copy = ClassGroup.fromJson(data);
+    classes.add(copy);
+    touch();
+    return copy;
+  }
+
+  String _restoredClassName(String sourceName, String snapshotLabel) {
+    final base = snapshotLabel.isEmpty
+        ? '$sourceName (copie)'
+        : '$sourceName — $snapshotLabel (copie)';
+    if (!classes.any((cls) => cls.name == base)) return base;
+    var suffix = 2;
+    while (classes.any((cls) => cls.name == '$base $suffix')) {
+      suffix++;
+    }
+    return '$base $suffix';
+  }
+
+  String _uniqueClassName(String base) {
+    if (!classes.any((cls) => cls.name == base)) return base;
+    var suffix = 2;
+    while (classes.any((cls) => cls.name == '$base $suffix')) {
+      suffix++;
+    }
+    return '$base $suffix';
   }
 
   /// À appeler après toute modification d'une classe pour rafraîchir + sauver.

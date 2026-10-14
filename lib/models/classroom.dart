@@ -5,6 +5,7 @@ library;
 import 'room.dart';
 import 'rule.dart';
 import 'student.dart';
+import 'plan_snapshot.dart';
 
 /// Objectifs souples appliqués à toute la classe (mixité / mélange).
 class BalanceSettings {
@@ -59,6 +60,12 @@ class ClassGroup {
   /// absent par l'appelant.
   String? savedRoomId;
 
+  /// Versions archivées explicitement par l'utilisateur pour cette classe.
+  ///
+  /// Elles ne sont jamais modifiées par l'éditeur : une restauration crée une
+  /// nouvelle classe, afin de ne pas écraser le travail en cours.
+  List<PlanSnapshot> snapshots;
+
   ClassGroup({
     required this.id,
     this.name = '',
@@ -68,11 +75,13 @@ class ClassGroup {
     BalanceSettings? balance,
     Map<String, String>? assignment,
     this.savedRoomId,
+    List<PlanSnapshot>? snapshots,
   }) : room = room ?? Room(),
        students = students ?? [],
        rules = rules ?? [],
        balance = balance ?? BalanceSettings(),
-       assignment = assignment ?? {};
+       assignment = assignment ?? {},
+       snapshots = snapshots ?? [];
 
   Student? studentById(String? id) {
     if (id == null) return null;
@@ -99,6 +108,7 @@ class ClassGroup {
     'balance': balance.toJson(),
     'assignment': assignment,
     'savedRoomId': savedRoomId,
+    'snapshots': snapshots.map((snapshot) => snapshot.toJson()).toList(),
   };
 
   factory ClassGroup.fromJson(Map<String, dynamic> j) => ClassGroup(
@@ -118,5 +128,8 @@ class ClassGroup {
       (k, v) => MapEntry(k as String, v as String),
     ),
     savedRoomId: j['savedRoomId'] as String?,
+    snapshots: ((j['snapshots'] ?? const []) as List)
+        .map((entry) => PlanSnapshot.fromJson(entry as Map<String, dynamic>))
+        .toList(),
   );
 }

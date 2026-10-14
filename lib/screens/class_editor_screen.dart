@@ -24,6 +24,8 @@ import '../tutorial/tutorial_guide.dart';
 import '../widgets/plan_viewport.dart';
 import '../widgets/room_thumbnail.dart';
 import '../widgets/seat_grid.dart';
+import 'plan_history_screen.dart';
+import '../services/plan_pdf_service.dart';
 
 part 'class_editor/room_tab.dart';
 part 'class_editor/students_tab.dart';

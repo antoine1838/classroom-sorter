@@ -949,6 +949,10 @@ class PlanGrid extends StatefulWidget {
   /// [GenderColorPalette]).
   final GenderColorPalette genderPalette;
 
+  /// Désactive les interactions de déplacement et de détail pour un aperçu,
+  /// une archive ou une projection.
+  final bool interactive;
+
   const PlanGrid({
     super.key,
     required this.cls,
@@ -958,6 +962,7 @@ class PlanGrid extends StatefulWidget {
     this.onTapSeat,
     this.zoom = 1,
     this.genderPalette = GenderColorPalette.tealCorail,
+    this.interactive = true,
   });
 
   @override
@@ -995,79 +1000,126 @@ class _PlanGridState extends State<PlanGrid> {
         return _FittedGrid(
           room: cls.room,
           cell: m.cell,
-          cellBuilder: (r, c) {
-            if (!cls.room.isSeat(r, c)) {
-              // Allée / vide : simple espace.
-              return SizedBox(width: m.cell, height: kCell);
-            }
-            final seatKey = Room.keyOf(r, c);
-            final student = cls.studentById(cls.assignment[seatKey]);
-            final facing = cls.room.facingOf(r, c);
-            // Regroupé pour ne pas repasser individuellement labels/metrics/
-            // facing/result à chacun des deux appels ci-dessous, identiques
-            // sur ce point (voir _SeatRenderContext).
-            final ctx = (
-              labels: labels,
-              metrics: m,
-              facing: facing,
-              result: widget.result,
-            );
-
-            return _keyboardSeat(
-              context,
-              seatKey: seatKey,
-              row: r,
-              column: c,
-              student: student,
-              renderContext: ctx,
-              child: DragTarget<String>(
-                onWillAcceptWithDetails: (d) => d.data != seatKey,
-                onAcceptWithDetails: (d) => widget.onSwap(d.data, seatKey),
-                builder: (context, candidate, rejected) {
-                  final hovering = candidate.isNotEmpty;
-                  final cell = _seatContent(
-                    context,
-                    student,
-                    hovering,
-                    ctx,
-                    onTapSeat: widget.onTapSeat,
-                    keyboardSelected: _keyboardSourceSeat == seatKey,
-                  );
-                  if (student == null) return cell;
-                  final feedback = Material(
-                    color: Colors.transparent,
-                    child: _seatContent(
-                      context,
-                      student,
-                      false,
-                      ctx,
-                      elevated: true,
-                    ),
-                  );
-                  final placeholder = _emptySeat(cs, false, m.cell, facing);
-                  // Occupé : rendre l'élève déplaçable. Avec un compteur de
-                  // doigts, on passe par SeatDraggable pour qu'un pincement ne
-                  // saisisse pas d'élève.
-                  return widget.tracker == null
-                      ? Draggable<String>(
-                          data: seatKey,
-                          feedback: feedback,
-                          childWhenDragging: placeholder,
-                          child: cell,
-                        )
-                      : SeatDraggable<String>(
-                          tracker: widget.tracker!,
-                          data: seatKey,
-                          feedback: feedback,
-                          childWhenDragging: placeholder,
-                          child: cell,
-                        );
-                },
-              ),
-            );
-          },
+          cellBuilder: (r, c) => _buildGridCell(context, cs, labels, m, r, c),
         );
       },
+    );
+  }
+
+  Widget _buildGridCell(
+    BuildContext context,
+    ColorScheme colorScheme,
+    Map<String, String> labels,
+    SeatMetrics metrics,
+    int row,
+    int column,
+  ) {
+    if (!cls.room.isSeat(row, column)) {
+      // Allée / vide : simple espace.
+      return SizedBox(width: metrics.cell, height: kCell);
+    }
+    final seatKey = Room.keyOf(row, column);
+    final student = cls.studentById(cls.assignment[seatKey]);
+    final facing = cls.room.facingOf(row, column);
+    final renderContext = (
+      labels: labels,
+      metrics: metrics,
+      facing: facing,
+      result: widget.result,
+    );
+
+    return _keyboardSeat(
+      context,
+      seatKey: seatKey,
+      row: row,
+      column: column,
+      student: student,
+      renderContext: renderContext,
+      child: widget.interactive
+          ? _interactiveSeat(
+              context,
+              colorScheme,
+              seatKey,
+              student,
+              renderContext,
+            )
+          : IgnorePointer(
+              child: _seatContent(context, student, false, renderContext),
+            ),
+    );
+  }
+
+  Widget _interactiveSeat(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String seatKey,
+    Student? student,
+    _SeatRenderContext renderContext,
+  ) => DragTarget<String>(
+    onWillAcceptWithDetails: (details) => details.data != seatKey,
+    onAcceptWithDetails: (details) => widget.onSwap(details.data, seatKey),
+    builder: (context, candidate, rejected) {
+      final hovering = candidate.isNotEmpty;
+      final cell = _seatContent(
+        context,
+        student,
+        hovering,
+        renderContext,
+        onTapSeat: widget.onTapSeat,
+        keyboardSelected: _keyboardSourceSeat == seatKey,
+      );
+      if (student == null) return cell;
+      return _draggableStudentSeat(
+        context,
+        colorScheme,
+        seatKey,
+        student,
+        renderContext,
+        cell,
+      );
+    },
+  );
+
+  Widget _draggableStudentSeat(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String seatKey,
+    Student student,
+    _SeatRenderContext renderContext,
+    Widget child,
+  ) {
+    final feedback = Material(
+      color: Colors.transparent,
+      child: _seatContent(
+        context,
+        student,
+        false,
+        renderContext,
+        elevated: true,
+      ),
+    );
+    final placeholder = _emptySeat(
+      colorScheme,
+      false,
+      renderContext.metrics.cell,
+      renderContext.facing,
+    );
+    // Occupé : rendre l'élève déplaçable. Avec un compteur de doigts, on
+    // passe par SeatDraggable pour qu'un pincement ne saisisse pas d'élève.
+    if (widget.tracker == null) {
+      return Draggable<String>(
+        data: seatKey,
+        feedback: feedback,
+        childWhenDragging: placeholder,
+        child: child,
+      );
+    }
+    return SeatDraggable<String>(
+      tracker: widget.tracker!,
+      data: seatKey,
+      feedback: feedback,
+      childWhenDragging: placeholder,
+      child: child,
     );
   }
 

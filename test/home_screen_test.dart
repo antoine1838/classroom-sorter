@@ -1,5 +1,7 @@
 // Écran d'accueil : liste des classes, création, suppression, accès aux
 // réglages et à la classe de démo.
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,7 @@ import 'package:plandeclasse/screens/class_editor_screen.dart';
 import 'package:plandeclasse/screens/faq_screen.dart';
 import 'package:plandeclasse/screens/home_screen.dart';
 import 'package:plandeclasse/screens/settings_screen.dart';
+import 'package:plandeclasse/services/plan_file_service.dart';
 
 ClassGroup _cls(String name, {int students = 2, int rows = 2, int cols = 3}) =>
     ClassGroup(
@@ -54,6 +57,7 @@ Future<AppState> _pump(
   WidgetTester tester, {
   List<ClassGroup> classes = const [],
   bool initialised = true,
+  PlanFileService? planFileService,
 }) async {
   await tester.binding.setSurfaceSize(const Size(1000, 1400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -67,7 +71,7 @@ Future<AppState> _pump(
       locale: const Locale('fr'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: HomeScreen(state: state),
+      home: HomeScreen(state: state, planFileService: planFileService),
     ),
   );
   await tester.pumpAndSettle();
@@ -421,6 +425,92 @@ void main() {
   });
 
   group('Barre d\'actions', () {
+    testWidgets('importe une classe depuis le fichier choisi', (t) async {
+      final source = _cls('5ème A');
+      final service = PlanFileService(
+        pickFile: () async =>
+            Uint8List.fromList(utf8.encode(PlanFileService().encode(source))),
+      );
+      final state = await _pump(t, planFileService: service);
+
+      await t.tap(find.byTooltip('Importer une classe'));
+      await t.pumpAndSettle();
+
+      expect(state.classes, hasLength(1));
+      expect(state.classes.single.name, '5ème A (importée)');
+      expect(
+        find.text('Une nouvelle classe a été créée à partir du fichier.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('signale un fichier de classe invalide', (t) async {
+      final service = PlanFileService(
+        pickFile: () async => Uint8List.fromList(utf8.encode('invalide')),
+      );
+      await _pump(t, planFileService: service);
+
+      await t.tap(find.byTooltip('Importer une classe'));
+      await t.pumpAndSettle();
+
+      expect(
+        find.text('Ce fichier de classe est invalide ou n’est pas compatible.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('exporte après confirmation de confidentialité', (t) async {
+      String? savedName;
+      Uint8List? savedBytes;
+      final service = PlanFileService(
+        saveFile: (name, bytes) async {
+          savedName = name;
+          savedBytes = bytes;
+          return true;
+        },
+      );
+      await _pump(t, classes: [_cls('6ème B')], planFileService: service);
+
+      await t.tap(find.byTooltip('Exporter la classe'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('noms et informations'), findsOneWidget);
+      await t.tap(find.widgetWithText(FilledButton, 'Exporter la classe'));
+      await t.pumpAndSettle();
+
+      expect(savedName, '6ème B.planclasse');
+      expect(savedBytes, isNotNull);
+      expect(find.text('Fichier exporté.'), findsOneWidget);
+    });
+
+    testWidgets('annuler la confidentialité ne lance pas l’export', (t) async {
+      var exported = false;
+      final service = PlanFileService(
+        saveFile: (_, _) async {
+          exported = true;
+          return true;
+        },
+      );
+      await _pump(t, classes: [_cls('6ème B')], planFileService: service);
+
+      await t.tap(find.byTooltip('Exporter la classe'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Annuler'));
+      await t.pumpAndSettle();
+
+      expect(exported, isFalse);
+    });
+
+    testWidgets('le raccourci historique ouvre les archives de la classe', (
+      t,
+    ) async {
+      await _pump(t, classes: [_cls('6ème B')]);
+
+      await t.tap(find.byTooltip('Historique des plans'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Historique des plans'), findsOneWidget);
+    });
+
     testWidgets('le bouton aide décrit l’accueil sans lancer le tutoriel', (
       t,
     ) async {
