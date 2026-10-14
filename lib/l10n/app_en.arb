@@ -3,6 +3,8 @@
   "appTitle": "Seating plan",
   "settings": "Settings",
   "tutorialTitle": "Discover Seating plan",
+  "tabHelp": "Help: {tab}",
+  "@tabHelp": {"placeholders": {"tab": {}}},
   "tutorialWelcomeTitle": "Need a hand?",
   "tutorialWelcomeDescription": "Discover the four steps to create a seating plan. A temporary demo class will be used and will not be kept.",
   "tutorialHomeDetails": "Find your classes here: tap one to edit it, create one with “New class”, and delete it with its dedicated button. “Demo class” opens a complete example to try the app. Settings let you choose the language, appearance, and student display, among other options.",

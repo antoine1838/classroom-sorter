@@ -200,6 +200,18 @@ void main() {
     );
   });
 
+  testWidgets('l’aide identifie l’onglet actif dans son infobulle', (t) async {
+    await _pump(t, _cls());
+
+    expect(find.byTooltip('Aide : Salle'), findsOneWidget);
+
+    await _tab(t, 'Élèves');
+    expect(find.byTooltip('Aide : Élèves'), findsOneWidget);
+
+    await _tab(t, 'Plan');
+    expect(find.byTooltip('Aide : Plan'), findsOneWidget);
+  });
+
   group('Onglet Salle', () {
     testWidgets('les compteurs redimensionnent la salle', (t) async {
       final cls = _cls(rows: 3, cols: 3);
