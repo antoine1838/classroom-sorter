@@ -12,6 +12,7 @@ import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/student.dart';
 import 'package:plandeclasse/screens/class_editor_screen.dart';
+import 'package:plandeclasse/screens/faq_screen.dart';
 import 'package:plandeclasse/screens/home_screen.dart';
 import 'package:plandeclasse/screens/settings_screen.dart';
 
@@ -427,11 +428,26 @@ void main() {
 
       await t.tap(find.byTooltip('Aide de l’accueil'));
       await t.pumpAndSettle();
+      expect(find.text('Aide de l’accueil'), findsOneWidget);
+      expect(find.text('Questions fréquentes'), findsOneWidget);
+      await t.tap(find.text('Aide de l’accueil'));
+      await t.pumpAndSettle();
 
       expect(find.textContaining('Retrouvez vos classes ici'), findsOneWidget);
       expect(state.tutorialSeen, isTrue);
       expect(state.classes, isEmpty);
       expect(find.byType(ClassEditorScreen), findsNothing);
+    });
+
+    testWidgets('le menu aide ouvre la FAQ', (t) async {
+      await _pump(t);
+
+      await t.tap(find.byTooltip('Aide de l’accueil'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Questions fréquentes'));
+      await t.pumpAndSettle();
+
+      expect(find.byType(FaqScreen), findsOneWidget);
     });
 
     testWidgets('l\'engrenage mène aux réglages', (t) async {
