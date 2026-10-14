@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plandeclasse/app_state.dart';
 import 'package:plandeclasse/data/repository.dart';
 import 'package:plandeclasse/models/classroom.dart';
+import 'package:plandeclasse/models/room.dart';
+import 'package:plandeclasse/models/student.dart';
 
 class _BlockingRepository extends Repository {
   final firstSaveMayFinish = Completer<void>();
@@ -177,5 +179,62 @@ void main() {
 
     state.dismissPersistenceMessage();
     expect(state.persistenceMessage, isNull);
+  });
+
+  test('archiver puis restaurer crée une classe indépendante', () async {
+    final state = AppState();
+    await state.init();
+    final source = state.addClass('6ème B')
+      ..students.add(Student(id: 'lea', firstName: 'Léa'))
+      ..assignment[Room.keyOf(0, 0)] = 'lea';
+    state.touch();
+
+    final snapshot = state.archivePlan(source, 'Septembre');
+    source.students.first.firstName = 'Modifiée';
+    source.assignment.clear();
+
+    final restored = state.restorePlanSnapshot(source, snapshot);
+
+    expect(state.classes, hasLength(2));
+    expect(restored.name, '6ème B — Septembre (copie)');
+    expect(restored.students.single.firstName, 'Léa');
+    expect(restored.assignment[Room.keyOf(0, 0)], 'lea');
+    expect(restored.snapshots, isEmpty);
+
+    state.deletePlanSnapshot(source, snapshot.id);
+    expect(source.snapshots, isEmpty);
+  });
+
+  test('importer une classe ne réutilise pas son identifiant', () async {
+    final state = AppState();
+    await state.init();
+    state.addClass('Existante');
+    final imported = state.importClass(
+      ClassGroup(id: 'externe', name: '6ème B'),
+    );
+
+    expect(imported.id, isNot('externe'));
+    expect(imported.name, '6ème B (importée)');
+    expect(state.classes, hasLength(2));
+  });
+
+  test('les copies restaurées et importées reçoivent un nom unique', () async {
+    final state = AppState();
+    await state.init();
+    final source = state.addClass('6ème B');
+    final snapshot = state.archivePlan(source, 'Septembre');
+
+    state.addClass('6ème B — Septembre (copie)');
+    state.addClass('6ème B — Septembre (copie) 2');
+    final restored = state.restorePlanSnapshot(source, snapshot);
+
+    state.addClass('5ème A (importée)');
+    state.addClass('5ème A (importée) 2');
+    final imported = state.importClass(
+      ClassGroup(id: 'external', name: '5ème A'),
+    );
+
+    expect(restored.name, '6ème B — Septembre (copie) 3');
+    expect(imported.name, '5ème A (importée) 3');
   });
 }

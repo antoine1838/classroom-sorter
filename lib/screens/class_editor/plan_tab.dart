@@ -165,10 +165,7 @@ class _PlanTabState extends State<_PlanTab> {
 
     // needMain compte déjà l'espace entre les deux boutons principaux. Chaque
     // commande restante ajoute son icône et l'espace qui la précède.
-    final trailingIcons =
-        (hasReport ? 1 : 0) +
-        (hasPlan ? 2 : 0) +
-        ((_viewport.currentState?.isZoomed ?? false) ? 1 : 0);
+    final trailingIcons = (hasReport ? 1 : 0) + 1 + (hasPlan ? 2 : 0);
     final chrome = _kPlanBarPadding + _kPlanBarGap * trailingIcons;
 
     if (hasReport &&
@@ -209,7 +206,9 @@ class _PlanTabState extends State<_PlanTab> {
       if (cls.assignment.isNotEmpty) _validateControl(labelled: mainLabelled),
       if (_result != null) _reportControl(labelled: labels == _PlanLabels.all),
       if (cls.assignment.isNotEmpty) ...[_zoomInControl(), _zoomOutControl()],
-      if (_viewport.currentState?.isZoomed ?? false) _recenterControl(),
+      if ((_viewport.currentState?.isZoomed ?? false) && planUsesRail(context))
+        _recenterControl(),
+      _planActionsControl(),
     ];
     return _spacedBar(children, vertical: vertical, labelled: mainLabelled);
   }
@@ -275,6 +274,100 @@ class _PlanTabState extends State<_PlanTab> {
     onPressed: () => _viewport.currentState?.zoomOut(),
     icon: const Icon(Icons.zoom_out),
   );
+
+  Widget _planActionsControl() => Tooltip(
+    message: _l10n(context).planHistory,
+    child: PopupMenuButton<_PlanAction>(
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) {
+        switch (action) {
+          case _PlanAction.archive:
+            _archive();
+          case _PlanAction.history:
+            _openHistory();
+          case _PlanAction.exportPdf:
+            _exportPdf();
+        }
+      },
+      itemBuilder: (context) => [
+        if (cls.assignment.isNotEmpty)
+          PopupMenuItem(
+            value: _PlanAction.archive,
+            child: Text(_l10n(context).archivePlan),
+          ),
+        PopupMenuItem(
+          value: _PlanAction.history,
+          child: Text(_l10n(context).planHistory),
+        ),
+        if (cls.assignment.isNotEmpty)
+          PopupMenuItem(
+            value: _PlanAction.exportPdf,
+            child: Text(_l10n(context).exportPdf),
+          ),
+      ],
+    ),
+  );
+
+  void _openHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PlanHistoryScreen(state: widget.state, classGroup: cls),
+      ),
+    );
+  }
+
+  Future<void> _exportPdf() => PlanPdfService().export(
+    cls,
+    genderPalette: widget.state.genderColorPalette,
+  );
+
+  Future<void> _archive() async {
+    if (cls.assignment.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_l10n(context).noPlanToArchive)));
+      return;
+    }
+    final controller = TextEditingController();
+    final label = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_l10n(context).archivePlanTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_l10n(context).archivePlanDescription),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: _l10n(context).archiveLabel,
+                hintText: _l10n(context).archiveLabelHint,
+              ),
+              onSubmitted: (value) => Navigator.pop(context, value.trim()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(_l10n(context).cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: Text(_l10n(context).archive),
+          ),
+        ],
+      ),
+    );
+    if (label == null || !mounted) return;
+    widget.state.archivePlan(cls, label);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(_l10n(context).archiveCreated)));
+  }
 
   /// Dispose les contrôles en rangée ou en colonne, séparés d'un espace.
   Widget _spacedBar(
@@ -519,6 +612,8 @@ class _PlanTabState extends State<_PlanTab> {
     );
   }
 }
+
+enum _PlanAction { archive, history, exportPdf }
 
 /// Tous les attributs d'un élève, en clair — y compris ceux muets sur la
 /// case (Moyen / Modéré / Bonne vue n'affichent aucune icône), sinon les

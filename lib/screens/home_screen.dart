@@ -7,16 +7,21 @@ import '../actions/class_group_ops.dart';
 import '../app_state.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/classroom.dart';
+import '../services/plan_file_service.dart';
 import '../tutorial/tutorial_guide.dart';
 import 'class_editor_screen.dart';
 import 'faq_screen.dart';
+import 'plan_history_screen.dart';
 import 'settings_screen.dart';
 
 enum _HomeHelpAction { currentScreen, faq }
 
 class HomeScreen extends StatelessWidget {
   final AppState state;
-  const HomeScreen({super.key, required this.state});
+  final PlanFileService _planFileService;
+
+  HomeScreen({super.key, required this.state, PlanFileService? planFileService})
+    : _planFileService = planFileService ?? PlanFileService();
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +34,11 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.auto_awesome_outlined),
             tooltip: l10n.addDemoClass,
             onPressed: () => _addDemoClass(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_open_outlined),
+            tooltip: l10n.importPlanFile,
+            onPressed: () => _importPlanFile(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -148,10 +158,30 @@ class HomeScreen extends StatelessWidget {
             context,
           )!.classSummary(c.students.length, c.room.capacity),
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline),
-          tooltip: AppLocalizations.of(context)!.delete,
-          onPressed: () => _confirmDelete(context, c),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: AppLocalizations.of(context)!.planHistory,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PlanHistoryScreen(state: state, classGroup: c),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.save_alt_outlined),
+              tooltip: AppLocalizations.of(context)!.exportPlanFile,
+              onPressed: () => _exportPlanFile(context, c),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: AppLocalizations.of(context)!.delete,
+              onPressed: () => _confirmDelete(context, c),
+            ),
+          ],
         ),
         onTap: () => _open(context, c),
       ),
@@ -198,6 +228,58 @@ class HomeScreen extends StatelessWidget {
         builder: (_) => ClassEditorScreen(state: state, cls: c),
       ),
     );
+  }
+
+  Future<void> _exportPlanFile(
+    BuildContext context,
+    ClassGroup classGroup,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (!await _confirmPrivacyExport(context)) return;
+    final exported = await _planFileService.exportClass(classGroup);
+    if (exported && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.fileExported)));
+    }
+  }
+
+  Future<void> _importPlanFile(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final imported = await _planFileService.importClass();
+      if (imported == null || !context.mounted) return;
+      state.importClass(imported);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.fileImported)));
+    } on FormatException {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.invalidPlanFile)));
+    }
+  }
+
+  Future<bool> _confirmPrivacyExport(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            content: Text(l10n.privacyExportWarning),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(l10n.exportPlanFile),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _addClass(BuildContext context) async {

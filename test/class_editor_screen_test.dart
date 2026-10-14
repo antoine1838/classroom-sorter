@@ -1261,6 +1261,30 @@ void main() {
       expect(readyButton.onPressed, isNotNull);
     });
 
+    testWidgets('signale un échec de génération et réactive la commande', (
+      t,
+    ) async {
+      final cls = _cls(rows: 2, cols: 3, students: 2);
+      await _pump(
+        t,
+        cls,
+        planGenerator: (_) => Future.error(StateError('test')),
+      );
+      await _tab(t, 'Plan');
+
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      expect(
+        find.text('La génération du plan a échoué. Réessayez.'),
+        findsOneWidget,
+      );
+      final generateButton = t.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Générer le plan'),
+      );
+      expect(generateButton.onPressed, isNotNull);
+    });
+
     testWidgets('valider réévalue le plan sans le régénérer', (t) async {
       final cls = _cls(rows: 2, cols: 3, students: 4);
       await _pump(t, cls);
@@ -1277,6 +1301,45 @@ void main() {
 
       await _openReport(t);
       expect(find.text('Toutes les règles sont respectées 🎉'), findsOneWidget);
+    });
+
+    testWidgets('archiver crée un instantané sans modifier le plan', (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+      final plan = Map<String, String>.from(cls.assignment);
+
+      await t.tap(find.byIcon(Icons.more_vert));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Archiver le plan'));
+      await t.pumpAndSettle();
+      expect(find.text('Archiver ce plan'), findsOneWidget);
+      await t.enterText(find.byType(TextField), 'Septembre');
+      await t.tap(find.widgetWithText(FilledButton, 'Archiver'));
+      await t.pumpAndSettle();
+
+      expect(cls.assignment, plan);
+      expect(cls.snapshots, hasLength(1));
+      expect(cls.snapshots.single.label, 'Septembre');
+    });
+
+    testWidgets('le menu ouvre l’historique du plan', (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 2);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+
+      await t.tap(find.byIcon(Icons.more_vert));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Historique des plans'));
+      await t.pumpAndSettle();
+
+      expect(find.text('Historique des plans'), findsOneWidget);
+      expect(
+        find.text('Aucun plan archivé pour cette classe.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets(
