@@ -6,16 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late String pubspec;
-  late String androidWorkflow;
-  late String iosWorkflow;
+  late String releaseWorkflow;
+  late String ciWorkflow;
   late RegExpMatch version;
 
   setUpAll(() {
     pubspec = File('pubspec.yaml').readAsStringSync();
-    androidWorkflow = File(
-      '.github/workflows/build-apk.yml',
-    ).readAsStringSync();
-    iosWorkflow = File('.github/workflows/build-ios.yml').readAsStringSync();
+    releaseWorkflow = File('.github/workflows/release.yml').readAsStringSync();
+    ciWorkflow = File('.github/workflows/ci.yml').readAsStringSync();
     version = RegExp(
       r'^version:\s+([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$',
       multiLine: true,
@@ -68,23 +66,48 @@ void main() {
   });
 
   test('Android et iOS lisent le pubspec sans remplacer ses versions', () {
-    for (final workflow in [androidWorkflow, iosWorkflow]) {
+    for (final workflow in [releaseWorkflow, ciWorkflow]) {
       expect(workflow, contains('Lire et valider la version du pubspec'));
       expect(
         workflow,
         contains(r"tr -d '\r'"),
         reason: 'les runners Linux doivent retirer le CR des fichiers CRLF',
       );
-      expect(workflow, contains(r'$GITHUB_REF_NAME" != "v$APP_VERSION'));
       expect(workflow, isNot(contains('--build-number=')));
       expect(workflow, isNot(contains('--build-name=')));
     }
+    expect(releaseWorkflow, contains(r'$GITHUB_REF_NAME" != "v$APP_VERSION'));
+  });
+
+  test('la CI compile toutes les cibles après format et analyse', () {
+    expect(ciWorkflow, contains('pull_request:'));
+    for (final job in [
+      'build-web',
+      'build-windows',
+      'build-android',
+      'build-ios',
+      'benchmark-seating-engine',
+    ]) {
+      expect(
+        RegExp(
+          '  $job:\\s*\\n(    .*\\n)*?    needs: \\[ format, analyze \\]',
+        ).hasMatch(ciWorkflow),
+        isTrue,
+        reason: '$job doit attendre format et analyze',
+      );
+    }
+  });
+
+  test('la clé de signature n\'existe que dans le workflow de release', () {
+    expect(ciWorkflow, isNot(contains('secrets.')));
+    expect(releaseWorkflow, isNot(contains('pull_request')));
+    expect(releaseWorkflow, contains("tags: [ 'v*' ]"));
   });
 
   test('la release Android exige changelog et secrets de signature', () {
-    expect(androidWorkflow, contains(r'changelogs/$APP_BUILD_NUMBER.txt'));
+    expect(releaseWorkflow, contains(r'changelogs/$APP_BUILD_NUMBER.txt'));
     expect(
-      androidWorkflow,
+      releaseWorkflow,
       contains('Vérifier les secrets de signature Play Store'),
     );
     for (final secret in [
@@ -93,9 +116,9 @@ void main() {
       'KEY_ALIAS',
       'KEY_PASSWORD',
     ]) {
-      expect(androidWorkflow, contains(secret));
+      expect(releaseWorkflow, contains(secret));
     }
-    expect(androidWorkflow, contains('Secret de signature manquant'));
-    expect(androidWorkflow, contains('flutter build appbundle --release'));
+    expect(releaseWorkflow, contains('Secret de signature manquant'));
+    expect(releaseWorkflow, contains('flutter build appbundle --release'));
   });
 }
