@@ -159,6 +159,10 @@ void main() {
       () => find.byType(ClassEditorScreen).evaluate().isNotEmpty,
     );
 
+    // L'accueil quitte l'arbre dès que le tutoriel est marqué comme vu : le
+    // parcours ne doit pas en dépendre pour enchaîner sur l'éditeur.
+    expect(find.byType(ClassEditorScreen), findsOneWidget);
+    expect(find.text('Suivant'), findsOneWidget, reason: 'tutoriel affiché');
     expect(state.tutorialSeen, isTrue);
     expect(state.classes, isEmpty, reason: 'la démo reste temporaire');
   });

@@ -108,7 +108,11 @@ class HomeScreen extends StatelessWidget {
     return Stack(
       children: [
         body,
-        if (!state.tutorialSeen) _FirstTutorialPrompt(state: state),
+        if (!state.tutorialSeen)
+          _FirstTutorialPrompt(
+            state: state,
+            onStart: () => _startTutorial(context),
+          ),
       ],
     );
   }
@@ -362,9 +366,13 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _FirstTutorialPrompt extends StatefulWidget {
-  const _FirstTutorialPrompt({required this.state});
+  const _FirstTutorialPrompt({required this.state, required this.onStart});
 
   final AppState state;
+
+  /// Déroule le tutoriel. Doit vivre hors de ce widget : il disparaît de
+  /// l'arbre dès que le tutoriel est marqué comme vu.
+  final Future<void> Function() onStart;
 
   @override
   State<_FirstTutorialPrompt> createState() => _FirstTutorialPromptState();
@@ -381,25 +389,11 @@ class _FirstTutorialPromptState extends State<_FirstTutorialPrompt> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || widget.state.tutorialSeen) return;
       final start = await showTutorialWelcome(context);
-      widget.state.markTutorialSeen();
-      if (start != true || !mounted) return;
-      await showTutorialGuide(
-        context,
-        topic: TutorialTopic.home,
-        continuesTutorial: true,
-      );
-      if (!mounted) return;
-      final demo = await widget.state.loadTemporaryDemoClass();
-      if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ClassEditorScreen(
-            state: widget.state,
-            cls: demo,
-            startTutorial: true,
-          ),
-        ),
-      );
+      if (start == true) {
+        await widget.onStart();
+      } else {
+        widget.state.markTutorialSeen();
+      }
     });
   }
 
