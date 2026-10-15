@@ -67,7 +67,7 @@ void main() {
   test('la politique de confidentialité décrit la protection Android', () {
     final policy = File('docs/index.html').readAsStringSync();
 
-    expect(policy, contains('dernière mise à jour : 18 septembre 2026'));
+    expect(policy, contains('dernière mise à jour : 14 octobre 2026'));
     expect(
       RegExp(
         r'La sauvegarde\s+automatique Android est désactivée',

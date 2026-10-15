@@ -4,7 +4,8 @@ Application mobile (Android / iPhone) et de bureau pour **affecter des élèves 
 des places** dans une salle de classe selon différents critères.
 
 Construite avec **Flutter** (un seul code pour Android, iOS, Web, Windows).
-Données **stockées localement** sur l'appareil (hors-ligne, aucune donnée envoyée
+Interface en **français et en anglais** (langue du système, ou choix dans les
+réglages). Données **stockées localement** sur l'appareil (hors-ligne, aucune donnée envoyée
 sur Internet — adapté aux données élèves). Les écritures sont sérialisées et
 une copie locale de la dernière sauvegarde valide permet une restauration
 automatique si les données principales deviennent illisibles ; l'application
@@ -57,8 +58,8 @@ automatiques vers un autre appareil.
   ajuster à la main. Bouton *Régénérer* pour une autre proposition, bouton
   *Valider* pour recontrôler règles et équilibre après un ajustement manuel.
   Lisible à toute taille d'écran : la salle s'affiche en entier en **portrait**
-  (avec **zoom** à deux doigts, ou à la molette de souris sur bureau/web) comme
-  en **paysage** (cases plus larges, chrome qui se replie en rail au besoin),
+  (avec **zoom** à deux doigts, à la molette de souris sur bureau/web, ou avec
+  les **boutons de zoom** de la barre de commandes) comme en **paysage** (cases plus larges, chrome qui se replie en rail au besoin),
   avec le **prénom** en clair dès que la place
   le permet, sinon des **initiales désambiguïsées** (deux élèves aux mêmes
   initiales sont distingués). Les élèves concernés par un problème sont
@@ -69,6 +70,21 @@ automatiques vers un autre appareil.
   formulaire d'édition. Le genre est indiqué par un liseré coloré sur le bord
   gauche de la carte (muet pour « non précisé ») ; sa palette (5 au choix) se
   règle dans l'écran **Réglages**.
+- **Archives et export** : le menu ⋮ de l'onglet Plan permet d'**archiver** le
+  plan sous un nom (« Trimestre 1 »…) — instantané de la salle, des élèves, des
+  règles et du plan — d'ouvrir l'**historique** des plans archivés (consulter,
+  **restaurer comme nouvelle classe** sans toucher à la classe actuelle,
+  supprimer) et d'**exporter le plan en PDF** (A4 paysage, partage ou
+  impression). Depuis l'accueil, chaque classe a son historique et un bouton
+  d'**export** vers un fichier `.planclasse` (JSON) ; le bouton d'**import**, en
+  haut, recrée une classe depuis un tel fichier. Ces fichiers contiennent les
+  noms des élèves : l'appli le rappelle avant de les partager.
+- **Réglages** : langue (système, français, anglais), thème (clair, sombre,
+  automatique), vue de l'onglet Élèves et palette de couleurs du genre.
+- **Aide** : un **tutoriel guidé** (icône « école » de l'accueil) sur une classe
+  de démonstration temporaire, une aide propre à chaque écran (menu « ? » de
+  l'accueil, bouton d'aide de chaque onglet d'une classe) et une **FAQ hors
+  ligne**.
 - **Classe de démo** : bouton (accueil, écran vide ou icône dans l'AppBar)
   pour ajouter en un clic une classe fictive « 6ème B » déjà remplie (20
   élèves, salle, règles, plan) — pratique pour découvrir l'appli sans tout
@@ -129,15 +145,17 @@ La configuration (`pubspec.yaml`) ne cible qu'Android et iOS. Les icônes **Web*
 L'icône représente la salle vue du professeur : les pupitres (élèves face au
 tableau) au-dessus de la barre « tableau », en bas — cohérent avec l'écran Salle.
 
-Les ressources de la fiche **Google Play** (icône 512×512, bandeau 1024×500,
-captures d'écran, descriptions fr-FR, politique de confidentialité) sont
-regroupées dans **`store/play/`** — voir [store/play/README.md](store/play/README.md).
+Les ressources de la fiche **Google Play** (icône 512×512 ; par langue — fr-FR
+et en-US — textes, bandeau 1024×500, captures d'écran et notes de version ;
+politique de confidentialité) sont regroupées dans **`store/play/`** — voir
+[store/play/README.md](store/play/README.md).
 
 Sur un tag `vX.Y.Z`, le workflow [.github/workflows/release.yml](.github/workflows/release.yml)
 construit l'**APK** (installable directement) et l'**AAB signé** (tous les ABI, à
 téléverser sur Google Play), et les joint à la Release GitHub. La ligne
 `version: X.Y.Z+N` du `pubspec.yaml` est l'unique source de vérité : le tag doit
-être `vX.Y.Z`, et le changelog Play Store `changelogs/N.txt` doit exister. Une
+être `vX.Y.Z`, et le changelog Play Store `changelogs/N.txt` doit exister dans
+chaque langue (`fr-FR` et `en-US`). Une
 release taguée ou manuelle échoue immédiatement si un secret de signature
 manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 
@@ -174,38 +192,57 @@ pas d'un seuil absolu, volontairement fragile entre machines.
 
 ```
 lib/
-├── models/        Student, Room/Seat, Rule, ClassGroup   (+ (dé)sérialisation JSON)
-│               room_layouts.dart — générateurs de disposition (Rangées, U, Îlots, page blanche)
-├── engine/        seating_engine.dart — moteur d'affectation
+├── models/        Student, Room/Seat, Rule, ClassGroup, SavedRoom   (+ JSON)
+│               room_layouts.dart — dispositions (Rangées, U, Îlots, page blanche)
+│               plan_snapshot.dart — instantané d'un plan archivé
+├── engine/        seating_engine.dart — moteur d'affectation (recuit simulé)
+│               plan_generation.dart — génération du plan (hors thread UI)
 │               plan_issue.dart — problèmes rapportés + élèves concernés
+├── actions/       class_group_ops.dart — opérations métier sur une classe
 ├── data/          repository.dart — stockage local (shared_preferences)
-├── screens/       home_screen, class_editor_screen (4 onglets), settings_screen
+├── services/      plan_file_service.dart — export/import `.planclasse`
+│               plan_pdf_service.dart — export PDF du plan
+├── screens/       home_screen, class_editor_screen (4 onglets : Salle, Élèves,
+│                  Règles, Plan, dans class_editor/), plan_history_screen,
+│                  settings_screen, faq_screen
+├── tutorial/      tutorial_guide.dart — tutoriel guidé et aides par écran
 ├── widgets/       seat_grid.dart — grilles (édition + drag & drop)
-│               plan_viewport.dart — zoom / pan du plan (2 doigts), sans conflit
-│                                    avec le glisser-déposer d'un élève (1 doigt)
+│               plan_viewport.dart — zoom / pan du plan, sans conflit avec le
+│                                    glisser-déposer d'un élève
+│               room_thumbnail.dart — aperçu d'une salle
+├── l10n/          app_fr.arb (gabarit) et app_en.arb ; le code généré
+│                  (generated/) n'est pas versionné
 ├── app_state.dart État global (ChangeNotifier) + persistance
-└── main.dart      Point d'entrée + fenêtre desktop (taille/position)
+└── main.dart      Point d'entrée, thème, langue et fenêtre desktop
 
 assets/demo/       demo_class_6emeb.json — classe de démo embarquée (voir
                    test/fixtures/README.md pour la fixture de référence)
-
-test/              moteur : engine_test, seating_neighbors_test, room_orientation_test,
-                   balance_objectives_test, plan_issues_test
-                   modèles / stockage : models_test, repository_test, app_state_test,
-                   demo_class_test, room_layouts_test
-                   écrans : home_screen_test, settings_screen_test,
-                   class_editor_screen_test, layout_responsive_test,
-                   plan_landscape_test, students_grid_cycle_test,
-                   students_table_toggle_test
-                   plan : seat_label_rules_test, plan_viewport_gestures_test,
-                   seat_marking_test
-                   widget_test
+assets/fonts/      Noto Sans — police embarquée pour l'export PDF
+store/play/        fiche Google Play, par langue (voir store/play/README.md)
+tool/              benchmark du moteur de placement (utilisé par la CI)
+notes/             notes de chantier (décisions de conception, historiques)
+docs/              politique de confidentialité, publiée via GitHub Pages
 ```
+
+Les tests sont dans `test/`, un fichier par sujet : moteur (`engine_test`,
+`seating_neighbors_test`, `balance_objectives_test`, `plan_issues_test`…),
+modèles et stockage (`models_test`, `repository_test`, `app_state_test`…),
+écrans (`home_screen_test`, `class_editor_screen_test`, `settings_screen_test`,
+`faq_screen_test`, `tutorial_guide_test`, `plan_history_screen_test`…), plan
+(`plan_landscape_test`, `plan_viewport_gestures_test`, `seat_marking_test`…),
+services (`plan_file_service_test`, `plan_pdf_service_test`) et garde-fous de
+release (`release_workflow_test`, `android_privacy_config_test`). Lancer
+`flutter test` ; `flutter analyze` et `dart format lib test tool` doivent aussi
+passer, la CI les exige.
 
 ## Idées d'améliorations
 
-- Glisser un élève « non placé » directement sur une place libre.
-- Plusieurs salles / plans par classe (matin, après-midi…).
-- Export / impression du plan (PDF) et partage.
+Pistes, sans engagement :
+
+- Glisser un élève « non placé » directement sur une place libre (aujourd'hui,
+  le rapport se contente de les signaler).
+- Mode **présentation** : afficher le plan en plein écran, lisible de loin
+  (vidéoprojecteur, tableau numérique).
+- Comparer deux plans archivés côte à côte.
 - Réglage de l'intensité des préférences (pondération).
-- Sauvegarde/restauration (export d'un fichier de classe).
+- Importer des élèves depuis un fichier (CSV) en plus de la saisie d'une liste.
