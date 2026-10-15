@@ -1,0 +1,6 @@
+Nouveautés 1.13.0 :
+• Tutoriel guidé et FAQ hors ligne, depuis l'accueil.
+• Historique : archivez un plan, consultez-le, restaurez-le en nouvelle classe.
+• Export PDF du plan, export et import d'une classe en fichier.
+• Aide plus précise sur chaque onglet.
+• Meilleur affichage sur Android bord à bord.

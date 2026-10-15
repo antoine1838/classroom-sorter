@@ -42,6 +42,12 @@ pour montrer les boutons de zoom du Plan (issue #24) et fournir un jeu
 élèves fictifs). Le jeu français reste dans `metadata/fr-FR/screenshots/`. Procédure et
 scripts : [`tools/README.md`](tools/README.md).
 
+**Refaites pour la 1.13.0** : les 8, dans les deux langues, pour montrer les
+nouveautés de l'accueil (import, historique, export, tutoriel, aide) et de
+l'onglet Plan (menu ⋮, aide). Le hook de capture marque en plus le tutoriel
+comme déjà vu, sans quoi l'invite de bienvenue s'affiche sur l'accueil. Le
+patch `tools/screenshot-hooks.patch` est regénéré pour ce code.
+
 ### Contraintes de dimensions (⚠️ vérifié le 2026-08-25)
 
 Les captures servent **deux** slots de la Play Console, téléphone et

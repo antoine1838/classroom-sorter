@@ -1,8 +1,8 @@
 diff --git a/lib/main.dart b/lib/main.dart
-index 0f3991e..350ce84 100644
+index 70ad247..92cea4d 100644
 --- a/lib/main.dart
 +++ b/lib/main.dart
-@@ -1,16 +1,66 @@
+@@ -1,6 +1,7 @@
  /// Plan de classe — application d'affectation des élèves aux places.
  library;
  
@@ -10,9 +10,7 @@ index 0f3991e..350ce84 100644
  import 'dart:io';
  
  import 'package:flutter/material.dart';
-+import 'package:flutter/services.dart' show rootBundle;
- import 'package:window_manager/window_manager.dart';
- 
+@@ -10,8 +11,57 @@ import 'package:window_manager/window_manager.dart';
  import 'app_state.dart';
  import 'data/repository.dart';
  import 'l10n/generated/app_localizations.dart';
@@ -42,6 +40,7 @@ index 0f3991e..350ce84 100644
 +  state.localePreference = en
 +      ? LocalePreference.english
 +      : LocalePreference.french;
++  state.tutorialSeen = true;
 +  state.studentsViewMode = env['PDC_SHOT_VIEW'] == 'compact'
 +      ? StudentsViewMode.compact
 +      : StudentsViewMode.complete;
@@ -69,7 +68,7 @@ index 0f3991e..350ce84 100644
  bool get _isDesktop =>
      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
  
-@@ -37,11 +87,15 @@ void main() async {
+@@ -46,11 +96,15 @@ void main() async {
        },
      );
    }
@@ -87,7 +86,7 @@ index 0f3991e..350ce84 100644
  
    @override
    State<ClassroomSortApp> createState() => _ClassroomSortAppState();
-@@ -49,16 +103,29 @@ class ClassroomSortApp extends StatefulWidget {
+@@ -58,16 +112,29 @@ class ClassroomSortApp extends StatefulWidget {
  
  class _ClassroomSortAppState extends State<ClassroomSortApp>
      with WindowListener {
@@ -119,7 +118,7 @@ index 0f3991e..350ce84 100644
    @override
    void dispose() {
      if (_isDesktop) windowManager.removeListener(this);
-@@ -106,7 +173,7 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
+@@ -115,7 +182,7 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
          themeMode: _state.themeMode,
          localizationsDelegates: AppLocalizations.localizationsDelegates,
          supportedLocales: AppLocalizations.supportedLocales,
@@ -129,7 +128,7 @@ index 0f3991e..350ce84 100644
      );
    }
 diff --git a/lib/screens/class_editor/plan_tab.dart b/lib/screens/class_editor/plan_tab.dart
-index 57af659..5e4bbfd 100644
+index 33008ff..dc81a81 100644
 --- a/lib/screens/class_editor/plan_tab.dart
 +++ b/lib/screens/class_editor/plan_tab.dart
 @@ -8,10 +8,14 @@ class _PlanTab extends StatefulWidget {
@@ -168,13 +167,13 @@ index 57af659..5e4bbfd 100644
    void didUpdateWidget(covariant _PlanTab oldWidget) {
      super.didUpdateWidget(oldWidget);
 diff --git a/lib/screens/class_editor_screen.dart b/lib/screens/class_editor_screen.dart
-index f273df6..3a27038 100644
+index 9706d63..680581d 100644
 --- a/lib/screens/class_editor_screen.dart
 +++ b/lib/screens/class_editor_screen.dart
-@@ -285,11 +285,17 @@ class ClassEditorScreen extends StatelessWidget {
-   final AppState state;
+@@ -291,12 +291,18 @@ class ClassEditorScreen extends StatelessWidget {
    final ClassGroup cls;
    final PlanGenerator? planGenerator;
+   final bool startTutorial;
 +  final int initialIndex;
 +  final bool autoValidatePlan;
 +  final String? openSeat;
@@ -183,26 +182,27 @@ index f273df6..3a27038 100644
      required this.state,
      required this.cls,
      this.planGenerator,
+     this.startTutorial = false,
 +    this.initialIndex = 0,
 +    this.autoValidatePlan = false,
 +    this.openSeat,
    });
  
    /// Les quatre onglets, avec ou sans libellés.
-@@ -340,6 +346,7 @@ class ClassEditorScreen extends StatelessWidget {
+@@ -347,6 +353,7 @@ class ClassEditorScreen extends StatelessWidget {
        localizations: l10n,
        child: DefaultTabController(
          length: 4,
 +        initialIndex: initialIndex,
-         child: Scaffold(
-           body: SafeArea(
-             minimum: navBarMinimum,
-@@ -386,6 +393,8 @@ class ClassEditorScreen extends StatelessWidget {
-                           planGenerator:
-                               planGenerator ??
-                               const PlanGenerationService().generate,
-+                          autoValidatePlan: autoValidatePlan,
-+                          openSeat: openSeat,
-                         ),
-                       ],
-                     ),
+         child: _TutorialOnOpen(
+           enabled: startTutorial,
+           child: Scaffold(
+@@ -422,6 +429,8 @@ class ClassEditorScreen extends StatelessWidget {
+                             planGenerator:
+                                 planGenerator ??
+                                 const PlanGenerationService().generate,
++                            autoValidatePlan: autoValidatePlan,
++                            openSeat: openSeat,
+                           ),
+                         ],
+                       ),

@@ -1,0 +1,6 @@
+What's new in 1.13.0:
+• Guided tutorial and offline FAQ, from the home screen.
+• History: archive a plan, view it, restore it as a new class.
+• PDF export of the plan, export and import of a class as a file.
+• More precise help on each tab.
+• Better display on edge-to-edge Android.

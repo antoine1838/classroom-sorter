@@ -7,8 +7,7 @@ WHAT YOU CAN DO
 Design your room
 • Start from a ready-made template — Rows, U-shape or Groups (tables of 4 or 6, in one or several rows) — or from a blank page, then adjust cell by cell.
 • Add horizontal or vertical aisles to separate two seats that touch on the grid.
-• Rotate each seat to reflect the real orientation of the tables (groups, U-shape…) — a purely visual cue, with no effect on generated plans.
-• A message warns you, without ever blocking, if the room has too few seats for the class size.
+• Rotate each seat to reflect the real orientation of the tables (groups, U-shape…).
 • The first row is the "front", on the board side.
 • Save a layout under a name to reuse it in another class; an already saved room can also be updated. A layout is suggested as soon as you create a class.
 
@@ -37,6 +36,14 @@ Generate and adjust
 • Rearrange freely by drag and drop, then "Validate" to check that rules and balance are still respected.
 • Not happy? "Regenerate" proposes a new layout.
 
+Archive and export
+• Archive a plan under a name ("Term 1"), view it later or restore it as a new class.
+• PDF export to print or share the plan.
+• Export a class to a file and import it elsewhere. It contains student names: share it only with authorised people.
+
+Getting started
+• Guided tutorial on a temporary demo class, and an offline FAQ.
+
 Readable on any screen
 • The whole room is displayed, in portrait (pinch to zoom, mouse wheel on a computer, or zoom buttons) as well as in landscape.
 • Each student's first name is shown whenever the seat allows it, otherwise unambiguous initials (two students with the same initials stay distinguishable).
@@ -44,7 +51,7 @@ Readable on any screen
 • Light, dark or automatic theme, selectable in the settings.
 
 PRIVACY
-• 100% offline, data stored only on the device.
+• 100% offline, data stored on the device (unless you export it).
 • No account, no ads, no tracking.
 • No Internet access permission.
 

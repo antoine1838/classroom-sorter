@@ -21,7 +21,7 @@ void main() {
   });
 
   test('la version migre au-dessus du dernier versionCode généré', () {
-    expect(version.group(1), '1.12.0');
+    expect(version.group(1), '1.13.0');
     expect(int.parse(version.group(2)!), greaterThan(118));
   });
 
