@@ -1,0 +1,2 @@
+Correctif 1.13.1 :
+• Le tutoriel du premier lancement se poursuit désormais jusqu’à la classe de démonstration après l’aide de l’accueil, au lieu de s’arrêter.

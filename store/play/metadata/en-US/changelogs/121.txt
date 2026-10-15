@@ -1,0 +1,2 @@
+Fix in 1.13.1:
+• The first-launch tutorial now carries on to the demo class after the home screen help, instead of stopping.
