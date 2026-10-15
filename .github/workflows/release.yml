@@ -1,8 +1,10 @@
-name: Build APK
+name: Release Android
 
+# Seul workflow qui voit la clé de signature : réservé aux tags et au lancement
+# manuel, jamais aux pull requests. La validation (format, analyse, builds de
+# toutes les plateformes) vit dans ci.yml.
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*' ]     # un tag v1.0.0, v1.2.3... déclenche une Release
   workflow_dispatch:   # permet de lancer le build manuellement depuis l'onglet Actions
 
@@ -10,7 +12,7 @@ permissions:
   contents: write      # nécessaire pour que le workflow crée la Release
 
 jobs:
-  build-apk:
+  build-release:
     runs-on: ubuntu-latest
     env:
       # Remonté au niveau job pour pouvoir tester sa présence dans un `if:`.
@@ -37,22 +39,18 @@ jobs:
             exit 1
           fi
 
-          if [[ "$GITHUB_REF_TYPE" == "tag" ||
-                "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            for locale in fr-FR en-US; do
-              CHANGELOG="store/play/metadata/$locale/changelogs/$APP_BUILD_NUMBER.txt"
-              if [[ ! -f "$CHANGELOG" ]]; then
-                echo "::error::Changelog Play Store manquant : $CHANGELOG"
-                exit 1
-              fi
-            done
-          fi
+          for locale in fr-FR en-US; do
+            CHANGELOG="store/play/metadata/$locale/changelogs/$APP_BUILD_NUMBER.txt"
+            if [[ ! -f "$CHANGELOG" ]]; then
+              echo "::error::Changelog Play Store manquant : $CHANGELOG"
+              exit 1
+            fi
+          done
 
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "APP_BUILD_NUMBER=$APP_BUILD_NUMBER" >> "$GITHUB_ENV"
 
       - name: Vérifier les secrets de signature Play Store
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -85,7 +83,6 @@ jobs:
         run: flutter pub get
 
       - name: Configurer la signature (keystore)
-        if: env.KEYSTORE_BASE64 != ''
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -102,12 +99,10 @@ jobs:
       - name: Compiler l'APK release
         # build-name et build-number viennent exclusivement du pubspec.
         # --target-platform : on ne compile que les ABI ARM (téléphones réels : arm64 + 32 bits).
-        # On omet x86_64, qui ne sert qu'aux émulateurs -> AOT/CMake plus rapides, aucun impact
-        # utilisateur. Pour tester en local sur émulateur x86_64 : `flutter run` (debug, ABI auto).
         run: flutter build apk --release --target-platform android-arm64,android-arm
 
       - name: Renommer l'APK selon la convention
-        # Tag v1.0.0 -> classroom-sorter-1.0.0.apk ; sinon -> classroom-sorter-build-<run>.apk
+        # Tag v1.0.0 -> classroom-sorter-1.0.0.apk ; lancement manuel -> classroom-sorter-build-<run>.apk
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             LABEL="$APP_VERSION"
@@ -126,24 +121,19 @@ jobs:
           if-no-files-found: error
 
       # --- App Bundle (.aab) : format requis par Google Play ---
-      # Uniquement sur release (tag) ou lancement manuel, pour ne pas ralentir
-      # chaque push sur main (l'AAB compile TOUS les ABI, donc plus long).
       - name: Compiler l'AAB release (Play Store)
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         # Pas de --target-platform : Play génère les APK par appareil à partir de
         # tous les ABI présents dans le bundle (arm64, arm32, x86_64).
         # build-name et build-number viennent exclusivement du pubspec.
         run: flutter build appbundle --release
 
       - name: Renommer l'AAB selon la convention
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         run: |
           LABEL="${APK_LABEL}"
           mv build/app/outputs/bundle/release/app-release.aab "build/app/outputs/bundle/release/classroom-sorter-$LABEL.aab"
           echo "AAB_PATH=build/app/outputs/bundle/release/classroom-sorter-$LABEL.aab" >> "$GITHUB_ENV"
 
       - name: Publier l'AAB en artefact
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: classroom-sorter-${{ env.APK_LABEL }}-aab

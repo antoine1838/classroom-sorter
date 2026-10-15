@@ -16,7 +16,7 @@ void main() {
     await t.pumpWidget(_app());
 
     expect(find.text('Questions fréquentes'), findsOneWidget);
-    expect(find.text('Comment gérer une AESH ?'), findsOneWidget);
+    expect(find.text('Comment gérer un AESH ?'), findsOneWidget);
     expect(
       find.text(
         'Pourquoi les prénoms ne prennent-ils pas de majuscule automatiquement ?',
@@ -25,7 +25,7 @@ void main() {
     );
     expect(
       find.text(
-        'Quelle est la différence entre une règle obligatoire et une préférence ?',
+        'Quelle est la différence entre une contrainte et une préférence ?',
       ),
       findsOneWidget,
     );
@@ -36,17 +36,24 @@ void main() {
     expect(find.text('Où sont enregistrées mes données ?'), findsOneWidget);
   });
 
-  testWidgets('la réponse AESH explique les règles obligatoires', (t) async {
+  testWidgets('la réponse AESH explique la contrainte « Rapprocher »', (
+    t,
+  ) async {
     await t.pumpWidget(_app());
 
-    await t.tap(find.text('Comment gérer une AESH ?'));
+    await t.tap(find.text('Comment gérer un AESH ?'));
     await t.pumpAndSettle();
 
-    expect(
-      find.textContaining('règle obligatoire « Rapprocher »'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('contrainte « Rapprocher »'), findsOneWidget);
     expect(find.textContaining('jusqu’à quatre élèves'), findsOneWidget);
+
+    final answer = find.textContaining('contrainte « Rapprocher »');
+    expect(t.widget<Text>(answer).data, contains('\n'));
+    expect(
+      t.getTopLeft(answer).dx,
+      closeTo(t.getTopLeft(find.text('Comment gérer un AESH ?')).dx, 1),
+      reason: 'la réponse est alignée à gauche, comme la question',
+    );
   });
 
   testWidgets('la FAQ est localisée en anglais', (t) async {

@@ -133,7 +133,7 @@ Les ressources de la fiche **Google Play** (icône 512×512, bandeau 1024×500,
 captures d'écran, descriptions fr-FR, politique de confidentialité) sont
 regroupées dans **`store/play/`** — voir [store/play/README.md](store/play/README.md).
 
-Sur un tag `vX.Y.Z`, le CI ([.github/workflows/build-apk.yml](.github/workflows/build-apk.yml))
+Sur un tag `vX.Y.Z`, le workflow [.github/workflows/release.yml](.github/workflows/release.yml)
 construit l'**APK** (installable directement) et l'**AAB signé** (tous les ABI, à
 téléverser sur Google Play), et les joint à la Release GitHub. La ligne
 `version: X.Y.Z+N` du `pubspec.yaml` est l'unique source de vérité : le tag doit
@@ -145,7 +145,10 @@ manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 
 Sur chaque push sur `main` et chaque pull request, le CI
 ([.github/workflows/ci.yml](.github/workflows/ci.yml)) vérifie le format Dart,
-lance `flutter analyze` et compile les cibles Web et Windows. Le workflow
+lance `flutter analyze`, puis — seulement si ces deux contrôles passent —
+compile **toutes** les cibles (Web, Windows, Android, iOS non signé) et compare
+les performances du moteur de placement à `main` (PR uniquement). Aucun de ces
+jobs n'a accès à la clé de signature, réservée à `release.yml`. Le workflow
 ([.github/workflows/sonarcloud.yml](.github/workflows/sonarcloud.yml)) lance
 les tests avec couverture puis envoie une analyse statique à
 [SonarCloud](https://sonarcloud.io/project/overview?id=antoine1838_classroom-sorter)

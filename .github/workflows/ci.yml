@@ -46,7 +46,10 @@ jobs:
       - name: Analyser le projet
         run: flutter analyze
 
+  # Les builds ne démarrent que si le code est propre : un format ou une analyse
+  # en échec évite de lancer des builds lourds (macOS, Android) pour rien.
   build-web:
+    needs: [ format, analyze ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
@@ -72,16 +75,33 @@ jobs:
           if-no-files-found: error
 
   build-windows:
+    needs: [ format, analyze ]
     runs-on: windows-latest
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
 
+      # SDK sur D: et caches SDK/pub distincts : mesuré ≈ 40 s plus rapide que
+      # `cache: true` sur C:\hostedtoolcache (restauration du SDK de 1,8 Go).
+      # La clé du SDK porte la version de Flutter : la changer avec elle.
+      - name: Restaurer le SDK Flutter
+        uses: actions/cache@v5
+        with:
+          path: D:/flutter/stable-3.47.6-x64
+          key: flutter-sdk-windows-d-3.47.6
+
+      - name: Restaurer le cache pub
+        uses: actions/cache@v5
+        with:
+          path: C:\Users\runneradmin\AppData\Local\Pub\Cache
+          key: flutter-pub-windows-${{ hashFiles('pubspec.lock') }}
+
       - name: Installer Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.6
-          cache: true
+          cache: false
+          cache-path: D:/flutter/stable-3.47.6-x64
 
       - name: Récupérer les dépendances
         run: flutter pub get
@@ -96,7 +116,107 @@ jobs:
           path: build/windows/x64/runner/Release
           if-no-files-found: error
 
+  build-android:
+    needs: [ format, analyze ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Lire et valider la version du pubspec
+        shell: bash
+        run: |
+          VERSION=$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml | tr -d '\r')
+          if [[ ! "$VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
+            echo "::error::Version pubspec invalide : $VERSION (attendu X.Y.Z+N)"
+            exit 1
+          fi
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          cache: true
+
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      - name: Compiler l'APK release
+        # Aucune clé de signature ici (voir release.yml) : build.gradle.kts retombe
+        # sur la clé de debug. build-name et build-number viennent du pubspec.
+        # ABI ARM seulement : les téléphones réels, compilation plus rapide.
+        run: flutter build apk --release --target-platform android-arm64,android-arm
+
+      - name: Renommer l'APK
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/classroom-sorter-build-$GITHUB_RUN_NUMBER.apk"
+          echo "APK_LABEL=build-$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Publier l'APK en artefact
+        uses: actions/upload-artifact@v7
+        with:
+          name: classroom-sorter-${{ env.APK_LABEL }}
+          path: build/app/outputs/flutter-apk/classroom-sorter-${{ env.APK_LABEL }}.apk
+          if-no-files-found: error
+
+  build-ios:
+    needs: [ format, analyze ]
+    # iOS ne se compile que sur macOS. Build NON SIGNÉ (--no-codesign) : il valide
+    # que le code iOS compile ; le .app n'est pas installable sur un iPhone.
+    runs-on: macos-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Lire et valider la version du pubspec
+        shell: bash
+        run: |
+          VERSION=$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml | tr -d '\r')
+          if [[ ! "$VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
+            echo "::error::Version pubspec invalide : $VERSION (attendu X.Y.Z+N)"
+            exit 1
+          fi
+
+          echo "APP_VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+          echo "APP_BUILD_NUMBER=${BASH_REMATCH[2]}" >> "$GITHUB_ENV"
+
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          cache: true
+
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      - name: Compiler l'app iOS (non signée)
+        # build-name et build-number viennent exclusivement du pubspec.
+        run: flutter build ios --release --no-codesign
+
+      - name: Empaqueter le .app (zip)
+        # ditto préserve correctement la structure du bundle .app.
+        run: |
+          LABEL="$APP_VERSION-$APP_BUILD_NUMBER"
+          cd build/ios/iphoneos
+          ditto -c -k --sequesterRsrc --keepParent Runner.app "plan-de-classe-ios-$LABEL-unsigned.zip"
+          echo "IOS_LABEL=$LABEL" >> "$GITHUB_ENV"
+
+      - name: Publier le .app en artefact
+        uses: actions/upload-artifact@v7
+        with:
+          name: plan-de-classe-ios-${{ env.IOS_LABEL }}-unsigned
+          path: build/ios/iphoneos/plan-de-classe-ios-${{ env.IOS_LABEL }}-unsigned.zip
+          if-no-files-found: error
+
   benchmark-seating-engine:
+    needs: [ format, analyze ]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
