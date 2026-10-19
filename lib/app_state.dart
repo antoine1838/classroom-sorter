@@ -89,6 +89,8 @@ class AppState extends ChangeNotifier {
   String? _pendingLocalePreference;
   String? _pendingThemePreference;
   bool? _pendingTutorialSeen;
+  // Parties dont la dernière écriture a échoué : réécrites au prochain lot.
+  _PersistenceBatch? _failedParts;
   Future<void>? _persistenceLoop;
 
   String? get persistenceMessage => _saveError ?? _loadNotice;
@@ -364,8 +366,8 @@ class AppState extends ChangeNotifier {
   Future<void> _drainPersistence() async {
     try {
       while (_hasPendingPersistence) {
-        final error = await _persistBatch(_takePersistenceBatch());
-        _applyPersistenceResult(error);
+        final result = await _persistBatch(_takePersistenceBatch());
+        _applyPersistenceResult(result);
       }
     } finally {
       _persistenceLoop = null;
@@ -375,16 +377,21 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Prend les modifications en attente, plus les parties dont la précédente
+  /// écriture a échoué ([_failedParts]) : elles sont réessayées avec ce lot,
+  /// une valeur plus récente l'emportant sur celle qui avait échoué.
   _PersistenceBatch _takePersistenceBatch() {
+    final failed = _failedParts;
     final batch = (
-      saveClasses: _classesDirty,
-      saveRooms: _savedRoomsDirty,
-      viewMode: _pendingStudentsViewMode,
-      palette: _pendingGenderColorPalette,
-      localePreference: _pendingLocalePreference,
-      themePreference: _pendingThemePreference,
-      tutorialSeen: _pendingTutorialSeen,
+      saveClasses: _classesDirty || (failed?.saveClasses ?? false),
+      saveRooms: _savedRoomsDirty || (failed?.saveRooms ?? false),
+      viewMode: _pendingStudentsViewMode ?? failed?.viewMode,
+      palette: _pendingGenderColorPalette ?? failed?.palette,
+      localePreference: _pendingLocalePreference ?? failed?.localePreference,
+      themePreference: _pendingThemePreference ?? failed?.themePreference,
+      tutorialSeen: _pendingTutorialSeen ?? failed?.tutorialSeen,
     );
+    _failedParts = null;
     _classesDirty = false;
     _savedRoomsDirty = false;
     _pendingStudentsViewMode = null;
@@ -395,41 +402,71 @@ class AppState extends ChangeNotifier {
     return batch;
   }
 
-  Future<Object?> _persistBatch(_PersistenceBatch batch) async {
+  /// Écrit [batch] et renvoie la première erreur ainsi que les parties qui
+  /// n'ont pas pu être écrites.
+  Future<({Object? error, _PersistenceBatch failed})> _persistBatch(
+    _PersistenceBatch batch,
+  ) async {
     Object? firstError;
-    Future<void> attempt(Future<void> Function() save) async {
+    Future<bool> attempt(Future<void> Function() save) async {
       try {
         await save();
+        return true;
       } catch (error) {
         firstError ??= error;
+        return false;
       }
     }
 
-    if (batch.saveClasses) {
-      await attempt(() => _repo.save(classes));
+    Future<T?> attemptValue<T extends Object>(
+      T? value,
+      Future<void> Function(T value) save,
+    ) async {
+      if (value == null) return null;
+      return await attempt(() => save(value)) ? null : value;
     }
-    if (batch.saveRooms) {
-      await attempt(() => _repo.saveSavedRooms(savedRooms));
-    }
-    if (batch.viewMode != null) {
-      await attempt(() => _repo.saveStudentsViewMode(batch.viewMode!));
-    }
-    if (batch.palette != null) {
-      await attempt(() => _repo.saveGenderColorPalette(batch.palette!));
-    }
-    if (batch.localePreference != null) {
-      await attempt(() => _repo.saveLocalePreference(batch.localePreference!));
-    }
-    if (batch.themePreference != null) {
-      await attempt(() => _repo.saveThemePreference(batch.themePreference!));
-    }
-    if (batch.tutorialSeen != null) {
-      await attempt(() => _repo.saveTutorialSeen(batch.tutorialSeen!));
-    }
-    return firstError;
+
+    final failed = (
+      saveClasses:
+          batch.saveClasses && !await attempt(() => _repo.save(classes)),
+      saveRooms:
+          batch.saveRooms &&
+          !await attempt(() => _repo.saveSavedRooms(savedRooms)),
+      viewMode: await attemptValue(batch.viewMode, _repo.saveStudentsViewMode),
+      palette: await attemptValue(batch.palette, _repo.saveGenderColorPalette),
+      localePreference: await attemptValue(
+        batch.localePreference,
+        _repo.saveLocalePreference,
+      ),
+      themePreference: await attemptValue(
+        batch.themePreference,
+        _repo.saveThemePreference,
+      ),
+      tutorialSeen: await attemptValue(
+        batch.tutorialSeen,
+        _repo.saveTutorialSeen,
+      ),
+    );
+    return (error: firstError, failed: failed);
   }
 
-  void _applyPersistenceResult(Object? error) {
+  /// Conserve les parties en échec pour le prochain lot (sans réessai
+  /// automatique, pour ne pas boucler) et n'efface l'erreur affichée qu'une
+  /// fois qu'il n'en reste plus aucune.
+  void _applyPersistenceResult(
+    ({Object? error, _PersistenceBatch failed}) result,
+  ) {
+    final failed = result.failed;
+    final hasFailure =
+        failed.saveClasses ||
+        failed.saveRooms ||
+        failed.viewMode != null ||
+        failed.palette != null ||
+        failed.localePreference != null ||
+        failed.themePreference != null ||
+        failed.tutorialSeen != null;
+    _failedParts = hasFailure ? failed : null;
+    final error = result.error;
     if (error == null) {
       _clearSaveError();
     } else {
