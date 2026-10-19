@@ -615,10 +615,8 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
   void _computeWidths(double maxWidth) {
     final cols = _fields.length;
     final seps = (cols - 1).toDouble(); // séparateurs de 1 px
-    final headStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-      fontWeight: FontWeight.w600,
-      fontSize: 8.5,
-    );
+    final headStyle = Theme.of(context).textTheme.labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600, fontSize: 8.5);
     final minWidths = [
       for (final f in _fields) _minColWidth(f.label, headStyle),
     ];
@@ -651,9 +649,8 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
 
   @override
   Widget _buildHeader(ColorScheme cs, {required bool compact}) {
-    final headStyle = Theme.of(
-      context,
-    ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600);
+    final headStyle = Theme.of(context).textTheme.labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600);
     return SizedBox(
       height: _kHeaderH,
       child: Row(
@@ -846,9 +843,8 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
 
   @override
   Widget _buildHeader(ColorScheme cs, {required bool compact}) {
-    final headStyle = Theme.of(
-      context,
-    ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600);
+    final headStyle = Theme.of(context).textTheme.labelSmall
+        ?.copyWith(fontWeight: FontWeight.w600);
     return SizedBox(
       height: _headerHeightFor(compact),
       child: Row(

@@ -56,24 +56,21 @@ void main() {
     },
   );
 
-  test(
-    'LocalePreference : système par défaut, anglais persistant après changement',
-    () async {
-      final state = AppState();
-      await state.init();
-      expect(state.localePreference, LocalePreference.system);
-      expect(state.locale, isNull);
+  test('LocalePreference : système par défaut, anglais persistant après changement', () async {
+    final state = AppState();
+    await state.init();
+    expect(state.localePreference, LocalePreference.system);
+    expect(state.locale, isNull);
 
-      state.setLocalePreference(LocalePreference.english);
-      expect(state.locale?.languageCode, 'en');
-      await state.flushPendingSaves();
+    state.setLocalePreference(LocalePreference.english);
+    expect(state.locale?.languageCode, 'en');
+    await state.flushPendingSaves();
 
-      final reloaded = AppState();
-      await reloaded.init();
-      expect(reloaded.localePreference, LocalePreference.english);
-      expect(reloaded.locale?.languageCode, 'en');
-    },
-  );
+    final reloaded = AppState();
+    await reloaded.init();
+    expect(reloaded.localePreference, LocalePreference.english);
+    expect(reloaded.locale?.languageCode, 'en');
+  });
 
   test(
     'ThemePreference : système par défaut, sombre persistant après changement',

@@ -18,12 +18,10 @@ void main() {
   late String extractionRules;
 
   setUpAll(() {
-    manifest = File(
-      'android/app/src/main/AndroidManifest.xml',
-    ).readAsStringSync();
-    legacyRules = File(
-      'android/app/src/main/res/xml/backup_rules.xml',
-    ).readAsStringSync();
+    manifest = File('android/app/src/main/AndroidManifest.xml')
+        .readAsStringSync();
+    legacyRules = File('android/app/src/main/res/xml/backup_rules.xml')
+        .readAsStringSync();
     extractionRules = File(
       'android/app/src/main/res/xml/data_extraction_rules.xml',
     ).readAsStringSync();
@@ -69,15 +67,13 @@ void main() {
 
     expect(policy, contains('dernière mise à jour : 14 octobre 2026'));
     expect(
-      RegExp(
-        r'La sauvegarde\s+automatique Android est désactivée',
-      ).hasMatch(policy),
+      RegExp(r'La sauvegarde\s+automatique Android est désactivée')
+          .hasMatch(policy),
       isTrue,
     );
     expect(
-      RegExp(
-        r'exclues des\s+sauvegardes cloud et des transferts automatiques',
-      ).hasMatch(policy),
+      RegExp(r'exclues des\s+sauvegardes cloud et des transferts automatiques')
+          .hasMatch(policy),
       isTrue,
     );
   });

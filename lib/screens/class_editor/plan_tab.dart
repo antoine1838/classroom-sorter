@@ -364,9 +364,8 @@ class _PlanTabState extends State<_PlanTab> {
     );
     if (label == null || !mounted) return;
     widget.state.archivePlan(cls, label);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(_l10n(context).archiveCreated)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(_l10n(context).archiveCreated)));
   }
 
   /// Dispose les contrôles en rangée ou en colonne, séparés d'un espace.

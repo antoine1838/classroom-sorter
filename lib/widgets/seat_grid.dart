@@ -771,8 +771,7 @@ class RoomEditorGrid extends StatelessWidget {
           ? _editorSeatLabelFallback(room, r, c)
           : _editorSeatLabel(l10n, room, r, c),
       hint: isSeat
-          ? l10n?.seatRotateHint ??
-                'Activer pour faire tourner la place. Supprimer avec la touche Suppr.'
+          ? l10n?.seatRotateHint ?? 'Activer pour faire tourner la place. Supprimer avec la touche Suppr.'
           : l10n?.seatAddHint ?? 'Activer pour ajouter une place.',
       onTap: primaryAction,
       customSemanticsActions: isSeat
@@ -1255,8 +1254,7 @@ class _PlanGridState extends State<PlanGrid> {
           : student == null
           ? l10n?.freeSeatMoveHint ??
                 'Place disponible pour le déplacement au clavier.'
-          : l10n?.seatDetailsMoveHint ??
-                'Activer pour les détails. Appuyer sur M pour déplacer cet élève.',
+          : l10n?.seatDetailsMoveHint ?? 'Activer pour les détails. Appuyer sur M pour déplacer cet élève.',
       onTap: student != null || selectingMove
           ? () => _activateSeat(context, seatKey, student)
           : null,

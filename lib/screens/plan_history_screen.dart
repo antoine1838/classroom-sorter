@@ -10,8 +10,10 @@ import '../models/plan_snapshot.dart';
 import '../models/student.dart';
 import '../services/plan_pdf_service.dart';
 
-typedef SnapshotPdfExporter =
-    Future<void> Function(ClassGroup classGroup, GenderColorPalette palette);
+typedef SnapshotPdfExporter = Future<void> Function(
+  ClassGroup classGroup,
+  GenderColorPalette palette,
+);
 
 class PlanHistoryScreen extends StatelessWidget {
   const PlanHistoryScreen({
@@ -67,12 +69,10 @@ class PlanHistoryScreen extends StatelessWidget {
     required bool showTime,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    final date = MaterialLocalizations.of(
-      context,
-    ).formatMediumDate(snapshot.createdAt.toLocal());
-    final time = MaterialLocalizations.of(
-      context,
-    ).formatTimeOfDay(TimeOfDay.fromDateTime(snapshot.createdAt.toLocal()));
+    final date = MaterialLocalizations.of(context)
+        .formatMediumDate(snapshot.createdAt.toLocal());
+    final time = MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(snapshot.createdAt.toLocal()));
     return Card(
       child: ListTile(
         leading: const Icon(Icons.history),
@@ -135,9 +135,8 @@ class PlanHistoryScreen extends StatelessWidget {
     );
     if (confirmed != true || !context.mounted) return;
     state.restorePlanSnapshot(classGroup, snapshot);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.archiveRestored)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.archiveRestored)));
   }
 
   Future<void> _delete(BuildContext context, PlanSnapshot snapshot) async {

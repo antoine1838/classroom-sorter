@@ -306,9 +306,7 @@ class PlanViewportState extends State<PlanViewport> {
                 widget.maxScale.toStringAsFixed(0),
               ) ??
               'Vue du plan, zoom ${_scale.toStringAsFixed(1)} sur ${widget.maxScale.toStringAsFixed(0)}.',
-          hint:
-              AppLocalizations.of(context)?.planViewportHint ??
-              'Utilisez plus et moins pour zoomer, zéro pour recentrer. Le pincement et la molette restent disponibles.',
+          hint: AppLocalizations.of(context)?.planViewportHint ?? 'Utilisez plus et moins pour zoomer, zéro pour recentrer. Le pincement et la molette restent disponibles.',
           liveRegion: true,
           child: FocusableActionDetector(
             shortcuts: {
