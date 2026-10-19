@@ -9,9 +9,17 @@ on:
 permissions:
   contents: read
 
+# Une PR mise à jour annule sa validation en cours (seul le dernier commit
+# compte). Les push sur main ne sont jamais annulés : chaque commit publié
+# garde sa validation complète.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   format:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -30,6 +38,7 @@ jobs:
 
   analyze:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -46,11 +55,32 @@ jobs:
       - name: Analyser le projet
         run: flutter analyze
 
-  # Les builds ne démarrent que si le code est propre : un format ou une analyse
-  # en échec évite de lancer des builds lourds (macOS, Android) pour rien.
-  build-web:
-    needs: [ format, analyze ]
+  test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v7
+
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          cache: true
+
+      - name: Récupérer les dépendances
+        run: flutter pub get
+
+      - name: Lancer les tests
+        run: flutter test
+
+  # Les builds ne démarrent que si le code est propre : un format, une analyse
+  # ou un test en échec évite de lancer des builds lourds (macOS, Android) pour
+  # rien, et empêche de publier un artefact issu d'un code qui ne passe pas.
+  build-web:
+    needs: [ format, analyze, test ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -75,8 +105,9 @@ jobs:
           if-no-files-found: error
 
   build-windows:
-    needs: [ format, analyze ]
+    needs: [ format, analyze, test ]
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -117,8 +148,9 @@ jobs:
           if-no-files-found: error
 
   build-android:
-    needs: [ format, analyze ]
+    needs: [ format, analyze, test ]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -167,10 +199,11 @@ jobs:
           if-no-files-found: error
 
   build-ios:
-    needs: [ format, analyze ]
+    needs: [ format, analyze, test ]
     # iOS ne se compile que sur macOS. Build NON SIGNÉ (--no-codesign) : il valide
     # que le code iOS compile ; le .app n'est pas installable sur un iPhone.
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -216,9 +249,10 @@ jobs:
           if-no-files-found: error
 
   benchmark-seating-engine:
-    needs: [ format, analyze ]
+    needs: [ format, analyze, test ]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout de la révision courante
         uses: actions/checkout@v7

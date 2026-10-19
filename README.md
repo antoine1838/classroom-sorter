@@ -163,10 +163,12 @@ manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 
 Sur chaque push sur `main` et chaque pull request, le CI
 ([.github/workflows/ci.yml](.github/workflows/ci.yml)) vérifie le format Dart,
-lance `flutter analyze`, puis — seulement si ces deux contrôles passent —
-compile **toutes** les cibles (Web, Windows, Android, iOS non signé) et compare
-les performances du moteur de placement à `main` (PR uniquement). Aucun de ces
-jobs n'a accès à la clé de signature, réservée à `release.yml`. Le workflow
+lance `flutter analyze` et `flutter test`, puis — seulement si ces trois
+contrôles passent — compile **toutes** les cibles (Web, Windows, Android, iOS
+non signé) et compare les performances du moteur de placement à `main` (PR
+uniquement). Une PR mise à jour annule sa validation en cours ; chaque job a un
+délai maximal. Aucun de ces jobs n'a accès à la clé de signature, réservée à
+`release.yml`. Le workflow
 ([.github/workflows/sonarcloud.yml](.github/workflows/sonarcloud.yml)) lance
 les tests avec couverture puis envoie une analyse statique à
 [SonarCloud](https://sonarcloud.io/project/overview?id=antoine1838_classroom-sorter)

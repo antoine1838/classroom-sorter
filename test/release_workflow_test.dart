@@ -4,6 +4,26 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// Découpe un workflow en blocs `job -> texte` (le fichier peut être en CRLF,
+// d'où la normalisation à la lecture).
+Map<String, String> jobBlocks(String workflow) {
+  final jobs = workflow.substring(workflow.indexOf('\njobs:\n'));
+  final headers = RegExp(
+    r'^  ([a-z][\w-]*):[ \t]*$',
+    multiLine: true,
+  ).allMatches(jobs).toList();
+  return {
+    for (var i = 0; i < headers.length; i++)
+      headers[i].group(1)!: jobs.substring(
+        headers[i].end,
+        i + 1 < headers.length ? headers[i + 1].start : jobs.length,
+      ),
+  };
+}
+
+String readWorkflow(String name) =>
+    File('.github/workflows/$name').readAsStringSync().replaceAll('\r\n', '\n');
+
 void main() {
   late String pubspec;
   late String releaseWorkflow;
@@ -12,8 +32,8 @@ void main() {
 
   setUpAll(() {
     pubspec = File('pubspec.yaml').readAsStringSync();
-    releaseWorkflow = File('.github/workflows/release.yml').readAsStringSync();
-    ciWorkflow = File('.github/workflows/ci.yml').readAsStringSync();
+    releaseWorkflow = readWorkflow('release.yml');
+    ciWorkflow = readWorkflow('ci.yml');
     version = RegExp(
       r'^version:\s+([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$',
       multiLine: true,
@@ -79,8 +99,9 @@ void main() {
     expect(releaseWorkflow, contains(r'$GITHUB_REF_NAME" != "v$APP_VERSION'));
   });
 
-  test('la CI compile toutes les cibles après format et analyse', () {
+  test('la CI compile toutes les cibles après format, analyse et tests', () {
     expect(ciWorkflow, contains('pull_request:'));
+    final jobs = jobBlocks(ciWorkflow);
     for (final job in [
       'build-web',
       'build-windows',
@@ -88,14 +109,36 @@ void main() {
       'build-ios',
       'benchmark-seating-engine',
     ]) {
+      expect(jobs, contains(job));
       expect(
-        RegExp(
-          '  $job:\\s*\\n(    .*\\n)*?    needs: \\[ format, analyze \\]',
-        ).hasMatch(ciWorkflow),
-        isTrue,
-        reason: '$job doit attendre format et analyze',
+        jobs[job],
+        contains('needs: [ format, analyze, test ]'),
+        reason: '$job doit attendre format, analyze et test',
       );
     }
+  });
+
+  test('la CI lance flutter test dans son propre job', () {
+    expect(jobBlocks(ciWorkflow)['test'], contains('run: flutter test'));
+  });
+
+  test('chaque job a un timeout, la CI annule les PR obsolètes', () {
+    final timeout = RegExp(r'^    timeout-minutes: \d+$', multiLine: true);
+    for (final entry in {'ci.yml': ciWorkflow}.entries) {
+      for (final job in jobBlocks(entry.value).entries) {
+        expect(
+          timeout.hasMatch(job.value),
+          isTrue,
+          reason: '${entry.key} : le job ${job.key} sans timeout-minutes',
+        );
+      }
+    }
+    expect(
+      ciWorkflow,
+      contains(
+        r"cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+      ),
+    );
   });
 
   test('la clé de signature n\'existe que dans le workflow de release', () {
