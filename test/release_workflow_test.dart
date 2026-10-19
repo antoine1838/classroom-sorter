@@ -40,8 +40,10 @@ void main() {
     ).firstMatch(pubspec)!;
   });
 
-  test('la version migre au-dessus du dernier versionCode généré', () {
-    expect(version.group(1), '1.13.1');
+  // La version X.Y.Z n'est plus figée ici : elle vient du pubspec (déjà lue et
+  // validée par `version`) et chaque release la fait évoluer. Seul le
+  // versionCode a un plancher, pour ne jamais repasser sous un code déjà publié.
+  test('le build number dépasse le dernier versionCode généré', () {
     expect(int.parse(version.group(2)!), greaterThan(120));
   });
 
