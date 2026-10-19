@@ -11,6 +11,7 @@ permissions:
 jobs:
   validate-latest-stable:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -93,6 +94,7 @@ jobs:
 
   build-windows-latest-stable:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7

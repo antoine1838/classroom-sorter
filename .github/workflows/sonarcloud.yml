@@ -11,9 +11,15 @@ on:
 permissions:
   contents: read
 
+# Une PR mise à jour annule son analyse en cours ; jamais les push sur main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7

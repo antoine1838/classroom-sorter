@@ -124,15 +124,17 @@ void main() {
 
   test('chaque job a un timeout, la CI annule les PR obsolètes', () {
     final timeout = RegExp(r'^    timeout-minutes: \d+$', multiLine: true);
-    for (final entry in {
-      'ci.yml': ciWorkflow,
-      'release.yml': releaseWorkflow,
-    }.entries) {
-      for (final job in jobBlocks(entry.value).entries) {
+    final workflows = Directory(
+      '.github/workflows',
+    ).listSync().whereType<File>().where((file) => file.path.endsWith('.yml'));
+    expect(workflows, isNotEmpty);
+    for (final file in workflows) {
+      final name = file.uri.pathSegments.last;
+      for (final job in jobBlocks(readWorkflow(name)).entries) {
         expect(
           timeout.hasMatch(job.value),
           isTrue,
-          reason: '${entry.key} : le job ${job.key} sans timeout-minutes',
+          reason: '$name : le job ${job.key} sans timeout-minutes',
         );
       }
     }
