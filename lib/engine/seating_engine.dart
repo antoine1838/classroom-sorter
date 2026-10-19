@@ -6,6 +6,11 @@
 ///   - les contraintes « souples » et les objectifs d'équilibre coûtent peu.
 /// Le meilleur plan trouvé (coût le plus bas) est renvoyé, avec un rapport
 /// lisible des contraintes non satisfaites.
+///
+/// Les mouvements du recuit échangent deux élèves, ou déplacent un élève vers
+/// une place vide. Quand il y a plus d'élèves que de places, les non-placés
+/// sont tirés au sort avant la recherche (voir [SeatingEngine._drawUnplaced]) :
+/// le recuit ne les choisit pas, ce qui évite de sacrifier toujours les mêmes.
 library;
 
 import 'dart:math';
@@ -205,20 +210,26 @@ class SeatingEngine {
         if (!pinning.takenSeats.contains(k)) k,
     ];
 
-    // 3) Recherche par recuit simulé avec redémarrages.
+    // 3) Plus d'élèves que de places : les surnuméraires sont désignés AVANT
+    // la recherche, par un tirage neutre (voir [_drawUnplaced]). Le recuit ne
+    // place ensuite que les autres.
+    final unplacedDraw = _drawUnplaced(freeStudents, freeSeats.length);
+    final placeable = [
+      for (final id in freeStudents)
+        if (!unplacedDraw.contains(id)) id,
+    ];
+
+    // 4) Recherche par recuit simulé avec redémarrages.
     final search = _anneal(
-      freeStudents,
+      placeable,
       freeSeats,
       pinning.pinned,
       restarts,
       iterations,
     );
 
-    // 4) Construire le plan final.
-    final seatOf = <String, String>{...pinning.pinned};
-    search.best.forEach((sid, seat) {
-      if (seat != null) seatOf[sid] = seat;
-    });
+    // 5) Construire le plan final.
+    final seatOf = <String, String>{...pinning.pinned, ...search.best};
     final assignment = <String, String>{};
     seatOf.forEach((sid, seat) => assignment[seat] = sid);
 
@@ -227,7 +238,7 @@ class SeatingEngine {
         if (!seatOf.containsKey(s.id)) s.id,
     ];
 
-    // 5) Rapport lisible.
+    // 6) Rapport lisible.
     return PlanResult(
       assignment: assignment,
       unplacedStudentIds: unplaced,
@@ -235,6 +246,44 @@ class SeatingEngine {
       balance: _balanceNotes(seatOf),
       score: search.bestCost,
     );
+  }
+
+  /// Désigne, quand la salle compte moins de places libres que d'élèves libres,
+  /// ceux qui resteront sans place.
+  ///
+  /// Pourquoi un tirage au sort plutôt que de laisser le recuit choisir, même
+  /// avec une pénalité par non-placé : le nombre de non-placés est constant
+  /// pendant toute la recherche, donc un coût fixe par non-placé n'a aucun
+  /// effet, et seul le COÛT ÉVITÉ en écartant un élève fait la différence. Un
+  /// non-placé ne participe à aucun voisinage ni à aucune règle « séparer »,
+  /// si bien que le recuit tendait à écarter les élèves qui provoquent le
+  /// plus d'infractions (niveau fort / faible, grand / petit, agité, mauvaise
+  /// vue, règle obligatoire difficile à tenir). Une pénalité propre à chaque élève ne fait que
+  /// déplacer ce biais — l'écart dépend alors du coefficient choisi — alors
+  /// qu'un tirage uniforme est neutre par construction, quel que soit le
+  /// barème. Il est fait une seule fois par génération (pas par redémarrage :
+  /// garder le meilleur des 40 le réintroduirait).
+  ///
+  /// Seule entorse à l'uniformité : les élèves visés par une règle OBLIGATOIRE
+  /// ne sont écartés qu'en dernier recours, quand il n'y a pas assez d'élèves
+  /// sans règle dure — une règle obligatoire ne peut pas être honorée pour un
+  /// élève absent.
+  Set<String> _drawUnplaced(List<String> freeStudents, int seatCount) {
+    final surplus = freeStudents.length - seatCount;
+    if (surplus <= 0) return const {};
+
+    final hardRuled = <String>{
+      for (final rule in cls.rules)
+        if (rule.hard) ..._ruleStudents(rule),
+    };
+    final shuffled = [...freeStudents]..shuffle(_rng);
+    final order = [
+      for (final id in shuffled)
+        if (!hardRuled.contains(id)) id,
+      for (final id in shuffled)
+        if (hardRuled.contains(id)) id,
+    ];
+    return order.take(surplus).toSet();
   }
 
   /// Résout les règles [RuleType.fixedSeat] obligatoires par épinglage :
@@ -279,15 +328,16 @@ class SeatingEngine {
   }
 
   /// Recuit simulé avec redémarrages : renvoie le meilleur placement trouvé
-  /// (élève -> place libre, ou null si non placé) et son coût.
-  ({Map<String, String?> best, double bestCost}) _anneal(
+  /// (élève -> place libre) et son coût. [freeStudents] ne contient que des
+  /// élèves à placer : il y a au moins autant de places que d'élèves.
+  ({Map<String, String> best, double bestCost}) _anneal(
     List<String> freeStudents,
     List<String> freeSeats,
     Map<String, String> pinned,
     int restarts,
     int iterations,
   ) {
-    Map<String, String?> best = {};
+    Map<String, String> best = {};
     double bestCost = double.infinity;
 
     for (var restart = 0; restart < restarts; restart++) {
@@ -318,8 +368,8 @@ class SeatingEngine {
   /// [current] en place ; renvoie le MEILLEUR état rencontré pendant la passe
   /// (et son coût), pas l'état final : à température non nulle, la marche peut
   /// repartir vers le haut après avoir visité un meilleur placement.
-  ({Map<String, String?> best, double cost}) _annealRun(
-    Map<String, String?> current,
+  ({Map<String, String> best, double cost}) _annealRun(
+    Map<String, String> current,
     List<String> freeStudents,
     List<String> freeSeats,
     Map<String, String> pinned,
@@ -331,7 +381,7 @@ class SeatingEngine {
 
     double cost = _cost(current, pinned);
     double bestCost = cost;
-    final best = Map<String, String?>.of(current);
+    final best = Map<String, String>.of(current);
     double temp = _initialTemp;
 
     for (var it = 0; it < iterations && slots >= 2; it++) {
@@ -361,9 +411,8 @@ class SeatingEngine {
   }
 
   /// Places libres qu'aucun élève de [current] n'occupe. Il n'y en a que
-  /// lorsque la salle compte plus de places que d'élèves à placer — jamais en
-  /// même temps qu'un élève non placé (voir [_randomFill]).
-  List<String> _emptySeats(Map<String, String?> current, List<String> seats) {
+  /// lorsque la salle compte plus de places que d'élèves à placer.
+  List<String> _emptySeats(Map<String, String> current, List<String> seats) {
     final taken = current.values.toSet();
     return [
       for (final seat in seats)
@@ -376,22 +425,22 @@ class SeatingEngine {
   /// `students.length`, une place vide. Appliquer deux fois le même échange le
   /// défait, ce qui sert à annuler un mouvement refusé.
   void _swapSlots(
-    Map<String, String?> current,
+    Map<String, String> current,
     List<String> students,
     List<String> emptySeats,
     int lo,
     int hi,
   ) {
     final a = students[lo];
-    final seatA = current[a];
+    final seatA = current[a]!;
     if (hi < students.length) {
       final b = students[hi];
-      current[a] = current[b];
-      current[b] = seatA; // l'une des deux places peut être nulle
+      current[a] = current[b]!;
+      current[b] = seatA;
     } else {
       final empty = hi - students.length;
       current[a] = emptySeats[empty];
-      emptySeats[empty] = seatA!; // a était placé : voir _emptySeats
+      emptySeats[empty] = seatA;
     }
   }
 
@@ -425,20 +474,20 @@ class SeatingEngine {
       unplacedStudentIds: unplaced,
       issues: issues,
       balance: _balanceNotes(seatOf),
-      score: _cost(Map<String, String?>.from(seatOf), const {}),
+      score: _cost(seatOf, const {}),
     );
   }
 
-  Map<String, String?> _randomFill(List<String> students, List<String> seats) {
+  /// Placement initial : chaque élève reçoit une place au hasard. Il y a
+  /// toujours assez de places (voir [_drawUnplaced]) ; celles en trop restent
+  /// vides.
+  Map<String, String> _randomFill(List<String> students, List<String> seats) {
     final shuffledSeats = [...seats]..shuffle(_rng);
     final shuffledStudents = [...students]..shuffle(_rng);
-    final map = <String, String?>{};
-    for (var i = 0; i < shuffledStudents.length; i++) {
-      map[shuffledStudents[i]] = i < shuffledSeats.length
-          ? shuffledSeats[i]
-          : null;
-    }
-    return map;
+    return {
+      for (var i = 0; i < shuffledStudents.length; i++)
+        shuffledStudents[i]: shuffledSeats[i],
+    };
   }
 
   bool _adjacent(String? seatA, String? seatB) {
@@ -446,12 +495,9 @@ class SeatingEngine {
     return _neighbors[seatA]?.contains(seatB) ?? false;
   }
 
-  double _cost(Map<String, String?> free, Map<String, String> pinned) {
+  double _cost(Map<String, String> free, Map<String, String> pinned) {
     // Position de chaque élève placé.
-    final seatOf = <String, String>{...pinned};
-    free.forEach((sid, seat) {
-      if (seat != null) seatOf[sid] = seat;
-    });
+    final seatOf = <String, String>{...pinned, ...free};
 
     double cost = _ruleCost(seatOf);
 

@@ -95,7 +95,12 @@ automatiques vers un autre appareil.
 L'affectation est un problème d'optimisation sous contraintes. Le moteur
 (`lib/engine/seating_engine.dart`) utilise un **recuit simulé** avec
 redémarrages : il minimise un coût où les contraintes dures coûtent très cher
-et les préférences peu, puis renvoie le meilleur plan trouvé.
+et les préférences peu, puis renvoie le meilleur plan trouvé. Les places
+vides font partie de la recherche (un élève peut y être déplacé pour en
+écarter deux autres). Quand il y a plus d'élèves que de places, les élèves
+laissés sans place sont tirés au sort avant la recherche — le recuit ne
+choisit pas, sinon il écarterait toujours ceux qui compliquent le plan —, et
+les élèves visés par une règle obligatoire ne le sont qu'en dernier recours.
 
 Sur desktop (Windows/macOS/Linux), la taille et la position de la fenêtre
 sont mémorisées entre deux lancements (`window_manager`, voir `main.dart`).
