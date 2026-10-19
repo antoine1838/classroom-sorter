@@ -124,7 +124,10 @@ void main() {
 
   test('chaque job a un timeout, la CI annule les PR obsolètes', () {
     final timeout = RegExp(r'^    timeout-minutes: \d+$', multiLine: true);
-    for (final entry in {'ci.yml': ciWorkflow}.entries) {
+    for (final entry in {
+      'ci.yml': ciWorkflow,
+      'release.yml': releaseWorkflow,
+    }.entries) {
       for (final job in jobBlocks(entry.value).entries) {
         expect(
           timeout.hasMatch(job.value),
@@ -145,6 +148,54 @@ void main() {
     expect(ciWorkflow, isNot(contains('secrets.')));
     expect(releaseWorkflow, isNot(contains('pull_request')));
     expect(releaseWorkflow, contains("tags: [ 'v*' ]"));
+  });
+
+  test('la release analyse et teste avant d\'écrire le keystore', () {
+    final analyze = releaseWorkflow.indexOf('run: flutter analyze');
+    final tests = releaseWorkflow.indexOf('run: flutter test');
+    final keystore = releaseWorkflow.indexOf('keystore.jks');
+    final firstBuild = releaseWorkflow.indexOf('run: flutter build');
+
+    expect(analyze, isNonNegative, reason: 'flutter analyze manquant');
+    expect(tests, isNonNegative, reason: 'flutter test manquant');
+    expect(analyze, lessThan(keystore));
+    expect(tests, lessThan(keystore));
+    expect(keystore, lessThan(firstBuild));
+  });
+
+  test('la release n\'a le droit d\'écriture que dans son job', () {
+    expect(
+      releaseWorkflow,
+      contains('\npermissions:\n  contents: read\n'),
+      reason: 'permissions par défaut du workflow = lecture seule',
+    );
+    final jobs = jobBlocks(releaseWorkflow);
+    expect(jobs.keys, ['build-release']);
+    expect(jobs['build-release'], contains('contents: write'));
+    expect(
+      releaseWorkflow.indexOf('contents: write'),
+      greaterThan(releaseWorkflow.indexOf('\njobs:\n')),
+    );
+  });
+
+  test('une release n\'est jamais annulée en cours de route', () {
+    expect(releaseWorkflow, contains('cancel-in-progress: false'));
+    expect(releaseWorkflow, isNot(contains('cancel-in-progress: true')));
+  });
+
+  test('les secrets de signature ne sont pas exposés à tout le job', () {
+    // Aucun `env:` avec secrets au niveau du job : seules les étapes de
+    // contrôle et d'écriture du keystore les reçoivent (analyze/test non).
+    final job = jobBlocks(releaseWorkflow)['build-release']!;
+    final jobHeader = job.substring(0, job.indexOf('\n    steps:'));
+    expect(jobHeader, isNot(contains('secrets.')));
+
+    for (final step in job.split('\n      - name: ')) {
+      if (step.startsWith('Analyser le projet') ||
+          step.startsWith('Lancer les tests')) {
+        expect(step, isNot(contains('secrets.')), reason: step);
+      }
+    }
   });
 
   test('la release Android exige changelog et secrets de signature', () {

@@ -158,6 +158,8 @@ téléverser sur Google Play), et les joint à la Release GitHub. La ligne
 chaque langue (`fr-FR` et `en-US`). Une
 release taguée ou manuelle échoue immédiatement si un secret de signature
 manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
+Elle rejoue aussi `flutter analyze` et `flutter test` avant d'écrire le
+keystore : un tag sur un commit qui ne passe pas les contrôles ne publie rien.
 
 ## Qualité
 
