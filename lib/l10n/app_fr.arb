@@ -339,6 +339,8 @@
   "deleteArchiveDescription": "Cette version du plan sera définitivement supprimée.",
   "viewArchive": "Voir l’archive",
   "exportPdf": "Exporter en PDF",
+  "pdfFreeSeat": "Libre",
+  "pdfFrontOfRoom": "DEVANT / TABLEAU",
   "exportPlanFile": "Exporter la classe",
   "importPlanFile": "Importer une classe",
   "fileExported": "Fichier exporté.",
