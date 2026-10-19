@@ -186,6 +186,12 @@ tests et builds Web/Windows avec le dernier Flutter stable : il signale qu'une
 mise à niveau du SDK doit être évaluée sans rendre les validations courantes
 instables.
 
+Toutes les actions GitHub des workflows sont épinglées par SHA de commit
+(`uses: owner/action@<sha> # vX.Y.Z`, vérifié par
+`test/release_workflow_test.dart`) : un tag déplacé en amont ne peut pas
+injecter de code dans un job qui voit la clé de signature. Dependabot met à
+jour le SHA et le commentaire de version ensemble.
+
 Les pull requests mesurent aussi le moteur de placement avec la fixture de
 35 élèves. Dans le même runner Ubuntu, le CI compare le P95 de `generate()` à
 celui de `main` et échoue au-delà de 20 % de régression. Le rapport JSON et le

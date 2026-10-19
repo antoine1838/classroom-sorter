@@ -14,10 +14,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Installer le dernier Flutter stable
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           cache: true
@@ -86,7 +86,7 @@ jobs:
         run: flutter build web --release
 
       - name: Publier le build Web
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: classroom-sorter-web-latest-stable
           path: build/web
@@ -97,10 +97,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Installer le dernier Flutter stable
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           cache: true
@@ -112,7 +112,7 @@ jobs:
         run: flutter build windows --release
 
       - name: Publier le build Windows
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: classroom-sorter-windows-latest-stable
           path: build/windows/x64/runner/Release
