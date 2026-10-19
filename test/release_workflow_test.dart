@@ -4,6 +4,26 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// Découpe un workflow en blocs `job -> texte` (le fichier peut être en CRLF,
+// d'où la normalisation à la lecture).
+Map<String, String> jobBlocks(String workflow) {
+  final jobs = workflow.substring(workflow.indexOf('\njobs:\n'));
+  final headers = RegExp(
+    r'^  ([a-z][\w-]*):[ \t]*$',
+    multiLine: true,
+  ).allMatches(jobs).toList();
+  return {
+    for (var i = 0; i < headers.length; i++)
+      headers[i].group(1)!: jobs.substring(
+        headers[i].end,
+        i + 1 < headers.length ? headers[i + 1].start : jobs.length,
+      ),
+  };
+}
+
+String readWorkflow(String name) =>
+    File('.github/workflows/$name').readAsStringSync().replaceAll('\r\n', '\n');
+
 void main() {
   late String pubspec;
   late String releaseWorkflow;
@@ -12,16 +32,18 @@ void main() {
 
   setUpAll(() {
     pubspec = File('pubspec.yaml').readAsStringSync();
-    releaseWorkflow = File('.github/workflows/release.yml').readAsStringSync();
-    ciWorkflow = File('.github/workflows/ci.yml').readAsStringSync();
+    releaseWorkflow = readWorkflow('release.yml');
+    ciWorkflow = readWorkflow('ci.yml');
     version = RegExp(
       r'^version:\s+([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$',
       multiLine: true,
     ).firstMatch(pubspec)!;
   });
 
-  test('la version migre au-dessus du dernier versionCode généré', () {
-    expect(version.group(1), '1.13.1');
+  // La version X.Y.Z n'est plus figée ici : elle vient du pubspec (déjà lue et
+  // validée par `version`) et chaque release la fait évoluer. Seul le
+  // versionCode a un plancher, pour ne jamais repasser sous un code déjà publié.
+  test('le build number dépasse le dernier versionCode généré', () {
     expect(int.parse(version.group(2)!), greaterThan(120));
   });
 
@@ -79,8 +101,9 @@ void main() {
     expect(releaseWorkflow, contains(r'$GITHUB_REF_NAME" != "v$APP_VERSION'));
   });
 
-  test('la CI compile toutes les cibles après format et analyse', () {
+  test('la CI compile toutes les cibles après format, analyse et tests', () {
     expect(ciWorkflow, contains('pull_request:'));
+    final jobs = jobBlocks(ciWorkflow);
     for (final job in [
       'build-web',
       'build-windows',
@@ -88,20 +111,95 @@ void main() {
       'build-ios',
       'benchmark-seating-engine',
     ]) {
+      expect(jobs, contains(job));
       expect(
-        RegExp(
-          '  $job:\\s*\\n(    .*\\n)*?    needs: \\[ format, analyze \\]',
-        ).hasMatch(ciWorkflow),
-        isTrue,
-        reason: '$job doit attendre format et analyze',
+        jobs[job],
+        contains('needs: [ format, analyze, test ]'),
+        reason: '$job doit attendre format, analyze et test',
       );
     }
+  });
+
+  test('la CI lance flutter test dans son propre job', () {
+    expect(jobBlocks(ciWorkflow)['test'], contains('run: flutter test'));
+  });
+
+  test('chaque job a un timeout, la CI annule les PR obsolètes', () {
+    final timeout = RegExp(r'^    timeout-minutes: \d+$', multiLine: true);
+    final workflows = Directory(
+      '.github/workflows',
+    ).listSync().whereType<File>().where((file) => file.path.endsWith('.yml'));
+    expect(workflows, isNotEmpty);
+    for (final file in workflows) {
+      final name = file.uri.pathSegments.last;
+      for (final job in jobBlocks(readWorkflow(name)).entries) {
+        expect(
+          timeout.hasMatch(job.value),
+          isTrue,
+          reason: '$name : le job ${job.key} sans timeout-minutes',
+        );
+      }
+    }
+    expect(
+      ciWorkflow,
+      contains(
+        r"cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+      ),
+    );
   });
 
   test('la clé de signature n\'existe que dans le workflow de release', () {
     expect(ciWorkflow, isNot(contains('secrets.')));
     expect(releaseWorkflow, isNot(contains('pull_request')));
     expect(releaseWorkflow, contains("tags: [ 'v*' ]"));
+  });
+
+  test('la release analyse et teste avant d\'écrire le keystore', () {
+    final analyze = releaseWorkflow.indexOf('run: flutter analyze');
+    final tests = releaseWorkflow.indexOf('run: flutter test');
+    final keystore = releaseWorkflow.indexOf('keystore.jks');
+    final firstBuild = releaseWorkflow.indexOf('run: flutter build');
+
+    expect(analyze, isNonNegative, reason: 'flutter analyze manquant');
+    expect(tests, isNonNegative, reason: 'flutter test manquant');
+    expect(analyze, lessThan(keystore));
+    expect(tests, lessThan(keystore));
+    expect(keystore, lessThan(firstBuild));
+  });
+
+  test('la release n\'a le droit d\'écriture que dans son job', () {
+    expect(
+      releaseWorkflow,
+      contains('\npermissions:\n  contents: read\n'),
+      reason: 'permissions par défaut du workflow = lecture seule',
+    );
+    final jobs = jobBlocks(releaseWorkflow);
+    expect(jobs.keys, ['build-release']);
+    expect(jobs['build-release'], contains('contents: write'));
+    expect(
+      releaseWorkflow.indexOf('contents: write'),
+      greaterThan(releaseWorkflow.indexOf('\njobs:\n')),
+    );
+  });
+
+  test('une release n\'est jamais annulée en cours de route', () {
+    expect(releaseWorkflow, contains('cancel-in-progress: false'));
+    expect(releaseWorkflow, isNot(contains('cancel-in-progress: true')));
+  });
+
+  test('les secrets de signature ne sont pas exposés à tout le job', () {
+    // Aucun `env:` avec secrets au niveau du job : seules les étapes de
+    // contrôle et d'écriture du keystore les reçoivent (analyze/test non).
+    final job = jobBlocks(releaseWorkflow)['build-release']!;
+    final jobHeader = job.substring(0, job.indexOf('\n    steps:'));
+    expect(jobHeader, isNot(contains('secrets.')));
+
+    for (final step in job.split('\n      - name: ')) {
+      if (step.startsWith('Analyser le projet') ||
+          step.startsWith('Lancer les tests')) {
+        expect(step, isNot(contains('secrets.')), reason: step);
+      }
+    }
   });
 
   test('la release Android exige changelog et secrets de signature', () {

@@ -1,22 +1,32 @@
 name: Release Android
 
 # Seul workflow qui voit la clé de signature : réservé aux tags et au lancement
-# manuel, jamais aux pull requests. La validation (format, analyse, builds de
-# toutes les plateformes) vit dans ci.yml.
+# manuel, jamais aux pull requests. La validation courante (format, builds de
+# toutes les plateformes) vit dans ci.yml ; un tag peut pourtant viser un commit
+# dont le CI n'a pas (encore) réussi, donc l'analyse et les tests sont rejoués
+# ici, avant toute étape qui écrit le keystore.
 on:
   push:
     tags: [ 'v*' ]     # un tag v1.0.0, v1.2.3... déclenche une Release
   workflow_dispatch:   # permet de lancer le build manuellement depuis l'onglet Actions
 
 permissions:
-  contents: write      # nécessaire pour que le workflow crée la Release
+  contents: read
+
+# Jamais de cancel-in-progress : une release en cours ne doit pas être
+# interrompue à mi-publication. Un groupe par ref (et non global) : GitHub ne
+# garde qu'une exécution en attente par groupe et annulerait une release
+# taguée en file derrière une autre.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-release:
     runs-on: ubuntu-latest
-    env:
-      # Remonté au niveau job pour pouvoir tester sa présence dans un `if:`.
-      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+    timeout-minutes: 30
+    permissions:
+      contents: write  # nécessaire pour que le job crée la Release
     steps:
       - name: Checkout du code
         uses: actions/checkout@v7
@@ -50,8 +60,12 @@ jobs:
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "APP_BUILD_NUMBER=$APP_BUILD_NUMBER" >> "$GITHUB_ENV"
 
+      # Les secrets ne sont exposés qu'aux deux étapes qui en ont besoin (ce
+      # contrôle et l'écriture du keystore) : ni `flutter analyze` ni
+      # `flutter test` ne voient la clé de signature.
       - name: Vérifier les secrets de signature Play Store
         env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -82,8 +96,17 @@ jobs:
       - name: Récupérer les dépendances
         run: flutter pub get
 
+      # Rien ne se signe ni ne se publie si le code ne passe pas l'analyse et les
+      # tests : ces deux étapes précèdent l'écriture du keystore.
+      - name: Analyser le projet
+        run: flutter analyze
+
+      - name: Lancer les tests
+        run: flutter test
+
       - name: Configurer la signature (keystore)
         env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
