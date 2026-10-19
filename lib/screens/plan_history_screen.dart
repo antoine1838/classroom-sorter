@@ -13,6 +13,7 @@ import '../services/plan_pdf_service.dart';
 typedef SnapshotPdfExporter = Future<void> Function(
   ClassGroup classGroup,
   GenderColorPalette palette,
+  AppLocalizations l10n,
 );
 
 class PlanHistoryScreen extends StatelessWidget {
@@ -78,10 +79,10 @@ class PlanHistoryScreen extends StatelessWidget {
         leading: const Icon(Icons.history),
         title: Text(snapshot.label.isEmpty ? l10n.planTab : snapshot.label),
         subtitle: Text(l10n.archiveDate(showTime ? '$date · $time' : date)),
-        onTap: () => _exportPdf(snapshot),
+        onTap: () => _exportPdf(snapshot, l10n),
         trailing: PopupMenuButton<_SnapshotAction>(
           onSelected: (action) => switch (action) {
-            _SnapshotAction.exportPdf => _exportPdf(snapshot),
+            _SnapshotAction.exportPdf => _exportPdf(snapshot, l10n),
             _SnapshotAction.restore => _restore(context, snapshot),
             _SnapshotAction.delete => _delete(context, snapshot),
           },
@@ -104,15 +105,20 @@ class PlanHistoryScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _exportPdf(PlanSnapshot snapshot) {
+  Future<void> _exportPdf(PlanSnapshot snapshot, AppLocalizations l10n) {
     final preview = snapshot.toClassGroup(id: 'preview', name: classGroup.name);
-    return exportPdf(preview, state.genderColorPalette);
+    return exportPdf(preview, state.genderColorPalette, l10n);
   }
 
   static Future<void> _defaultExportPdf(
     ClassGroup classGroup,
     GenderColorPalette genderPalette,
-  ) => PlanPdfService().export(classGroup, genderPalette: genderPalette);
+    AppLocalizations l10n,
+  ) => PlanPdfService().export(
+    classGroup,
+    l10n: l10n,
+    genderPalette: genderPalette,
+  );
 
   Future<void> _restore(BuildContext context, PlanSnapshot snapshot) async {
     final l10n = AppLocalizations.of(context)!;

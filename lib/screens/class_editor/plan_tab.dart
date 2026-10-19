@@ -318,6 +318,7 @@ class _PlanTabState extends State<_PlanTab> {
 
   Future<void> _exportPdf() => PlanPdfService().export(
     cls,
+    l10n: _l10n(context),
     genderPalette: widget.state.genderColorPalette,
   );
 

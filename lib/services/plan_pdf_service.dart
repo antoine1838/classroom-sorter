@@ -1,11 +1,15 @@
 /// Génération et partage d'une version PDF non modifiable d'un plan.
 library;
 
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../models/classroom.dart';
 import '../models/room.dart';
 import '../models/student.dart';
@@ -17,8 +21,32 @@ class PlanPdfService {
 
   final PdfSharer _sharePdf;
 
+  /// Hauteur d'une case quand la salle a peu de rangs.
+  static const _maxRowHeight = 54.0;
+
+  /// En dessous, la case n'a plus la place d'afficher les attributs de
+  /// l'élève : on garde seulement son nom, lisible.
+  static const _detailsMinRowHeight = 42.0;
+
+  /// Marge qui absorbe l'arrondi des flottants : sans elle, le dernier rang
+  /// dépasse la hauteur disponible de quelques epsilon et le tableau le
+  /// supprime en silence.
+  static const _layoutSlack = 1.0;
+
+  /// Hauteur de chaque rang pour que [rows] rangs tiennent dans
+  /// [availableHeight] (plafonnée à [_maxRowHeight]).
+  @visibleForTesting
+  static double rowHeightFor(double? availableHeight, int rows) {
+    if (availableHeight == null || !availableHeight.isFinite || rows <= 0) {
+      return _maxRowHeight;
+    }
+    return math.min(_maxRowHeight, (availableHeight - _layoutSlack) / rows);
+  }
+
+  /// Les libellés viennent de [l10n] : le PDF suit la langue de l'appelant.
   Future<Uint8List> build(
     ClassGroup classGroup, {
+    required AppLocalizations l10n,
     GenderColorPalette genderPalette = GenderColorPalette.tealCorail,
   }) async {
     final document = pw.Document();
@@ -46,22 +74,39 @@ class PlanPdfService {
             ),
             pw.SizedBox(height: 12),
             pw.Expanded(
-              child: pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey600),
-                defaultColumnWidth: const pw.FlexColumnWidth(),
-                children: [
-                  for (var row = room.rows - 1; row >= 0; row--)
-                    pw.TableRow(
-                      children: [
-                        for (var column = 0; column < room.cols; column++)
-                          _seatCell(classGroup, row, column, genderPalette),
-                      ],
-                    ),
-                ],
+              // La place restante dépend du titre et du pied de page : on la
+              // lit à la mise en page pour répartir les rangs dessus.
+              child: pw.LayoutBuilder(
+                builder: (context, constraints) {
+                  final rowHeight = rowHeightFor(
+                    constraints?.maxHeight,
+                    room.rows,
+                  );
+                  return pw.Table(
+                    border: pw.TableBorder.all(color: PdfColors.grey600),
+                    defaultColumnWidth: const pw.FlexColumnWidth(),
+                    children: [
+                      for (var row = room.rows - 1; row >= 0; row--)
+                        pw.TableRow(
+                          children: [
+                            for (var column = 0; column < room.cols; column++)
+                              _seatCell(
+                                classGroup,
+                                row,
+                                column,
+                                genderPalette,
+                                l10n,
+                                rowHeight,
+                              ),
+                          ],
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
             pw.SizedBox(height: 12),
-            pw.Text('DEVANT / TABLEAU', textAlign: pw.TextAlign.center),
+            pw.Text(l10n.pdfFrontOfRoom, textAlign: pw.TextAlign.center),
           ],
         ),
       ),
@@ -71,9 +116,14 @@ class PlanPdfService {
 
   Future<void> export(
     ClassGroup classGroup, {
+    required AppLocalizations l10n,
     GenderColorPalette genderPalette = GenderColorPalette.tealCorail,
   }) async {
-    final bytes = await build(classGroup, genderPalette: genderPalette);
+    final bytes = await build(
+      classGroup,
+      l10n: l10n,
+      genderPalette: genderPalette,
+    );
     await _sharePdf(bytes, '${_safeFilename(classGroup.name)}.pdf');
   }
 
@@ -85,21 +135,28 @@ class PlanPdfService {
     int row,
     int column,
     GenderColorPalette genderPalette,
+    AppLocalizations l10n,
+    double rowHeight,
   ) {
     final room = classGroup.room;
     if (!room.isSeat(row, column)) {
-      return pw.Container(color: PdfColors.grey300, height: 54);
+      return pw.Container(color: PdfColors.grey300, height: rowHeight);
     }
     final student = classGroup.studentById(
       classGroup.assignment['$row,$column'],
     );
     if (student == null) {
       return pw.Container(
-        height: 54,
+        height: rowHeight,
         alignment: pw.Alignment.center,
-        child: pw.Text('Libre', style: const pw.TextStyle(fontSize: 8)),
+        child: pw.Text(
+          l10n.pdfFreeSeat,
+          style: const pw.TextStyle(fontSize: 8),
+        ),
       );
     }
+
+    final showDetails = rowHeight >= _detailsMinRowHeight;
 
     final stripe = _genderColor(student.gender, genderPalette);
     final backrest = room.facingOf(row, column);
@@ -108,7 +165,7 @@ class PlanPdfService {
     // l'intérieur de la carte plutôt que de masquer l'un des deux repères.
     final stripeLeft = backrest == Facing.est ? 6.0 : 2.0;
     return pw.Container(
-      height: 54,
+      height: rowHeight,
       child: pw.Stack(
         children: [
           pw.Positioned.fill(
@@ -117,7 +174,12 @@ class PlanPdfService {
                 border: pw.Border.all(color: PdfColors.grey700),
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
               ),
-              padding: const pw.EdgeInsets.fromLTRB(7, 12, 4, 4),
+              padding: pw.EdgeInsets.fromLTRB(
+                7,
+                showDetails ? 12 : 3,
+                4,
+                showDetails ? 4 : 3,
+              ),
               child: pw.Column(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
@@ -126,12 +188,14 @@ class PlanPdfService {
                     textAlign: pw.TextAlign.center,
                     style: const pw.TextStyle(fontSize: 8),
                   ),
-                  pw.SizedBox(height: 2),
-                  pw.Text(
-                    _attributeDetails(student),
-                    textAlign: pw.TextAlign.center,
-                    style: const pw.TextStyle(fontSize: 4.5),
-                  ),
+                  if (showDetails) ...[
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      _attributeDetails(student, l10n),
+                      textAlign: pw.TextAlign.center,
+                      style: const pw.TextStyle(fontSize: 4.5),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -182,20 +246,26 @@ class PlanPdfService {
     );
   }
 
-  String _attributeDetails(Student student) =>
-      'Niveau : ${switch (student.level) {
-        Level.faible => 'faible',
-        Level.moyen => 'moyen',
-        Level.fort => 'fort',
-      }} · Énergie : ${switch (student.energy) {
-        Energy.calme => 'calme',
-        Energy.modere => 'modérée',
-        Energy.agite => 'agitée',
-      }}\nTaille : ${switch (student.size) {
-        StudentSize.petit => 'petit',
-        StudentSize.moyen => 'moyen',
-        StudentSize.grand => 'grand',
-      }}${student.poorEyesight ? ' · Mauvaise vue' : ''}';
+  String _attributeDetails(Student student, AppLocalizations l10n) {
+    final level = switch (student.level) {
+      Level.faible => l10n.low,
+      Level.moyen => l10n.medium,
+      Level.fort => l10n.high,
+    };
+    final energy = switch (student.energy) {
+      Energy.calme => l10n.calm,
+      Energy.modere => l10n.moderate,
+      Energy.agite => l10n.restless,
+    };
+    final size = switch (student.size) {
+      StudentSize.petit => l10n.small,
+      StudentSize.moyen => l10n.medium,
+      StudentSize.grand => l10n.tall,
+    };
+    return '${l10n.attributeLevel(level)} · ${l10n.attributeEnergy(energy)}\n'
+        '${l10n.attributeSize(size)}'
+        '${student.poorEyesight ? ' · ${l10n.poorEyesight}' : ''}';
+  }
 
   PdfColor? _genderColor(Gender gender, GenderColorPalette palette) {
     if (gender == Gender.autre) return null;

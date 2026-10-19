@@ -49,7 +49,7 @@ Future<AppState> _pump(
       home: PlanHistoryScreen(
         state: state,
         classGroup: cls,
-        exportPdf: exportPdf ?? (_, _) async {},
+        exportPdf: exportPdf ?? (_, _, _) async {},
       ),
     ),
   );
@@ -76,7 +76,7 @@ void main() {
     await _pump(
       tester,
       _classWithSnapshots(),
-      exportPdf: (cls, _) async => exported = cls,
+      exportPdf: (cls, _, _) async => exported = cls,
     );
 
     await tester.tap(find.byIcon(Icons.more_vert).first);

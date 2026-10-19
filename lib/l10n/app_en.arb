@@ -339,6 +339,8 @@
   "deleteArchiveDescription": "This version of the plan will be permanently deleted.",
   "viewArchive": "View archive",
   "exportPdf": "Export as PDF",
+  "pdfFreeSeat": "Free",
+  "pdfFrontOfRoom": "FRONT / BOARD",
   "exportPlanFile": "Export class",
   "importPlanFile": "Import class",
   "fileExported": "File exported.",
