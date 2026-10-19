@@ -25,11 +25,20 @@ class _BlockingRepository extends Repository {
 
 class _FailingRepository extends Repository {
   bool fail = true;
+  bool failTheme = false;
+  int classSaveAttempts = 0;
 
   @override
   Future<void> save(List<ClassGroup> classes) async {
+    classSaveAttempts++;
     if (fail) throw StateError('écriture simulée impossible');
     await super.save(classes);
+  }
+
+  @override
+  Future<void> saveThemePreference(String preference) async {
+    if (failTheme) throw StateError('écriture du thème impossible');
+    await super.saveThemePreference(preference);
   }
 }
 
@@ -165,6 +174,75 @@ void main() {
     expect(state.lastPersistenceError, isNull);
     expect((await Repository().load()).single.name, '5ème A');
   });
+
+  test('classes en échec puis thème réussi : erreur conservée, classes '
+      'réécrites ensuite', () async {
+    final repo = _FailingRepository();
+    final state = AppState(repository: repo);
+    await state.init();
+
+    state.addClass('5ème A');
+    await state.flushPendingSaves();
+    expect(state.persistenceMessageIsError, isTrue);
+    expect(
+      repo.classSaveAttempts,
+      1,
+      reason: 'pas de réessai automatique en boucle',
+    );
+
+    state.setThemePreference(ThemePreference.dark);
+    await state.flushPendingSaves();
+
+    expect(await Repository().loadThemePreference(), 'dark');
+    expect(await Repository().load(), isEmpty);
+    expect(state.persistenceMessage, contains('sauvegarde locale a échoué'));
+    expect(state.canRetryPersistence, isTrue);
+    expect(
+      repo.classSaveAttempts,
+      2,
+      reason: 'les classes sont retentées une fois, avec la mutation suivante',
+    );
+
+    repo.fail = false;
+    state.setLocalePreference(LocalePreference.english);
+    await state.flushPendingSaves();
+
+    expect((await Repository().load()).single.name, '5ème A');
+    expect(state.persistenceMessage, isNull);
+    expect(state.lastPersistenceError, isNull);
+  });
+
+  test(
+    'un réglage en échec reste en attente quand les classes réussissent',
+    () async {
+      final repo = _FailingRepository()
+        ..fail = false
+        ..failTheme = true;
+      final state = AppState(repository: repo);
+      await state.init();
+
+      state.setThemePreference(ThemePreference.dark);
+      await state.flushPendingSaves();
+      expect(state.persistenceMessageIsError, isTrue);
+
+      state.addClass('5ème A');
+      await state.flushPendingSaves();
+
+      expect((await Repository().load()).single.name, '5ème A');
+      expect(
+        state.persistenceMessageIsError,
+        isTrue,
+        reason: 'le thème n’est toujours pas écrit',
+      );
+
+      repo.failTheme = false;
+      state.touch();
+      await state.flushPendingSaves();
+
+      expect(await Repository().loadThemePreference(), 'dark');
+      expect(state.persistenceMessage, isNull);
+    },
+  );
 
   test('une restauration depuis le secours est annoncée sans erreur', () async {
     final backup = jsonEncode([ClassGroup(id: 'a', name: '5ème A').toJson()]);
