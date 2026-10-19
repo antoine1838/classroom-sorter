@@ -305,7 +305,7 @@ void main() {
         'Camille|Durand',
         'Léo|Martin',
       ]);
-      expect(find.text('2 élève(s) importé(s).'), findsOneWidget);
+      expect(find.text('2 élèves importés.'), findsOneWidget);
     });
 
     testWidgets('nom de famille composé : tout ce qui suit le prénom', (
@@ -341,7 +341,7 @@ void main() {
       await t.pumpAndSettle();
 
       expect(cls.students, isEmpty);
-      expect(find.textContaining('importé(s)'), findsNothing);
+      expect(find.textContaining('importé'), findsNothing);
     });
 
     testWidgets('un texte vide annonce zéro élève sans rien ajouter', (
@@ -356,7 +356,7 @@ void main() {
 
       expect(cls.students, isEmpty);
       expect(
-        find.text('0 élève(s) importé(s).'),
+        find.text('0 élève importé.'),
         findsOneWidget,
         reason: 'le retour reste explicite plutôt que silencieux',
       );

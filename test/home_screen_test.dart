@@ -362,15 +362,12 @@ void main() {
       await _pump(t, classes: [_cls('6ème B', students: 3, rows: 2, cols: 4)]);
 
       expect(find.text('6ème B'), findsOneWidget);
-      expect(find.text('3 élève(s) · 8 place(s)'), findsOneWidget);
+      expect(find.text('3 élèves · 8 places'), findsOneWidget);
       expect(find.text('3'), findsOneWidget, reason: 'la pastille du effectif');
     });
 
     test('le résumé d\'une classe existe aussi en anglais', () {
-      expect(
-        AppLocalizationsEn().classSummary(3, 8),
-        '3 student(s) · 8 seat(s)',
-      );
+      expect(AppLocalizationsEn().classSummary(3, 8), '3 students · 8 seats');
     });
 
     testWidgets('une classe sans nom s\'affiche « Classe »', (t) async {
