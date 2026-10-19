@@ -366,4 +366,43 @@ void main() {
     expect(res.unplacedStudentIds.length, 1);
     expect(res.warnings, isNotEmpty);
   });
+
+  test('le recuit garde le meilleur état de la passe, pas l\'état final', () {
+    // Même graine => la passe de k itérations est le préfixe exact de celle de
+    // k + 1 (même flux aléatoire, même température). Le coût renvoyé ne peut
+    // donc que baisser quand on prolonge la passe — alors qu'avec l'état
+    // final il remontait chaque fois qu'un échange défavorable était accepté.
+    final cls = _classWith(
+      room: Room(rows: 5, cols: 5),
+      students: [
+        for (var i = 0; i < 25; i++)
+          Student(
+            id: 's$i',
+            gender: i % 2 == 0 ? Gender.fille : Gender.garcon,
+            level: Level.values[i % 3],
+            energy: i % 4 == 0 ? Energy.agite : Energy.calme,
+          ),
+      ],
+      rules: [],
+      balance: BalanceSettings(
+        mixGender: true,
+        mixLevel: true,
+        separateAgites: true,
+      ),
+    );
+
+    var previous = double.infinity;
+    for (var iterations = 0; iterations <= 150; iterations++) {
+      final score = SeatingEngine(
+        cls,
+        seed: 3,
+      ).generate(restarts: 1, iterations: iterations).score;
+      expect(
+        score,
+        lessThanOrEqualTo(previous),
+        reason: 'le coût a remonté en passant à $iterations itérations',
+      );
+      previous = score;
+    }
+  });
 }

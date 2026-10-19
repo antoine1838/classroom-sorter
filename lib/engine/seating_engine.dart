@@ -292,10 +292,10 @@ class SeatingEngine {
 
     for (var restart = 0; restart < restarts; restart++) {
       final current = _randomFill(freeStudents, freeSeats);
-      final cost = _annealRun(current, freeStudents, pinned, iterations);
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = Map<String, String?>.from(current);
+      final run = _annealRun(current, freeStudents, pinned, iterations);
+      if (run.cost < bestCost) {
+        bestCost = run.cost;
+        best = run.best;
       }
     }
 
@@ -305,14 +305,18 @@ class SeatingEngine {
   /// Une passe de recuit simulé (un « restart ») : échange des places au
   /// hasard, accepte si ça améliore le coût ou, avec une probabilité
   /// décroissante (température), si ça le dégrade. Modifie [current] en
-  /// place ; renvoie le coût final atteint.
-  double _annealRun(
+  /// place ; renvoie le MEILLEUR état rencontré pendant la passe (et son
+  /// coût), pas l'état final : à température non nulle, la marche peut
+  /// repartir vers le haut après avoir visité un meilleur placement.
+  ({Map<String, String?> best, double cost}) _annealRun(
     Map<String, String?> current,
     List<String> freeStudents,
     Map<String, String> pinned,
     int iterations,
   ) {
     double cost = _cost(current, pinned);
+    double bestCost = cost;
+    final best = Map<String, String?>.of(current);
     double temp = _initialTemp;
 
     for (var it = 0; it < iterations && freeStudents.length >= 2; it++) {
@@ -332,6 +336,10 @@ class SeatingEngine {
           _rng.nextDouble() < exp(-delta / (temp <= 0 ? 1e-4 : temp));
       if (accept) {
         cost = newCost;
+        if (cost < bestCost) {
+          bestCost = cost;
+          best.addAll(current); // mêmes clés : recopie sans réallocation
+        }
       } else {
         current[b] = current[a];
         current[a] = tmp; // annuler l'échange
@@ -339,7 +347,7 @@ class SeatingEngine {
       temp *= _coolingRate; // refroidissement
     }
 
-    return cost;
+    return (best: best, cost: bestCost);
   }
 
   /// Évalue le placement actuel ([cls.assignment]) sans le modifier : utile
