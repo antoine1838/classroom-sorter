@@ -221,7 +221,7 @@ class PlanPdfService {
     };
     final bottom = switch (facing) {
       Facing.sud => 2.0,
-      _ => 0.0,
+      _ => null,
     };
     final left = switch (facing) {
       Facing.est => 0.0,
