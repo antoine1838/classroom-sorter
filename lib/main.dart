@@ -1,8 +1,7 @@
 /// Plan de classe — application d'affectation des élèves aux places.
 library;
 
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -12,8 +11,13 @@ import 'data/repository.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
 
+/// `dart:io` [Platform] lève une exception sur Web, et [defaultTargetPlatform]
+/// y décrit le système du navigateur : il faut donc écarter le Web d'abord.
 bool get _isDesktop =>
-    Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux);
 
 const _kDefaultWindowSize = Size(1280, 800);
 

@@ -37,6 +37,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('newId produit des identifiants base 36 distincts', () {
+    final ids = {for (var i = 0; i < 500; i++) newId()};
+
+    expect(ids, hasLength(500));
+    expect(ids, everyElement(matches(RegExp(r'^[0-9a-z]+$'))));
+  });
+
   test(
     'StudentsViewMode : défaut Complète, persiste après changement',
     () async {
