@@ -235,6 +235,17 @@ release (`release_workflow_test`, `android_privacy_config_test`). Lancer
 `flutter test` ; `flutter analyze` et `dart format lib test tool` doivent aussi
 passer, la CI les exige.
 
+## Licence
+
+Le code est publié sous licence [MIT](LICENSE). Deux exceptions :
+
+- les polices Noto Sans embarquées dans `assets/fonts/` (export PDF) restent
+  sous [SIL Open Font License 1.1](assets/fonts/OFL.txt) ;
+- l'**icône de l'application** (`assets/icon/` et ses déclinaisons Android,
+  iOS, Web et Windows) et les **visuels de la fiche Google Play**
+  (`store/` : icônes, bandeaux, captures d'écran) sont © Antoine1838, tous
+  droits réservés : ils ne sont pas couverts par la licence MIT.
+
 ## Idées d'améliorations
 
 Pistes, sans engagement :
