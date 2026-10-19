@@ -26,9 +26,12 @@ import 'models/student.dart' show GenderColorPalette;
 const String demoClassAsset = 'assets/demo/demo_class_6emeb.json';
 
 /// Identifiant unique simple (horodatage + aléatoire), sans dépendance externe.
+///
+/// Le tirage reste sous 2^31 : en dart2js `1 << 32` vaut 0 (décalage sur
+/// 32 bits) et `nextInt` lève alors une `RangeError`.
 String newId() =>
     '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}'
-    '${Random().nextInt(1 << 32).toRadixString(36)}';
+    '${Random().nextInt(0x7fffffff).toRadixString(36)}';
 
 /// Vue de l'onglet Élèves : [complete] (une colonne par valeur possible, à
 /// cocher) ou [compact] (une colonne par attribut, tap pour cycler).
