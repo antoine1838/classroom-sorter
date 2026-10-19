@@ -23,8 +23,8 @@ class PlanFileService {
   final PlanFileSaver _saveFile;
   final PlanFilePicker _pickFile;
 
-  String encode(ClassGroup classGroup) =>
-      const JsonEncoder.withIndent('  ').convert({
+  String encode(ClassGroup classGroup) => const JsonEncoder.withIndent('  ')
+      .convert({
         'format': format,
         'schemaVersion': schemaVersion,
         'class': classGroup.toJson(),

@@ -56,19 +56,16 @@ PlanResult _run(ClassGroup g) =>
 
 void main() {
   group('Voisinage sur le même rang', () {
-    test(
-      'deux places adjacentes du même rang sont voisines (séparer échoue)',
-      () {
-        // 1x2, pas de couloir : les deux élèves sont forcément côte à côte.
-        final res = _run(_group(rows: 1, cols: 2, ruleType: RuleType.separate));
-        expect(
-          res.violations,
-          isNotEmpty,
-          reason:
-              'sans couloir, les deux places sont voisines → séparer impossible',
-        );
-      },
-    );
+    test('deux places adjacentes du même rang sont voisines (séparer échoue)', () {
+      // 1x2, pas de couloir : les deux élèves sont forcément côte à côte.
+      final res = _run(_group(rows: 1, cols: 2, ruleType: RuleType.separate));
+      expect(
+        res.violations,
+        isNotEmpty,
+        reason:
+            'sans couloir, les deux places sont voisines → séparer impossible',
+      );
+    });
 
     test('rapprocher réussit quand les places sont adjacentes', () {
       final res = _run(
@@ -187,8 +184,7 @@ void main() {
       expect(
         res.violations,
         isEmpty,
-        reason:
-            'les places imposées ne sont pas voisines : aucune règle dure ne porte dessus',
+        reason: 'les places imposées ne sont pas voisines : aucune règle dure ne porte dessus',
       );
       expect(
         res.balance.any(

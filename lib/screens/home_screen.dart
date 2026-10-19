@@ -158,9 +158,8 @@ class HomeScreen extends StatelessWidget {
               : c.name,
         ),
         subtitle: Text(
-          AppLocalizations.of(
-            context,
-          )!.classSummary(c.students.length, c.room.capacity),
+          AppLocalizations.of(context)!
+              .classSummary(c.students.length, c.room.capacity),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -242,9 +241,8 @@ class HomeScreen extends StatelessWidget {
     if (!await _confirmPrivacyExport(context)) return;
     final exported = await _planFileService.exportClass(classGroup);
     if (exported && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.fileExported)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.fileExported)));
     }
   }
 
@@ -254,14 +252,12 @@ class HomeScreen extends StatelessWidget {
       final imported = await _planFileService.importClass();
       if (imported == null || !context.mounted) return;
       state.importClass(imported);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.fileImported)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.fileImported)));
     } on FormatException {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.invalidPlanFile)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.invalidPlanFile)));
     }
   }
 

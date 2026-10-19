@@ -111,12 +111,12 @@ void main() {
       await repo.save([ClassGroup(id: 'b', name: '6ème B')]);
 
       final prefs = await SharedPreferences.getInstance();
-      final backup =
-          jsonDecode(prefs.getString('plandeclasse_classes_v1_backup')!)
-              as List<dynamic>;
-      final current =
-          jsonDecode(prefs.getString('plandeclasse_classes_v1')!)
-              as List<dynamic>;
+      final backup = jsonDecode(
+        prefs.getString('plandeclasse_classes_v1_backup')!,
+      ) as List<dynamic>;
+      final current = jsonDecode(
+        prefs.getString('plandeclasse_classes_v1')!,
+      ) as List<dynamic>;
 
       expect((backup.single as Map<String, dynamic>)['name'], '5ème A');
       expect((current.single as Map<String, dynamic>)['name'], '6ème B');

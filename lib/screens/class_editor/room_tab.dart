@@ -206,9 +206,8 @@ class _RoomTab extends StatelessWidget {
     final room = cls.room;
     final missing = cls.students.length - room.capacity;
     final warningText = missing > 0
-        ? _l10n(
-            context,
-          ).roomCapacityWarning(room.capacity, cls.students.length, missing)
+        ? _l10n(context)
+              .roomCapacityWarning(room.capacity, cls.students.length, missing)
         : null;
 
     return LayoutBuilder(
@@ -307,9 +306,9 @@ class _RoomTab extends StatelessWidget {
                             Icon(
                               Icons.info_outline,
                               size: 18,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onErrorContainer,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -317,9 +316,9 @@ class _RoomTab extends StatelessWidget {
                                 warningText,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onErrorContainer,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer,
                                 ),
                               ),
                             ),
