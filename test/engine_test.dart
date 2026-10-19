@@ -367,6 +367,47 @@ void main() {
     expect(res.warnings, isNotEmpty);
   });
 
+  test(
+    '20 élèves / 28 places : « séparer » exige d\'utiliser des places vides',
+    () {
+      // 14 élèves doivent être deux à deux non voisins (91 règles dures). Sur la
+      // grille 4 × 7, 14 places deux à deux non voisines n'existent que sous la
+      // forme d'un des deux damiers (les 14 cases d'une même couleur) : les
+      // places occupées doivent donc contenir un damier complet. Le tirage
+      // initial des 20 places (sur 28) n'y parvient presque jamais, et
+      // l'échange d'élèves ne change pas l'ensemble des places occupées : sans
+      // déplacer des élèves vers des places vides, la règle reste violée.
+      const separated = 14;
+      final cls = _classWith(
+        room: Room(rows: 4, cols: 7),
+        students: [for (var i = 0; i < 20; i++) Student(id: 's$i')],
+        rules: [
+          for (var i = 0; i < separated; i++)
+            for (var j = i + 1; j < separated; j++)
+              Rule(
+                id: 'r$i-$j',
+                type: RuleType.separate,
+                studentAId: 's$i',
+                studentBId: 's$j',
+              ),
+        ],
+        balance: BalanceSettings(separateAgites: false),
+      );
+
+      for (var seed = 0; seed < 10; seed++) {
+        final res = SeatingEngine(cls, seed: seed).generate();
+
+        expect(res.violations, isEmpty, reason: 'graine $seed');
+        expect(res.unplacedStudentIds, isEmpty, reason: 'graine $seed');
+        expect(
+          res.assignment.length,
+          20,
+          reason: 'graine $seed : chaque élève a sa propre place',
+        );
+      }
+    },
+  );
+
   test('le recuit garde le meilleur état de la passe, pas l\'état final', () {
     // Même graine => la passe de k itérations est le préfixe exact de celle de
     // k + 1 (même flux aléatoire, même température). Le coût renvoyé ne peut
