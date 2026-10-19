@@ -292,7 +292,13 @@ class SeatingEngine {
 
     for (var restart = 0; restart < restarts; restart++) {
       final current = _randomFill(freeStudents, freeSeats);
-      final run = _annealRun(current, freeStudents, pinned, iterations);
+      final run = _annealRun(
+        current,
+        freeStudents,
+        freeSeats,
+        pinned,
+        iterations,
+      );
       if (run.cost < bestCost) {
         bestCost = run.cost;
         best = run.best;
@@ -302,53 +308,98 @@ class SeatingEngine {
     return (best: best, bestCost: bestCost);
   }
 
-  /// Une passe de recuit simulé (un « restart ») : échange des places au
-  /// hasard, accepte si ça améliore le coût ou, avec une probabilité
-  /// décroissante (température), si ça le dégrade. Modifie [current] en
-  /// place ; renvoie le MEILLEUR état rencontré pendant la passe (et son
-  /// coût), pas l'état final : à température non nulle, la marche peut
+  /// Une passe de recuit simulé (un « restart ») : à chaque itération, deux
+  /// « éléments » tirés au hasard parmi les élèves ET les places vides
+  /// s'échangent leur place — deux élèves, ou un élève et une place vide (il y
+  /// a des places vides quand la salle compte plus de places que d'élèves ;
+  /// sans ce mouvement, leur choix initial serait figé et ne servirait jamais à
+  /// écarter deux élèves). Accepte si ça améliore le coût ou, avec une
+  /// probabilité décroissante (température), si ça le dégrade. Modifie
+  /// [current] en place ; renvoie le MEILLEUR état rencontré pendant la passe
+  /// (et son coût), pas l'état final : à température non nulle, la marche peut
   /// repartir vers le haut après avoir visité un meilleur placement.
   ({Map<String, String?> best, double cost}) _annealRun(
     Map<String, String?> current,
     List<String> freeStudents,
+    List<String> freeSeats,
     Map<String, String> pinned,
     int iterations,
   ) {
+    final emptySeats = _emptySeats(current, freeSeats);
+    final students = freeStudents.length;
+    final slots = students + emptySeats.length;
+
     double cost = _cost(current, pinned);
     double bestCost = cost;
     final best = Map<String, String?>.of(current);
     double temp = _initialTemp;
 
-    for (var it = 0; it < iterations && freeStudents.length >= 2; it++) {
-      final a = freeStudents[_rng.nextInt(freeStudents.length)];
-      final b = freeStudents[_rng.nextInt(freeStudents.length)];
-      if (a == b) continue;
+    for (var it = 0; it < iterations && slots >= 2; it++) {
+      final i = _rng.nextInt(slots);
+      final j = _rng.nextInt(slots);
+      final lo = min(i, j);
+      final hi = max(i, j);
+      // Même élément tiré deux fois, ou deux places vides : rien à échanger.
+      if (lo == hi || lo >= students) continue;
 
-      // Échange des places de a et b (l'une peut être nulle).
-      final tmp = current[a];
-      current[a] = current[b];
-      current[b] = tmp;
+      _swapSlots(current, freeStudents, emptySeats, lo, hi);
 
       final newCost = _cost(current, pinned);
-      final delta = newCost - cost;
-      final accept =
-          delta <= 0 ||
-          _rng.nextDouble() < exp(-delta / (temp <= 0 ? 1e-4 : temp));
-      if (accept) {
+      if (_accepts(newCost - cost, temp)) {
         cost = newCost;
         if (cost < bestCost) {
           bestCost = cost;
           best.addAll(current); // mêmes clés : recopie sans réallocation
         }
       } else {
-        current[b] = current[a];
-        current[a] = tmp; // annuler l'échange
+        _swapSlots(current, freeStudents, emptySeats, lo, hi); // annuler
       }
       temp *= _coolingRate; // refroidissement
     }
 
     return (best: best, cost: bestCost);
   }
+
+  /// Places libres qu'aucun élève de [current] n'occupe. Il n'y en a que
+  /// lorsque la salle compte plus de places que d'élèves à placer — jamais en
+  /// même temps qu'un élève non placé (voir [_randomFill]).
+  List<String> _emptySeats(Map<String, String?> current, List<String> seats) {
+    final taken = current.values.toSet();
+    return [
+      for (final seat in seats)
+        if (!taken.contains(seat)) seat,
+    ];
+  }
+
+  /// Échange les places des éléments d'indices [lo] < [hi] : l'élément [lo] est
+  /// toujours un élève ; [hi] est un autre élève ou, à partir de
+  /// `students.length`, une place vide. Appliquer deux fois le même échange le
+  /// défait, ce qui sert à annuler un mouvement refusé.
+  void _swapSlots(
+    Map<String, String?> current,
+    List<String> students,
+    List<String> emptySeats,
+    int lo,
+    int hi,
+  ) {
+    final a = students[lo];
+    final seatA = current[a];
+    if (hi < students.length) {
+      final b = students[hi];
+      current[a] = current[b];
+      current[b] = seatA; // l'une des deux places peut être nulle
+    } else {
+      final empty = hi - students.length;
+      current[a] = emptySeats[empty];
+      emptySeats[empty] = seatA!; // a était placé : voir _emptySeats
+    }
+  }
+
+  /// Critère de Metropolis : un mouvement qui n'aggrave pas le coût est
+  /// toujours accepté, un mouvement qui l'aggrave de [delta] l'est avec la
+  /// probabilité exp(-delta / température).
+  bool _accepts(double delta, double temp) =>
+      delta <= 0 || _rng.nextDouble() < exp(-delta / (temp <= 0 ? 1e-4 : temp));
 
   /// Évalue le placement actuel ([cls.assignment]) sans le modifier : utile
   /// après un ajustement manuel (glisser-déposer) pour vérifier les règles et
