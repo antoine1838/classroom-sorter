@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Installer Flutter 3.47.6
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -35,6 +35,6 @@ jobs:
         run: flutter test --coverage
 
       - name: Analyse SonarCloud
-        uses: SonarSource/sonarqube-scan-action@v8
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
