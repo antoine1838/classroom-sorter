@@ -24,6 +24,16 @@ Map<String, String> jobBlocks(String workflow) {
 String readWorkflow(String name) =>
     File('.github/workflows/$name').readAsStringSync().replaceAll('\r\n', '\n');
 
+List<String> workflowNames() {
+  final names = [
+    for (final file in Directory('.github/workflows').listSync())
+      if (file is File && file.path.endsWith('.yml'))
+        file.uri.pathSegments.last,
+  ];
+  expect(names, isNotEmpty);
+  return names;
+}
+
 void main() {
   late String pubspec;
   late String releaseWorkflow;
@@ -126,12 +136,7 @@ void main() {
 
   test('chaque job a un timeout, la CI annule les PR obsolètes', () {
     final timeout = RegExp(r'^    timeout-minutes: \d+$', multiLine: true);
-    final workflows = Directory(
-      '.github/workflows',
-    ).listSync().whereType<File>().where((file) => file.path.endsWith('.yml'));
-    expect(workflows, isNotEmpty);
-    for (final file in workflows) {
-      final name = file.uri.pathSegments.last;
+    for (final name in workflowNames()) {
       for (final job in jobBlocks(readWorkflow(name)).entries) {
         expect(
           timeout.hasMatch(job.value),
@@ -146,6 +151,20 @@ void main() {
         r"cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
       ),
     );
+  });
+
+  test('toutes les actions sont épinglées par SHA avec leur version', () {
+    // `uses: owner/action@<sha40> # vX.Y.Z` : le commentaire permet à
+    // Dependabot de mettre à jour le SHA et la version ensemble.
+    final uses = RegExp(r'^\s*(?:-\s+)?uses:\s*(\S+)(.*)$', multiLine: true);
+    final pinned = RegExp(r'^[\w.-]+/[\w./-]+@[0-9a-f]{40}$');
+    for (final name in workflowNames()) {
+      for (final match in uses.allMatches(readWorkflow(name))) {
+        final reason = '$name : ${match.group(1)}';
+        expect(pinned.hasMatch(match.group(1)!), isTrue, reason: reason);
+        expect(match.group(2), matches(r'^ # v\d+(\.\d+)*$'), reason: reason);
+      }
+    }
   });
 
   test('la clé de signature n\'existe que dans le workflow de release', () {

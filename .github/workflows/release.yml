@@ -29,7 +29,7 @@ jobs:
       contents: write  # nécessaire pour que le job crée la Release
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Lire et valider la version du pubspec
         shell: bash
@@ -81,7 +81,7 @@ jobs:
           exit "$missing"
 
       - name: Installer Java 17
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
@@ -137,7 +137,7 @@ jobs:
           echo "APK_PATH=build/app/outputs/flutter-apk/classroom-sorter-$LABEL.apk" >> "$GITHUB_ENV"
 
       - name: Publier l'APK en artefact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: classroom-sorter-${{ env.APK_LABEL }}
           path: ${{ env.APK_PATH }}
@@ -157,7 +157,7 @@ jobs:
           echo "AAB_PATH=build/app/outputs/bundle/release/classroom-sorter-$LABEL.aab" >> "$GITHUB_ENV"
 
       - name: Publier l'AAB en artefact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: classroom-sorter-${{ env.APK_LABEL }}-aab
           path: ${{ env.AAB_PATH }}

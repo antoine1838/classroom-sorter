@@ -22,10 +22,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -41,10 +41,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -60,10 +60,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -83,10 +83,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -98,7 +98,7 @@ jobs:
         run: flutter build web --release
 
       - name: Publier le build Web
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: classroom-sorter-web
           path: build/web
@@ -110,25 +110,25 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # SDK sur D: et caches SDK/pub distincts : mesuré ≈ 40 s plus rapide que
       # `cache: true` sur C:\hostedtoolcache (restauration du SDK de 1,8 Go).
       # La clé du SDK porte la version de Flutter : la changer avec elle.
       - name: Restaurer le SDK Flutter
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: D:/flutter/stable-3.47.6-x64
           key: flutter-sdk-windows-d-3.47.6
 
       - name: Restaurer le cache pub
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: C:\Users\runneradmin\AppData\Local\Pub\Cache
           key: flutter-pub-windows-${{ hashFiles('pubspec.lock') }}
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: false
@@ -141,7 +141,7 @@ jobs:
         run: flutter build windows --release
 
       - name: Publier le build Windows
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: classroom-sorter-windows
           path: build/windows/x64/runner/Release
@@ -153,7 +153,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Lire et valider la version du pubspec
         shell: bash
@@ -165,14 +165,14 @@ jobs:
           fi
 
       - name: Installer Java 17
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -192,7 +192,7 @@ jobs:
           echo "APK_LABEL=build-$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
 
       - name: Publier l'APK en artefact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: classroom-sorter-${{ env.APK_LABEL }}
           path: build/app/outputs/flutter-apk/classroom-sorter-${{ env.APK_LABEL }}.apk
@@ -206,7 +206,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Lire et valider la version du pubspec
         shell: bash
@@ -221,7 +221,7 @@ jobs:
           echo "APP_BUILD_NUMBER=${BASH_REMATCH[2]}" >> "$GITHUB_ENV"
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -242,7 +242,7 @@ jobs:
           echo "IOS_LABEL=$LABEL" >> "$GITHUB_ENV"
 
       - name: Publier le .app en artefact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plan-de-classe-ios-${{ env.IOS_LABEL }}-unsigned
           path: build/ios/iphoneos/plan-de-classe-ios-${{ env.IOS_LABEL }}-unsigned.zip
@@ -255,18 +255,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout de la révision courante
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: current
 
       - name: Checkout de main comme référence
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           path: baseline
 
       - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           cache: true
@@ -325,7 +325,7 @@ jobs:
 
       - name: Archiver les rapports de performance
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: seating-engine-benchmark
           path: |
