@@ -95,7 +95,7 @@ seul vrai changement moteur est que les couloirs en Y coupent le voisinage.
 | Poids | Interposition latérale et frontale au même poids (`balancePenalty = 12.0`) |
 | Couloir en Y | Coupe le voisinage, **pas** la ligne de vue : une allée d'un mètre n'empêche pas un grand de masquer le tableau |
 | Distance au tableau | Le rang, réinterprété comme rang de distance (voir constat 1) |
-| Capacité | Bandeau informatif (« 24 place(s) pour 30 élève(s) »), jamais bloquant |
+| Capacité | Bandeau informatif (« 24 places pour 30 élèves — 6 élèves ne seront pas placés »), jamais bloquant |
 | Application d'un modèle | À tout moment depuis l'onglet Salle, élagage de `assignment` et des places imposées, avec confirmation si la salle n'est pas vide |
 | Libellés | Réécrits en intention pédagogique, pas en géométrie |
 

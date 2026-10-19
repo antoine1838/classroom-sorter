@@ -469,20 +469,21 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
       Center(child: roomThumbnailBox(room, width: 120, height: 72));
 
   Future<void> _renameSavedRoom(SavedRoom saved) async {
+    final l10n = _l10n(context);
     final ctrl = TextEditingController(text: saved.name);
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Renommer la salle'),
+        title: Text(l10n.renameRoom),
         content: TextField(controller: ctrl, autofocus: true),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: const Text('OK'),
+            child: Text(l10n.ok),
           ),
         ],
       ),
@@ -493,19 +494,20 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
   }
 
   Future<void> _deleteSavedRoom(SavedRoom saved) async {
+    final l10n = _l10n(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer la salle ?'),
-        content: Text('« ${saved.name} » sera définitivement supprimée.'),
+        title: Text(l10n.deleteRoomTitle),
+        content: Text(l10n.deleteRoomDescription(saved.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Supprimer'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -520,27 +522,28 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
   /// Menu Renommer/Supprimer ouvert par l'appui long ou le clic droit sur
   /// une salle — le tap simple reste réservé à la sélection.
   Future<void> _showSavedRoomMenu(SavedRoom saved) async {
+    final l10n = _l10n(context);
     final action = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
         title: Text(saved.name),
         children: [
           SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'renommer'),
-            child: const Text('Renommer'),
+            onPressed: () => Navigator.pop(ctx, 'rename'),
+            child: Text(l10n.rename),
           ),
           SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'supprimer'),
-            child: const Text('Supprimer'),
+            onPressed: () => Navigator.pop(ctx, 'delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
     );
     if (!mounted) return;
     switch (action) {
-      case 'renommer':
+      case 'rename':
         await _renameSavedRoom(saved);
-      case 'supprimer':
+      case 'delete':
         await _deleteSavedRoom(saved);
     }
   }

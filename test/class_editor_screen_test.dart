@@ -50,6 +50,7 @@ Future<AppState> _pump(
   WidgetTester tester,
   ClassGroup cls, {
   PlanGenerator planGenerator = _generateImmediately,
+  Locale locale = const Locale('fr'),
 }) async {
   await tester.binding.setSurfaceSize(const Size(1000, 2000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -57,7 +58,7 @@ Future<AppState> _pump(
   final state = AppState()..classes.add(cls);
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('fr'),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(
@@ -230,6 +231,14 @@ void main() {
       await _step(t, 'Colonnes', Icons.add);
       expect(cls.room.cols, 3);
       expect(find.text('12 places'), findsOneWidget);
+    });
+
+    testWidgets('le compteur de places est au singulier pour une seule', (
+      t,
+    ) async {
+      await _pump(t, _cls(rows: 1, cols: 1));
+
+      expect(find.text('1 place'), findsOneWidget);
     });
 
     testWidgets('la taille reste bornée à 1 au minimum', (t) async {
@@ -695,12 +704,9 @@ void main() {
         final cls = _cls(rows: 1, cols: 2, students: 3);
         await _pump(t, cls);
 
+        expect(find.textContaining('2 places pour 3 élèves'), findsOneWidget);
         expect(
-          find.textContaining('2 place(s) pour 3 élève(s)'),
-          findsOneWidget,
-        );
-        expect(
-          find.textContaining('1 élève(s) ne seront pas placé(s)'),
+          find.textContaining('1 élève ne sera pas placé'),
           findsOneWidget,
         );
       },
@@ -712,7 +718,7 @@ void main() {
       final cls = _cls(rows: 2, cols: 2, students: 3);
       await _pump(t, cls);
 
-      expect(find.textContaining('ne seront pas placé(s)'), findsNothing);
+      expect(find.textContaining('pas placé'), findsNothing);
     });
   });
 
@@ -906,6 +912,42 @@ void main() {
 
       expect(state.savedRooms, isEmpty);
       expect(find.textContaining('Aucune salle enregistrée'), findsOneWidget);
+    });
+
+    testWidgets('les dialogues des salles sont traduits (anglais)', (t) async {
+      final cls = _cls(rows: 2, cols: 3);
+      final state = await _pump(t, cls, locale: const Locale('en'));
+      state.addSavedRoom('B204', Room(rows: 1, cols: 1));
+
+      await t.tap(find.text('Layout'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('My rooms'));
+      await t.pumpAndSettle();
+      expect(find.text('1 seat'), findsOneWidget);
+
+      await t.longPress(find.widgetWithText(InkWell, 'B204'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Rename'));
+      await t.pumpAndSettle();
+      expect(find.text('Rename room'), findsOneWidget);
+      // La feuille de disposition reste ouverte dessous : seul le bouton du
+      // dialogue de renommage est atteignable.
+      expect(find.text('Cancel').hitTestable(), findsOneWidget);
+      await t.enterText(find.byType(TextField), 'C105');
+      await t.tap(find.widgetWithText(FilledButton, 'OK'));
+      await t.pumpAndSettle();
+      expect(state.savedRooms.single.name, 'C105');
+
+      await t.longPress(find.widgetWithText(InkWell, 'C105'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Delete'));
+      await t.pumpAndSettle();
+      expect(find.text('Delete room?'), findsOneWidget);
+      expect(find.text('“C105” will be permanently deleted.'), findsOneWidget);
+      await t.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await t.pumpAndSettle();
+
+      expect(state.savedRooms, isEmpty);
     });
   });
 

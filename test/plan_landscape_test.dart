@@ -365,7 +365,7 @@ void main() {
         findsNothing,
         reason: 'le dur prime sur le perfectible',
       );
-      expect(find.textContaining('problème(s)'), findsOneWidget);
+      expect(find.textContaining('problème'), findsOneWidget);
     });
 
     testWidgets('en rangée, le rapport est un bouton à libellé', (t) async {
