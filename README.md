@@ -107,6 +107,12 @@ sont mémorisées entre deux lancements (`window_manager`, voir `main.dart`).
 
 ## Lancer l'application
 
+Prérequis : le SDK Flutter (version épinglée dans `.github/workflows/ci.yml`),
+et pour Android un JDK 17 et le SDK Android. Les scripts ci-dessous les
+cherchent dans l'ordre : dossiers voisins du projet (`..\flutter`, `..\jdk-17`,
+`..\android-sdk`), puis `JAVA_HOME`, `ANDROID_HOME` et le `PATH` du système
+(`tool/dev-env.ps1`). Ils fonctionnent depuis n'importe quel dossier de clone.
+
 Depuis un terminal PowerShell, à la racine du projet :
 
 ```powershell
@@ -235,7 +241,8 @@ assets/demo/       demo_class_6emeb.json — classe de démo embarquée (voir
                    test/fixtures/README.md pour la fixture de référence)
 assets/fonts/      Noto Sans — police embarquée pour l'export PDF
 store/play/        fiche Google Play, par langue (voir store/play/README.md)
-tool/              benchmark du moteur de placement (utilisé par la CI)
+tool/              benchmark du moteur de placement (utilisé par la CI) et
+                   dev-env.ps1, l'environnement de run.ps1 / emulateur.ps1
 notes/             notes de chantier (décisions de conception, historiques)
 docs/              politique de confidentialité, publiée via GitHub Pages
 ```

@@ -1,11 +1,10 @@
 # Démarre le téléphone virtuel Android (Pixel_API36) puis lance l'app dessus.
 # À utiliser APRÈS avoir redémarré Windows une première fois (activation WHPX).
-$dev = (Split-Path -Parent $PSScriptRoot)
-$env:JAVA_HOME = "$dev\jdk-17"
-$env:ANDROID_HOME = "$dev\android-sdk"
-$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
-$env:Path = "$dev\flutter\bin;$env:JAVA_HOME\bin;$env:ANDROID_HOME\emulator;$env:ANDROID_HOME\platform-tools;$env:Path"
-Set-Location "$dev\classroom_sort"
+. "$PSScriptRoot\tool\dev-env.ps1"
+Set-Location $PSScriptRoot
+if (-not $env:ANDROID_HOME) {
+    throw "SDK Android introuvable : définis ANDROID_HOME, ou installe-le dans le dossier voisin android-sdk."
+}
 
 $adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
 
