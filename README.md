@@ -246,8 +246,10 @@ modèles et stockage (`models_test`, `repository_test`, `app_state_test`…),
 écrans (`home_screen_test`, `class_editor_screen_test`, `settings_screen_test`,
 `faq_screen_test`, `tutorial_guide_test`, `plan_history_screen_test`…), plan
 (`plan_landscape_test`, `plan_viewport_gestures_test`, `seat_marking_test`…),
-services (`plan_file_service_test`, `plan_pdf_service_test`) et garde-fous de
-release (`release_workflow_test`, `android_privacy_config_test`). Lancer
+services (`plan_file_service_test`, `plan_pdf_service_test`), traductions
+(`l10n_parity_test` : `app_en.arb` doit suivre `app_fr.arb`, mêmes clés, mêmes
+paramètres, pluriels complets) et garde-fous de release
+(`release_workflow_test`, `android_privacy_config_test`). Lancer
 `flutter test` ; `flutter analyze` et `dart format lib test tool` doivent aussi
 passer, la CI les exige.
 
