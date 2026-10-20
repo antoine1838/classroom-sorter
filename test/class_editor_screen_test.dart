@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -1382,6 +1383,44 @@ void main() {
         find.text('Aucun plan archivé pour cette classe.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('le menu exporte le plan en PDF', (t) async {
+      // Le plugin d'impression n'existe pas en test : on intercepte son canal
+      // pour vérifier que le PDF est bien construit puis remis au partage.
+      final calls = <String>[];
+      const channel = MethodChannel('net.nfet.printing');
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        calls.add(call.method);
+        return 1;
+      });
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      final cls = _cls(rows: 2, cols: 3, students: 2);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+      // Le menu ne propose l'export qu'une fois un plan généré.
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byIcon(Icons.more_vert));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Exporter en PDF'));
+      // La mise en page du PDF s'exécute hors du temps simulé : on laisse
+      // s'écouler le vrai temps jusqu'au partage.
+      await t.runAsync(() async {
+        for (var i = 0; i < 100 && calls.isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+
+      expect(calls, ['sharePdf']);
     });
 
     testWidgets(
