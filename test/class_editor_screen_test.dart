@@ -176,7 +176,7 @@ void main() {
           builder: (context) => Scaffold(
             body: TextButton(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) => ClassEditorScreen(state: state, cls: cls),
                 ),
               ),

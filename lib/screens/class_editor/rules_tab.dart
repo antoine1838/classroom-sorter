@@ -109,12 +109,12 @@ class _RulesTab extends StatelessWidget {
         ),
         if (cls.students.isEmpty)
           Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: Text(l10n.addStudentsFirst),
           ),
         if (cls.rules.isEmpty && cls.students.isNotEmpty)
           Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: Text(l10n.noRules),
           ),
         for (final r in cls.rules)

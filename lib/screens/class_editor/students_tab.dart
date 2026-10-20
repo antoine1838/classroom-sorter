@@ -540,7 +540,7 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
               maxLines: 8,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
                 hintText: l10n.importStudentsExample,
               ),
             ),

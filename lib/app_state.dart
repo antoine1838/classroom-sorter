@@ -531,7 +531,6 @@ class AppState extends ChangeNotifier {
             'Les données $label étaient endommagées. La dernière sauvegarde '
             'valide a été chargée.',
           );
-          break;
         case RepositoryLoadStatus.corrupted:
           hasError = true;
           notices.add(corrupted);
@@ -540,7 +539,6 @@ class AppState extends ChangeNotifier {
             'n\'a été trouvée. Une copie de récupération a été conservée '
             'si possible.',
           );
-          break;
       }
     }
 

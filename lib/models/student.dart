@@ -59,7 +59,7 @@ class Student {
   String get initials {
     final f = firstName.trim();
     final l = lastName.trim();
-    final s = ('${f.isNotEmpty ? f[0] : ''}${l.isNotEmpty ? l[0] : ''}')
+    final s = '${f.isNotEmpty ? f[0] : ''}${l.isNotEmpty ? l[0] : ''}'
         .toUpperCase();
     return s.isEmpty ? '?' : s;
   }

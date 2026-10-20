@@ -8,6 +8,11 @@
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
 analyzer:
+  # Typage strict : plus de cast ni de type générique deviné en silence.
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
   exclude:
     - build/**
     - android/**
@@ -30,6 +35,29 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
+    # Futures : une écriture oubliée ou lancée sans suivi doit être explicite
+    # (`await` ou `unawaited(...)`).
+    unawaited_futures: true
+    discarded_futures: true
+    # Typage
+    avoid_dynamic_calls: true
+    always_declare_return_types: true
+    # const / final
+    prefer_const_constructors: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_const_declarations: true
+    prefer_final_locals: true
+    prefer_final_in_for_each: true
+    # Ressources
+    cancel_subscriptions: true
+    close_sinks: true
+    # Divers
+    only_throw_errors: true
+    avoid_void_async: true
+    use_super_parameters: true
+    noop_primitive_operations: true
+    unnecessary_breaks: true
+    unnecessary_parenthesis: true
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 

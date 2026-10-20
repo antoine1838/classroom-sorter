@@ -332,7 +332,7 @@ class _RoomTab extends StatelessWidget {
                   // à la grille plutôt que de la faire déborder.
                   if (showHelp)
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(_l10n(context).roomHelp, style: _helpStyle),
                     ),
                   const SizedBox(height: 8),

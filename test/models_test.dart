@@ -262,7 +262,11 @@ void main() {
     });
 
     test('fromJson relit une salle enregistrée avant l\'orientation', () {
-      final room = Room.fromJson({'rows': 2, 'cols': 2, 'disabled': []});
+      final room = Room.fromJson({
+        'rows': 2,
+        'cols': 2,
+        'disabled': <dynamic>[],
+      });
 
       expect(room.rowAisles, isEmpty);
       expect(room.facingOf(0, 0), Facing.nord);

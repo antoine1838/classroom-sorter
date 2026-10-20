@@ -282,11 +282,11 @@ class _PlanTabState extends State<_PlanTab> {
       onSelected: (action) {
         switch (action) {
           case _PlanAction.archive:
-            _archive();
+            unawaited(_archive());
           case _PlanAction.history:
             _openHistory();
           case _PlanAction.exportPdf:
-            _exportPdf();
+            unawaited(_exportPdf());
         }
       },
       itemBuilder: (context) => [
@@ -310,7 +310,7 @@ class _PlanTabState extends State<_PlanTab> {
 
   void _openHistory() {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => PlanHistoryScreen(state: widget.state, classGroup: cls),
       ),
     );
@@ -504,46 +504,48 @@ class _PlanTabState extends State<_PlanTab> {
   void _showSeatDetail(BuildContext context, Student student) {
     final l10n = _l10n(context);
     final issues = _result?.issuesFor(student.id) ?? const <PlanIssue>[];
-    showModalBottomSheet<void>(
-      context: context,
-      // Sans ça, la feuille est plafonnée à 9/16 de la hauteur d'écran : en
-      // paysage sur téléphone, ça coupe le contenu avant le bouton du bas.
-      isScrollControlled: true,
-      builder: (_) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                student.fullName,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              _SeatDetailAttributes(student: student, l10n: l10n),
-              if (issues.isNotEmpty) ...[
-                const SizedBox(height: 12),
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        // Sans ça, la feuille est plafonnée à 9/16 de la hauteur d'écran : en
+        // paysage sur téléphone, ça coupe le contenu avant le bouton du bas.
+        isScrollControlled: true,
+        builder: (_) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  l10n.toNote,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  student.fullName,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-                for (final issue in issues)
-                  _ReportLine(
-                    icon: issue.isHard ? Icons.error : Icons.warning_amber,
-                    color: issue.isHard ? Colors.red.shade600 : _kSoftColour,
-                    text: localizedPlanIssue(issue, l10n, cls.studentById),
+                const SizedBox(height: 8),
+                _SeatDetailAttributes(student: student, l10n: l10n),
+                if (issues.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.toNote,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
+                  for (final issue in issues)
+                    _ReportLine(
+                      icon: issue.isHard ? Icons.error : Icons.warning_amber,
+                      color: issue.isHard ? Colors.red.shade600 : _kSoftColour,
+                      text: localizedPlanIssue(issue, l10n, cls.studentById),
+                    ),
+                ],
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    unawaited(_editStudentFromPlan(student));
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: Text(l10n.editStudent),
+                ),
               ],
-              const SizedBox(height: 16),
-              FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _editStudentFromPlan(student);
-                },
-                icon: const Icon(Icons.edit),
-                label: Text(l10n.editStudent),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -582,30 +584,32 @@ class _PlanTabState extends State<_PlanTab> {
     final result = _result;
     if (result == null) return;
     final unplaced = result.unplacedStudentIds;
-    showModalBottomSheet<void>(
-      context: context,
-      // Même plafond à 9/16 qui peut couper le rapport en paysage.
-      isScrollControlled: true,
-      builder: (_) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ReportCard(result: result, l10n: l10n, cls: cls),
-              if (unplaced.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    l10n.unplacedStudents(
-                      unplaced
-                          .map((id) => cls.studentById(id)?.fullName ?? '?')
-                          .join(', '),
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        // Même plafond à 9/16 qui peut couper le rapport en paysage.
+        isScrollControlled: true,
+        builder: (_) => SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ReportCard(result: result, l10n: l10n, cls: cls),
+                if (unplaced.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      l10n.unplacedStudents(
+                        unplaced
+                            .map((id) => cls.studentById(id)?.fullName ?? '?')
+                            .join(', '),
+                      ),
+                      style: const TextStyle(fontSize: 12),
                     ),
-                    style: const TextStyle(fontSize: 12),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -185,7 +185,7 @@ void main() {
       Color? stripe(String id) {
         final finder = find.byKey(ValueKey('gender_stripe_$id'));
         if (finder.evaluate().isEmpty) return null;
-        return (t.widget<Container>(finder).color);
+        return t.widget<Container>(finder).color;
       }
 
       final fille = stripe('f');

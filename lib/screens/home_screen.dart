@@ -44,7 +44,9 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.settings_outlined),
             tooltip: l10n.settings,
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => SettingsScreen(state: state)),
+              MaterialPageRoute<void>(
+                builder: (_) => SettingsScreen(state: state),
+              ),
             ),
           ),
           IconButton(
@@ -60,9 +62,9 @@ class HomeScreen extends StatelessWidget {
                 context,
                 topic: TutorialTopic.home,
               ),
-              _HomeHelpAction.faq => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const FaqScreen())),
+              _HomeHelpAction.faq => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const FaqScreen()),
+              ),
             },
             itemBuilder: (context) => [
               PopupMenuItem(
@@ -168,7 +170,7 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.history),
               tooltip: AppLocalizations.of(context)!.planHistory,
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) =>
                       PlanHistoryScreen(state: state, classGroup: c),
                 ),
@@ -227,7 +229,7 @@ class HomeScreen extends StatelessWidget {
 
   void _open(BuildContext context, ClassGroup c) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => ClassEditorScreen(state: state, cls: c),
       ),
     );
@@ -330,7 +332,7 @@ class HomeScreen extends StatelessWidget {
     final demo = await state.loadTemporaryDemoClass();
     if (!context.mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) =>
             ClassEditorScreen(state: state, cls: demo, startTutorial: true),
       ),

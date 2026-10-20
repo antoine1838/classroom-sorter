@@ -22,6 +22,8 @@ class SavedRoom {
   factory SavedRoom.fromJson(Map<String, dynamic> j) => SavedRoom(
     id: j['id'] as String,
     name: (j['name'] ?? '') as String,
-    room: Room.fromJson((j['room'] ?? const {}) as Map<String, dynamic>),
+    room: Room.fromJson(
+      (j['room'] ?? const <String, dynamic>{}) as Map<String, dynamic>,
+    ),
   );
 }
