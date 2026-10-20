@@ -42,6 +42,27 @@ void main() {
     );
   });
 
+  test('un fichier d’une autre version de schéma est refusé', () {
+    // Ni un fichier produit par une version future de l'application, ni un
+    // schéma disparu : on refuse plutôt que d'interpréter de travers.
+    for (final version in [0, 2, 99]) {
+      final source = service.encode(
+        ClassGroup(id: 'c', name: '6ème B', room: Room(rows: 1, cols: 1)),
+      );
+      final other = source.replaceFirst(
+        '"schemaVersion": ${PlanFileService.schemaVersion}',
+        '"schemaVersion": $version',
+      );
+
+      expect(other, isNot(source), reason: 'la version $version est injectée');
+      expect(
+        () => service.decode(other),
+        throwsFormatException,
+        reason: 'schemaVersion $version',
+      );
+    }
+  });
+
   test('exporte un fichier nommé de façon sûre', () async {
     String? filename;
     Uint8List? bytes;

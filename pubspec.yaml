@@ -50,6 +50,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  plugin_platform_interface: ^2.1.8
 
 # Configuration for the flutter_launcher_icons package.
 # Regenerate the launcher icons with: dart run flutter_launcher_icons
