@@ -74,6 +74,16 @@ jobs:
       - name: Lancer les tests
         run: flutter test
 
+      # Un test golden en échec écrit ses images (référence, rendu, différence)
+      # dans test/failures/ : sans elles, impossible de voir ce qui diffère.
+      - name: Publier les images de diff des golden
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: golden-failures
+          path: test/failures
+          if-no-files-found: ignore
+
   # Les builds ne démarrent que si le code est propre : un format, une analyse
   # ou un test en échec évite de lancer des builds lourds (macOS, Android) pour
   # rien, et empêche de publier un artefact issu d'un code qui ne passe pas.
