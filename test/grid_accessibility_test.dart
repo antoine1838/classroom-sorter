@@ -125,6 +125,65 @@ void main() {
     expect(swap, (Room.keyOf(0, 0), Room.keyOf(0, 1)));
   });
 
+  testWidgets('Échap annule le déplacement au clavier et l’annonce', (
+    tester,
+  ) async {
+    final announcements = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockDecodedMessageHandler<dynamic>(
+      SystemChannels.accessibility,
+      (dynamic message) async {
+        if (message is Map<Object?, Object?>) {
+          final data = message['data'];
+          if (data is Map<Object?, Object?>) {
+            final text = data['message'];
+            if (text is String) announcements.add(text);
+          }
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger
+          .setMockDecodedMessageHandler<dynamic>(
+            SystemChannels.accessibility,
+            null,
+          ),
+    );
+    final cls = ClassGroup(
+      id: 'class',
+      room: Room(rows: 1, cols: 2),
+      students: [
+        Student(id: 'ada', firstName: 'Ada'),
+        Student(id: 'lin', firstName: 'Lin'),
+      ],
+      assignment: {Room.keyOf(0, 0): 'ada', Room.keyOf(0, 1): 'lin'},
+    );
+    (String, String)? swap;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlanGrid(
+            cls: cls,
+            onSwap: (source, target) => swap = (source, target),
+          ),
+        ),
+      ),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+
+    expect(announcements, hasLength(2));
+    expect(announcements.last, 'Déplacement annulé.');
+
+    // Le déplacement annulé ne doit plus échanger les deux élèves.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+
+    expect(swap, isNull);
+  });
+
   testWidgets('le clavier zoome et recentre la fenêtre du plan', (
     tester,
   ) async {
