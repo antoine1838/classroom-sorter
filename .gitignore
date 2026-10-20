@@ -49,3 +49,7 @@ app.*.map.json
 /android/app/release
 # Images de diff produites quand un test golden échoue
 /test/failures/
+# Réglages Claude Code propres à chaque poste (permissions) : ne pas versionner,
+# le dépôt est public et ces règles autorisent git/gh sans demande.
+/.claude/settings.json
+/.claude/settings.local.json
