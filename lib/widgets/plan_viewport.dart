@@ -191,9 +191,7 @@ class PlanViewportState extends State<PlanViewport> {
   void zoomOut() => _zoomBy(1 / 1.2);
 
   void _zoomBy(double factor) {
-    final next = (_scale * factor)
-        .clamp(widget.minScale, widget.maxScale)
-        .toDouble();
+    final next = (_scale * factor).clamp(widget.minScale, widget.maxScale);
     if (next == _scale) return;
     final center = _viewport.center(Offset.zero);
     final focal = (center - _translation) / _scale;
@@ -229,9 +227,10 @@ class PlanViewportState extends State<PlanViewport> {
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     if (_ignoring || details.pointerCount < _minPointers) return;
-    final next = (_startScale * details.scale)
-        .clamp(widget.minScale, widget.maxScale)
-        .toDouble();
+    final next = (_startScale * details.scale).clamp(
+      widget.minScale,
+      widget.maxScale,
+    );
     setState(() {
       _scale = next;
       _translation = _clampTranslation(
@@ -264,9 +263,7 @@ class PlanViewportState extends State<PlanViewport> {
     // ratio constant, plutôt que de lui retirer un pas fixe — un zoom déjà
     // élevé continue de réagir proportionnellement, pas de moins en moins.
     final factor = math.exp(-scroll.scrollDelta.dy * 0.0015);
-    final next = (_scale * factor)
-        .clamp(widget.minScale, widget.maxScale)
-        .toDouble();
+    final next = (_scale * factor).clamp(widget.minScale, widget.maxScale);
     if (next == _scale) return;
     final focal = (scroll.localPosition - _translation) / _scale;
     setState(() {
@@ -309,7 +306,7 @@ class PlanViewportState extends State<PlanViewport> {
           hint: AppLocalizations.of(context)?.planViewportHint ?? 'Utilisez plus et moins pour zoomer, zéro pour recentrer. Le pincement et la molette restent disponibles.',
           liveRegion: true,
           child: FocusableActionDetector(
-            shortcuts: {
+            shortcuts: const {
               SingleActivator(LogicalKeyboardKey.equal): _ZoomInIntent(),
               SingleActivator(LogicalKeyboardKey.add): _ZoomInIntent(),
               SingleActivator(LogicalKeyboardKey.minus): _ZoomOutIntent(),

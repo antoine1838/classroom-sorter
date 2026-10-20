@@ -1,6 +1,8 @@
 /// Plan de classe — application d'affectation des élèves aux places.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -68,7 +70,7 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
   @override
   void initState() {
     super.initState();
-    _state.init();
+    unawaited(_state.init());
     if (_isDesktop) windowManager.addListener(this);
   }
 

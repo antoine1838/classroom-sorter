@@ -114,21 +114,23 @@ class ClassGroup {
   factory ClassGroup.fromJson(Map<String, dynamic> j) => ClassGroup(
     id: j['id'] as String,
     name: (j['name'] ?? '') as String,
-    room: Room.fromJson((j['room'] ?? const {}) as Map<String, dynamic>),
-    students: ((j['students'] ?? const []) as List)
+    room: Room.fromJson(
+      (j['room'] ?? const <String, dynamic>{}) as Map<String, dynamic>,
+    ),
+    students: ((j['students'] ?? const <dynamic>[]) as List)
         .map((e) => Student.fromJson(e as Map<String, dynamic>))
         .toList(),
-    rules: ((j['rules'] ?? const []) as List)
+    rules: ((j['rules'] ?? const <dynamic>[]) as List)
         .map((e) => Rule.fromJson(e as Map<String, dynamic>))
         .toList(),
     balance: BalanceSettings.fromJson(
-      (j['balance'] ?? const {}) as Map<String, dynamic>,
+      (j['balance'] ?? const <String, dynamic>{}) as Map<String, dynamic>,
     ),
-    assignment: ((j['assignment'] ?? const {}) as Map).map(
+    assignment: ((j['assignment'] ?? const <String, dynamic>{}) as Map).map(
       (k, v) => MapEntry(k as String, v as String),
     ),
     savedRoomId: j['savedRoomId'] as String?,
-    snapshots: ((j['snapshots'] ?? const []) as List)
+    snapshots: ((j['snapshots'] ?? const <dynamic>[]) as List)
         .map((entry) => PlanSnapshot.fromJson(entry as Map<String, dynamic>))
         .toList(),
   );

@@ -1,6 +1,7 @@
 /// Éditeur d'une classe : 4 onglets — Salle, Élèves, Règles, Plan.
 library;
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';

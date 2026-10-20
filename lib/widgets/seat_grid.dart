@@ -5,6 +5,7 @@
 ///    deux élèves à la main.
 library;
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -324,7 +325,7 @@ SeatMetrics seatMetrics(
   // Largeur qui rend l'échelle horizontale exactement égale à la verticale :
   // au-delà, élargir ferait rétrécir toute la grille.
   final ideal = (viewport.width / heightScale - extras) / room.cols;
-  final cell = ideal.clamp(kCell, kCellWideMax).toDouble();
+  final cell = ideal.clamp(kCell, kCellWideMax);
 
   // L'échelle peut dépasser 1 : sur un grand écran la salle doit OCCUPER la
   // place disponible. S'en tenir à « rétrécir seulement » laissait la grille à
@@ -614,7 +615,7 @@ class _FittedGrid extends StatelessWidget {
           'Activer pour ajouter ou retirer le couloir.',
       onTap: toggle,
       child: FocusableActionDetector(
-        shortcuts: {
+        shortcuts: const {
           SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
           SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
         },
@@ -699,7 +700,7 @@ class _FittedGrid extends StatelessWidget {
           'Activer pour ajouter ou retirer le couloir.',
       onTap: toggle,
       child: FocusableActionDetector(
-        shortcuts: {
+        shortcuts: const {
           SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
           SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
         },
@@ -823,12 +824,14 @@ class RoomEditorGrid extends StatelessWidget {
   };
 
   Map<ShortcutActivator, Intent> _editorShortcuts(bool isSeat) => {
-    SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
-    SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
+    const SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
+    const SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
     if (isSeat)
-      SingleActivator(LogicalKeyboardKey.delete): const _RemoveSeatIntent(),
+      const SingleActivator(LogicalKeyboardKey.delete):
+          const _RemoveSeatIntent(),
     if (isSeat)
-      SingleActivator(LogicalKeyboardKey.backspace): const _RemoveSeatIntent(),
+      const SingleActivator(LogicalKeyboardKey.backspace):
+          const _RemoveSeatIntent(),
   };
 
   Map<Type, Action<Intent>> _editorActions({
@@ -1167,12 +1170,14 @@ class _PlanGridState extends State<PlanGrid> {
     if (source != null) {
       if (source != targetSeat) widget.onSwap(source, targetSeat);
       setState(() => _keyboardSourceSeat = null);
-      SemanticsService.sendAnnouncement(
-        View.of(context),
-        source == targetSeat
-            ? l10n?.moveCancelled ?? 'Déplacement annulé.'
-            : l10n?.studentMoved ?? 'Élève déplacé vers la nouvelle place.',
-        TextDirection.ltr,
+      unawaited(
+        SemanticsService.sendAnnouncement(
+          View.of(context),
+          source == targetSeat
+              ? l10n?.moveCancelled ?? 'Déplacement annulé.'
+              : l10n?.studentMoved ?? 'Élève déplacé vers la nouvelle place.',
+          TextDirection.ltr,
+        ),
       );
       return;
     }
@@ -1186,21 +1191,25 @@ class _PlanGridState extends State<PlanGrid> {
   ) {
     final l10n = AppLocalizations.of(context);
     setState(() => _keyboardSourceSeat = seatKey);
-    SemanticsService.sendAnnouncement(
-      View.of(context),
-      l10n?.studentMoveStarted(student.fullName) ??
-          '${student.fullName} sélectionné. Choisissez une place puis activez-la.',
-      TextDirection.ltr,
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        l10n?.studentMoveStarted(student.fullName) ??
+            '${student.fullName} sélectionné. Choisissez une place puis activez-la.',
+        TextDirection.ltr,
+      ),
     );
   }
 
   void _cancelKeyboardMove(BuildContext context) {
     if (_keyboardSourceSeat == null) return;
     setState(() => _keyboardSourceSeat = null);
-    SemanticsService.sendAnnouncement(
-      View.of(context),
-      AppLocalizations.of(context)?.moveCancelled ?? 'Déplacement annulé.',
-      TextDirection.ltr,
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        AppLocalizations.of(context)?.moveCancelled ?? 'Déplacement annulé.',
+        TextDirection.ltr,
+      ),
     );
   }
 
@@ -1237,12 +1246,12 @@ class _PlanGridState extends State<PlanGrid> {
         ),
     };
     final shortcuts = <ShortcutActivator, Intent>{
-      SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
-      SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
-      SingleActivator(LogicalKeyboardKey.escape):
+      const SingleActivator(LogicalKeyboardKey.enter): const ActivateIntent(),
+      const SingleActivator(LogicalKeyboardKey.space): const ActivateIntent(),
+      const SingleActivator(LogicalKeyboardKey.escape):
           const _CancelKeyboardMoveIntent(),
       if (student != null)
-        SingleActivator(LogicalKeyboardKey.keyM):
+        const SingleActivator(LogicalKeyboardKey.keyM):
             const _StartKeyboardMoveIntent(),
     };
     return Semantics(

@@ -170,8 +170,9 @@ keystore : un tag sur un commit qui ne passe pas les contrôles ne publie rien.
 
 Sur chaque push sur `main` et chaque pull request, le CI
 ([.github/workflows/ci.yml](.github/workflows/ci.yml)) vérifie le format Dart,
-lance `flutter analyze` et `flutter test`, puis — seulement si ces trois
-contrôles passent — compile **toutes** les cibles (Web, Windows, Android, iOS
+lance `flutter analyze` (typage strict et lints sur les futures, voir
+[analysis_options.yaml](analysis_options.yaml)) et `flutter test`, puis —
+seulement si ces trois contrôles passent — compile **toutes** les cibles (Web, Windows, Android, iOS
 non signé) et compare les performances du moteur de placement à `main` (PR
 uniquement). Une PR mise à jour annule sa validation en cours ; chaque job a un
 délai maximal. Aucun de ces jobs n'a accès à la clé de signature, réservée à

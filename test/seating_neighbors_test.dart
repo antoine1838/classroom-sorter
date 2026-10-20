@@ -272,7 +272,11 @@ void main() {
     });
 
     test('anciennes données (sans colAisles) se chargent sans couloir', () {
-      final restored = Room.fromJson({'rows': 2, 'cols': 3, 'disabled': []});
+      final restored = Room.fromJson({
+        'rows': 2,
+        'cols': 3,
+        'disabled': <dynamic>[],
+      });
       expect(restored.colAisles, isEmpty);
     });
   });

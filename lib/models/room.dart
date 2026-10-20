@@ -173,16 +173,16 @@ class Room {
   factory Room.fromJson(Map<String, dynamic> j) => Room(
     rows: (j['rows'] ?? 5) as int,
     cols: (j['cols'] ?? 7) as int,
-    disabled: ((j['disabled'] ?? const []) as List)
+    disabled: ((j['disabled'] ?? const <dynamic>[]) as List)
         .map((e) => e as String)
         .toSet(),
-    colAisles: ((j['colAisles'] ?? const []) as List)
+    colAisles: ((j['colAisles'] ?? const <dynamic>[]) as List)
         .map((e) => e as int)
         .toSet(),
-    rowAisles: ((j['rowAisles'] ?? const []) as List)
+    rowAisles: ((j['rowAisles'] ?? const <dynamic>[]) as List)
         .map((e) => e as int)
         .toSet(),
-    facing: ((j['facing'] ?? const {}) as Map).map(
+    facing: ((j['facing'] ?? const <String, dynamic>{}) as Map).map(
       (k, v) => MapEntry(
         k as String,
         Facing.values.firstWhere((f) => f.name == v, orElse: () => Facing.nord),
