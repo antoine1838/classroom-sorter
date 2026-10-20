@@ -253,6 +253,14 @@ paramètres, pluriels complets) et garde-fous de release
 `flutter test` ; `flutter analyze` et `dart format lib test tool` doivent aussi
 passer, la CI les exige.
 
+`golden_grids_test` compare cinq images de référence (`test/goldens/`) : plan en
+portrait et en paysage, problèmes marqués, thème sombre, éditeur de salle. Après
+un changement visuel voulu, régénérer avec
+`flutter test --update-goldens test/golden_grids_test.dart` et relire les images
+avant de commiter. La comparaison tolère 0,5 % de pixels différents (lissage
+propre à chaque plateforme) ; les images de diff d'un échec sont écrites dans
+`test/failures/` (ignoré par git).
+
 ## Licence
 
 Le code est publié sous licence [MIT](LICENSE). Deux exceptions :
