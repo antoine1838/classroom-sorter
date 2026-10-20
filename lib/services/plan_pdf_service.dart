@@ -16,10 +16,57 @@ import '../models/student.dart';
 
 typedef PdfSharer = Future<void> Function(Uint8List bytes, String filename);
 
+/// Mesure de texte du PDF, pour une taille de 1 pt : largeur d'un texte et
+/// hauteur d'une ligne. Injectable pour tester sans charger de police.
+class PdfTextMeasure {
+  const PdfTextMeasure({required this.widthAt1, required this.lineHeight});
+
+  final double Function(String text) widthAt1;
+  final double lineHeight;
+}
+
+/// Ce que toutes les cases d'une page partagent : palette, libellés et
+/// dimensions d'une case. Regroupé pour ne pas passer huit paramètres à chaque
+/// case.
+class _SeatCellStyle {
+  const _SeatCellStyle({
+    required this.genderPalette,
+    required this.l10n,
+    required this.rowHeight,
+    required this.cellWidth,
+    required this.measure,
+  });
+
+  final GenderColorPalette genderPalette;
+  final AppLocalizations l10n;
+  final double rowHeight;
+  final double cellWidth;
+  final PdfTextMeasure measure;
+}
+
 class PlanPdfService {
   PlanPdfService({PdfSharer? sharePdf}) : _sharePdf = sharePdf ?? _share;
 
   final PdfSharer _sharePdf;
+
+  static const _pageMargin = 24.0;
+
+  /// Taille du nom de l'élève quand la case est assez large.
+  static const _nameFontSize = 8.0;
+
+  /// Plancher de réduction du nom : en dessous, il est coupé en plein mot
+  /// plutôt que rendu illisible.
+  static const _minNameFontSize = 4.0;
+  static const _detailsFontSize = 4.5;
+
+  /// Marges intérieures d'une case : à gauche, de quoi laisser voir le liseré
+  /// de genre décalé par un dossier à l'est.
+  static const _padLeft = 7.0;
+  static const _padLeftBackrestEast = 11.0;
+  static const _padRight = 4.0;
+  static const _detailsPadTop = 12.0;
+  static const _detailsPadBottom = 4.0;
+  static const _nameDetailsGap = 2.0;
 
   /// Hauteur d'une case quand la salle a peu de rangs.
   static const _maxRowHeight = 54.0;
@@ -41,6 +88,102 @@ class PlanPdfService {
       return _maxRowHeight;
     }
     return math.min(_maxRowHeight, (availableHeight - _layoutSlack) / rows);
+  }
+
+  /// Largeur d'une colonne de la salle ; à défaut de mesure, celle d'une page
+  /// A4 paysage entre ses marges.
+  @visibleForTesting
+  static double cellWidthFor(double? availableWidth, int cols) {
+    final width = availableWidth != null && availableWidth.isFinite
+        ? availableWidth
+        : PdfPageFormat.a4.landscape.width - 2 * _pageMargin;
+    return width / math.max(1, cols);
+  }
+
+  /// Taille du nom : celle par défaut, réduite (jusqu'à [_minNameFontSize])
+  /// pour que le plus long mot tienne sur une ligne de [width].
+  @visibleForTesting
+  static double nameFontSizeFor(
+    String name,
+    double width,
+    PdfTextMeasure measure,
+  ) {
+    var longestWord = 0.0;
+    for (final word in name.split(' ')) {
+      longestWord = math.max(longestWord, measure.widthAt1(word));
+    }
+    if (longestWord <= 0) return _nameFontSize;
+    // 3 % de marge : un mot exactement à la largeur serait coupé par l'arrondi.
+    return math.min(
+      _nameFontSize,
+      math.max(_minNameFontSize, width * 0.97 / longestWord),
+    );
+  }
+
+  /// Nombre de lignes de [text] à la taille [fontSize] dans [width], renvoyé
+  /// à la ligne aux espaces comme `pw.Text` ; un mot plus large que [width]
+  /// est coupé et occupe plusieurs lignes.
+  @visibleForTesting
+  static int lineCountFor(
+    String text,
+    double fontSize,
+    double width,
+    PdfTextMeasure measure,
+  ) {
+    final space = measure.widthAt1(' ') * fontSize;
+    var lines = 0;
+    for (final paragraph in text.split('\n')) {
+      var used = 0.0;
+      var paragraphLines = 1;
+      for (final word in paragraph.split(' ')) {
+        final wordWidth = measure.widthAt1(word) * fontSize;
+        if (used > 0 && used + space + wordWidth > width) {
+          paragraphLines++;
+          used = 0;
+        }
+        if (wordWidth > width) {
+          final extraLines = (wordWidth / width).ceil() - 1;
+          paragraphLines += extraLines;
+          used = wordWidth - extraLines * width;
+        } else {
+          used += (used > 0 ? space : 0) + wordWidth;
+        }
+      }
+      lines += paragraphLines;
+    }
+    return lines;
+  }
+
+  /// Taille du nom et présence des attributs pour une case de [cellWidth] sur
+  /// [rowHeight]. Le nom passe toujours en premier : les attributs ne sont
+  /// affichés que s'ils tiennent avec lui, sans réduire davantage le texte.
+  @visibleForTesting
+  static ({double nameSize, bool showDetails}) seatTextLayout({
+    required String name,
+    required String details,
+    required double cellWidth,
+    required double rowHeight,
+    required double padLeft,
+    required PdfTextMeasure measure,
+  }) {
+    final width = math.max(1.0, cellWidth - padLeft - _padRight);
+    final nameSize = nameFontSizeFor(name, width, measure);
+    if (rowHeight < _detailsMinRowHeight) {
+      return (nameSize: nameSize, showDetails: false);
+    }
+    final nameHeight =
+        lineCountFor(name, nameSize, width, measure) *
+        nameSize *
+        measure.lineHeight;
+    final detailsHeight =
+        lineCountFor(details, _detailsFontSize, width, measure) *
+        _detailsFontSize *
+        measure.lineHeight;
+    final available = rowHeight - _detailsPadTop - _detailsPadBottom;
+    return (
+      nameSize: nameSize,
+      showDetails: nameHeight + _nameDetailsGap + detailsHeight <= available,
+    );
   }
 
   /// Les libellés viennent de [l10n] : le PDF suit la langue de l'appelant.
@@ -82,6 +225,21 @@ class PlanPdfService {
                     constraints?.maxHeight,
                     room.rows,
                   );
+                  final cellWidth = cellWidthFor(
+                    constraints?.maxWidth,
+                    room.cols,
+                  );
+                  final font = regular.getFont(context);
+                  final style = _SeatCellStyle(
+                    genderPalette: genderPalette,
+                    l10n: l10n,
+                    rowHeight: rowHeight,
+                    cellWidth: cellWidth,
+                    measure: PdfTextMeasure(
+                      widthAt1: (text) => font.stringMetrics(text).advanceWidth,
+                      lineHeight: font.emptyLineHeight,
+                    ),
+                  );
                   return pw.Table(
                     border: pw.TableBorder.all(color: PdfColors.grey600),
                     defaultColumnWidth: const pw.FlexColumnWidth(),
@@ -90,14 +248,7 @@ class PlanPdfService {
                         pw.TableRow(
                           children: [
                             for (var column = 0; column < room.cols; column++)
-                              _seatCell(
-                                classGroup,
-                                row,
-                                column,
-                                genderPalette,
-                                l10n,
-                                rowHeight,
-                              ),
+                              _seatCell(classGroup, row, column, style),
                           ],
                         ),
                     ],
@@ -134,10 +285,10 @@ class PlanPdfService {
     ClassGroup classGroup,
     int row,
     int column,
-    GenderColorPalette genderPalette,
-    AppLocalizations l10n,
-    double rowHeight,
+    _SeatCellStyle style,
   ) {
+    final l10n = style.l10n;
+    final rowHeight = style.rowHeight;
     final room = classGroup.room;
     if (!room.isSeat(row, column)) {
       return pw.Container(color: PdfColors.grey300, height: rowHeight);
@@ -156,14 +307,25 @@ class PlanPdfService {
       );
     }
 
-    final showDetails = rowHeight >= _detailsMinRowHeight;
-
-    final stripe = _genderColor(student.gender, genderPalette);
+    final stripe = _genderColor(student.gender, style.genderPalette);
     final backrest = room.facingOf(row, column);
     // Comme dans la grille interactive, le dossier garde la priorité visuelle
     // sur le liseré. Lorsqu'il est à gauche, on décale ce dernier vers
     // l'intérieur de la carte plutôt que de masquer l'un des deux repères.
     final stripeLeft = backrest == Facing.est ? 6.0 : 2.0;
+    final padLeft = backrest == Facing.est && stripe != null
+        ? _padLeftBackrestEast
+        : _padLeft;
+    final details = _attributeDetails(student, l10n);
+    final text = seatTextLayout(
+      name: student.fullName,
+      details: details,
+      cellWidth: style.cellWidth,
+      rowHeight: rowHeight,
+      padLeft: padLeft,
+      measure: style.measure,
+    );
+    final showDetails = text.showDetails;
     return pw.Container(
       height: rowHeight,
       child: pw.Stack(
@@ -175,28 +337,37 @@ class PlanPdfService {
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
               ),
               padding: pw.EdgeInsets.fromLTRB(
-                7,
-                showDetails ? 12 : 3,
-                4,
-                showDetails ? 4 : 3,
+                padLeft,
+                showDetails ? _detailsPadTop : 3,
+                _padRight,
+                showDetails ? _detailsPadBottom : 3,
               ),
-              child: pw.Column(
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: [
-                  pw.Text(
-                    student.fullName,
-                    textAlign: pw.TextAlign.center,
-                    style: const pw.TextStyle(fontSize: 8),
+              // Filet de sécurité : si le texte dépasse malgré tout la case, il
+              // est réduit au lieu d'être supprimé en silence par la mise en
+              // page.
+              child: pw.FittedBox(
+                fit: pw.BoxFit.scaleDown,
+                child: pw.SizedBox(
+                  width: math.max(1.0, style.cellWidth - padLeft - _padRight),
+                  child: pw.Column(
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Text(
+                        student.fullName,
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(fontSize: text.nameSize),
+                      ),
+                      if (showDetails) ...[
+                        pw.SizedBox(height: _nameDetailsGap),
+                        pw.Text(
+                          details,
+                          textAlign: pw.TextAlign.center,
+                          style: const pw.TextStyle(fontSize: _detailsFontSize),
+                        ),
+                      ],
+                    ],
                   ),
-                  if (showDetails) ...[
-                    pw.SizedBox(height: 2),
-                    pw.Text(
-                      _attributeDetails(student, l10n),
-                      textAlign: pw.TextAlign.center,
-                      style: const pw.TextStyle(fontSize: 4.5),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           ),
