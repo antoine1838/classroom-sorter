@@ -40,7 +40,11 @@ jobs:
       - name: Lancer les tests (avec couverture)
         run: flutter test --coverage
 
+      # Une PR venue d'un fork n'a pas accès aux secrets : sans SONAR_TOKEN,
+      # l'analyse échouerait et la PR afficherait un contrôle rouge qui n'a rien
+      # à voir avec son code. Les tests ci-dessus tournent quand même.
       - name: Analyse SonarCloud
+        if: github.event.pull_request.head.repo.fork != true
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
