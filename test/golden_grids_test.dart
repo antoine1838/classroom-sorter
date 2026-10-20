@@ -2,14 +2,17 @@
 // régression visuelle (placement, marquage des problèmes, couloirs, dossiers)
 // que les tests de widgets ciblés ne voient pas.
 //
-// Le texte utilise la police de test (Ahem) : les images ne dépendent donc pas
-// des polices installées. Les images sont comparées avec une tolérance de 0,5 %
-// de pixels, pour absorber le lissage propre à chaque plateforme (références
-// produites sous Windows, comparées sous Linux par la CI).
+// Les images dépendent de la plateforme : le texte de test (Ahem) et les icônes
+// ne sont pas rasterisés au pixel près de la même façon sous Windows et sous
+// Linux (environ 1 à 2 % de pixels d'écart). Chaque plateforme a donc ses
+// références (`goldens/windows/`, `goldens/linux/`, celles de la CI), et le test
+// est ignoré sur une plateforme qui n'en a pas.
 //
-// Après un changement visuel voulu, régénérer les références puis relire les
-// images avant de les commiter :
-//   flutter test --update-goldens test/golden_grids_test.dart
+// Après un changement visuel voulu :
+// - Windows : `flutter test --update-goldens test/golden_grids_test.dart` ;
+// - Linux : la CI échoue et publie l'artefact `golden-failures` ; copier
+//   chaque `<nom>_testImage.png` vers `goldens/linux/<nom>.png`.
+// Relire les images avant de commiter.
 import 'dart:convert';
 import 'dart:io';
 
@@ -23,8 +26,23 @@ import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room_layouts.dart';
 import 'package:plandeclasse/widgets/seat_grid.dart';
 
-/// Part maximale de pixels différents tolérée entre l'image et sa référence.
-const _tolerance = 0.005;
+/// Part maximale de pixels différents tolérée entre l'image et sa référence,
+/// sur la même plateforme : le rendu y est déterministe, la marge n'absorbe
+/// que de menus écarts de lissage.
+const _tolerance = 0.001;
+
+/// `windows`, `linux`, `macos`… : sous-dossier des références de la plateforme.
+final _platform = Platform.operatingSystem;
+final _hasBaselines = Directory('test/goldens/$_platform').existsSync();
+
+String _baseline(String name) => 'goldens/$_platform/$name.png';
+
+void _goldenTest(
+  String description,
+  Future<void> Function(WidgetTester tester) body,
+) {
+  testWidgets(description, body, skip: !_hasBaselines);
+}
 
 class _TolerantComparator extends LocalFileComparator {
   _TolerantComparator(super.testFile);
@@ -102,7 +120,7 @@ void main() {
     );
   });
 
-  testWidgets('plan en portrait : classe de démo au complet', (tester) async {
+  _goldenTest('plan en portrait : classe de démo au complet', (tester) async {
     final cls = _demoClass();
     await _pump(
       tester,
@@ -112,11 +130,11 @@ void main() {
 
     await expectLater(
       find.byType(MaterialApp),
-      matchesGoldenFile('goldens/plan_portrait.png'),
+      matchesGoldenFile(_baseline('plan_portrait')),
     );
   });
 
-  testWidgets('plan en paysage : cases plus larges', (tester) async {
+  _goldenTest('plan en paysage : cases plus larges', (tester) async {
     final cls = _demoClass();
     await _pump(
       tester,
@@ -126,11 +144,11 @@ void main() {
 
     await expectLater(
       find.byType(MaterialApp),
-      matchesGoldenFile('goldens/plan_paysage.png'),
+      matchesGoldenFile(_baseline('plan_paysage')),
     );
   });
 
-  testWidgets('plan avec problèmes marqués sur les places', (tester) async {
+  _goldenTest('plan avec problèmes marqués sur les places', (tester) async {
     final cls = _demoClass();
     await _pump(
       tester,
@@ -140,11 +158,11 @@ void main() {
 
     await expectLater(
       find.byType(MaterialApp),
-      matchesGoldenFile('goldens/plan_problemes.png'),
+      matchesGoldenFile(_baseline('plan_problemes')),
     );
   });
 
-  testWidgets('plan avec problèmes en thème sombre', (tester) async {
+  _goldenTest('plan avec problèmes en thème sombre', (tester) async {
     final cls = _demoClass();
     await _pump(
       tester,
@@ -155,11 +173,11 @@ void main() {
 
     await expectLater(
       find.byType(MaterialApp),
-      matchesGoldenFile('goldens/plan_problemes_sombre.png'),
+      matchesGoldenFile(_baseline('plan_problemes_sombre')),
     );
   });
 
-  testWidgets('éditeur de salle : U, couloirs et dossiers orientés', (
+  _goldenTest('éditeur de salle : U, couloirs et dossiers orientés', (
     tester,
   ) async {
     final room = buildULayout();
@@ -178,7 +196,7 @@ void main() {
 
     await expectLater(
       find.byType(MaterialApp),
-      matchesGoldenFile('goldens/salle_u.png'),
+      matchesGoldenFile(_baseline('salle_u')),
     );
   });
 }

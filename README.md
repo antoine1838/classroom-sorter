@@ -253,12 +253,20 @@ paramètres, pluriels complets) et garde-fous de release
 `flutter test` ; `flutter analyze` et `dart format lib test tool` doivent aussi
 passer, la CI les exige.
 
-`golden_grids_test` compare cinq images de référence (`test/goldens/`) : plan en
-portrait et en paysage, problèmes marqués, thème sombre, éditeur de salle. Après
-un changement visuel voulu, régénérer avec
-`flutter test --update-goldens test/golden_grids_test.dart` et relire les images
-avant de commiter. La comparaison tolère 0,5 % de pixels différents (lissage
-propre à chaque plateforme) ; les images de diff d'un échec sont écrites dans
+`golden_grids_test` compare cinq images de référence : plan en portrait et en
+paysage, problèmes marqués, thème sombre, éditeur de salle. Le rendu diffère
+d'environ 1 à 2 % des pixels entre Windows et Linux : chaque plateforme a donc
+ses références (`test/goldens/windows/`, `test/goldens/linux/` pour la CI), et le
+test est ignoré sur une plateforme qui n'en a pas. Après un changement visuel
+voulu :
+
+- sous Windows, régénérer avec
+  `flutter test --update-goldens test/golden_grids_test.dart` ;
+- côté CI, le job `test` échoue et publie l'artefact `golden-failures` : copier
+  chaque `<nom>_testImage.png` vers `test/goldens/linux/<nom>.png`.
+
+Relire les images avant de commiter. La comparaison tolère 0,1 % de pixels
+différents ; les images de diff d'un échec local sont écrites dans
 `test/failures/` (ignoré par git).
 
 ## Licence
