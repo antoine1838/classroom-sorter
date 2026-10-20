@@ -65,7 +65,19 @@ void main() {
   test('la politique de confidentialité décrit la protection Android', () {
     final policy = File('docs/index.html').readAsStringSync();
 
-    expect(policy, contains('dernière mise à jour : 14 octobre 2026'));
+    // La date change à chaque révision de la politique : on vérifie qu'elle
+    // est présente, pas sa valeur.
+    expect(
+      RegExp(r'dernière mise à jour : \d{1,2} \S+ \d{4}').hasMatch(policy),
+      isTrue,
+    );
+    expect(
+      RegExp(r'SDK\)\s+tiers de mesure d.audience').hasMatch(policy),
+      isTrue,
+      reason:
+          'la politique ne doit pas promettre « aucun SDK tiers » : '
+          "l'application embarque des bibliothèques open source",
+    );
     expect(
       RegExp(r'La sauvegarde\s+automatique Android est désactivée')
           .hasMatch(policy),
