@@ -99,6 +99,31 @@ class ClassGroup {
     assignment.removeWhere((seat, sid) => sid == studentId);
   }
 
+  /// Retire d'une classe lue (stockage local, fichier importé, archive
+  /// restaurée) ce qui ne mène nulle part, au lieu de laisser le moteur ou
+  /// l'écran tomber dessus plus tard :
+  /// - un élève dont l'id est déjà pris (le premier est gardé) ;
+  /// - une règle qui nomme un élève inconnu ;
+  /// - une place du plan dont la clé est mal formée, hors grille ou désactivée,
+  ///   qui désigne un élève inconnu, ou un élève déjà placé ailleurs.
+  void _dropDanglingReferences() {
+    final knownIds = <String>{};
+    students.removeWhere((s) => !knownIds.add(s.id));
+    rules.removeWhere(
+      (r) =>
+          !knownIds.contains(r.studentAId) ||
+          (r.studentBId != null && !knownIds.contains(r.studentBId)),
+    );
+    final placed = <String>{};
+    assignment.removeWhere((seat, sid) {
+      final position = Room.tryParse(seat);
+      return position == null ||
+          !room.isSeat(position.$1, position.$2) ||
+          !knownIds.contains(sid) ||
+          !placed.add(sid);
+    });
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -111,7 +136,12 @@ class ClassGroup {
     'snapshots': snapshots.map((snapshot) => snapshot.toJson()).toList(),
   };
 
-  factory ClassGroup.fromJson(Map<String, dynamic> j) => ClassGroup(
+  /// Lit une classe et retire ce qui ne mène nulle part : voir
+  /// [_dropDanglingReferences].
+  factory ClassGroup.fromJson(Map<String, dynamic> j) =>
+      ClassGroup._fromRawJson(j).._dropDanglingReferences();
+
+  factory ClassGroup._fromRawJson(Map<String, dynamic> j) => ClassGroup(
     id: j['id'] as String,
     name: (j['name'] ?? '') as String,
     room: Room.fromJson(

@@ -455,7 +455,12 @@ class SeatingEngine {
   /// les objectifs d'équilibre sans relancer une génération.
   PlanResult evaluate() {
     final seatOf = <String, String>{};
-    cls.assignment.forEach((seat, sid) => seatOf[sid] = seat);
+    cls.assignment.forEach((seat, sid) {
+      // Un id sans élève (plan d'un fichier modifié à la main, ou état
+      // incohérent) n'a rien à évaluer : l'ignorer évite de faire tomber le
+      // calcul des voisins sur un élève introuvable.
+      if (_byId.containsKey(sid)) seatOf[sid] = seat;
+    });
 
     final unplaced = [
       for (final s in cls.students)
