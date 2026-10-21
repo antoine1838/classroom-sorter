@@ -47,8 +47,16 @@ enum ThemePreference { system, light, dark }
 enum PersistenceNotice {
   classesRecovered,
   roomsRecovered,
+
+  /// Quelques classes ou salles illisibles ont été laissées de côté ; leur
+  /// nombre est dans [AppState.skippedClassCount] / [AppState.skippedRoomCount].
+  classesPartial,
+  roomsPartial,
   classesCorrupted,
   roomsCorrupted,
+
+  /// Le stockage n'a pas pu être lu du tout (voir [AppState.loadFailed]).
+  loadFailed,
   saveFailed,
 }
 
@@ -76,6 +84,15 @@ class AppState extends ChangeNotifier {
   ThemePreference themePreference = ThemePreference.system;
   bool tutorialSeen = false;
 
+  /// Classes et salles enregistrées illisibles, laissées de côté au chargement.
+  int skippedClassCount = 0;
+  int skippedRoomCount = 0;
+
+  /// Le stockage n'a pas pu être lu : rien n'est écrit sur les classes et les
+  /// salles de cette session, pour ne pas écraser des données que l'on n'a
+  /// pas pu lire.
+  bool loadFailed = false;
+
   String? _loadNotice;
   bool _loadNoticeIsError = false;
   List<PersistenceNotice> _loadNotices = const [];
@@ -102,13 +119,30 @@ class AppState extends ChangeNotifier {
   bool get canRetryPersistence => _saveError != null;
   Object? get lastPersistenceError => _lastPersistenceError;
 
+  /// Charge les données et les réglages. Ne lève jamais : une erreur de lecture
+  /// est signalée par [loadFailed] et un bandeau, jamais par un écran de
+  /// chargement qui ne se termine pas.
   Future<void> init() async {
-    final classLoad = await _repo.loadClassesWithStatus();
-    final roomLoad = await _repo.loadSavedRoomsWithStatus();
-    classes = classLoad.data;
-    savedRooms = roomLoad.data;
-    _setLoadNotice(classLoad.status, roomLoad.status);
+    try {
+      final classLoad = await _repo.loadClassesWithStatus();
+      final roomLoad = await _repo.loadSavedRoomsWithStatus();
+      classes = classLoad.data;
+      savedRooms = roomLoad.data;
+      _setLoadNotice(classLoad, roomLoad);
+    } catch (_) {
+      _setLoadFailed();
+    }
+    try {
+      await _loadPreferences();
+    } catch (_) {
+      // Les réglages gardent leurs valeurs par défaut : mieux vaut une
+      // application qui s'ouvre qu'un écran de chargement infini.
+    }
+    loading = false;
+    notifyListeners();
+  }
 
+  Future<void> _loadPreferences() async {
     final rawMode = await _repo.loadStudentsViewMode();
     if (rawMode == StudentsViewMode.compact.name) {
       studentsViewMode = StudentsViewMode.compact;
@@ -129,8 +163,6 @@ class AppState extends ChangeNotifier {
       orElse: () => ThemePreference.system,
     );
     tutorialSeen = await _repo.loadTutorialSeen();
-    loading = false;
-    notifyListeners();
   }
 
   void setStudentsViewMode(StudentsViewMode mode) {
@@ -383,8 +415,10 @@ class AppState extends ChangeNotifier {
   _PersistenceBatch _takePersistenceBatch() {
     final failed = _failedParts;
     final batch = (
-      saveClasses: _classesDirty || (failed?.saveClasses ?? false),
-      saveRooms: _savedRoomsDirty || (failed?.saveRooms ?? false),
+      saveClasses:
+          !loadFailed && (_classesDirty || (failed?.saveClasses ?? false)),
+      saveRooms:
+          !loadFailed && (_savedRoomsDirty || (failed?.saveRooms ?? false)),
       viewMode: _pendingStudentsViewMode ?? failed?.viewMode,
       palette: _pendingGenderColorPalette ?? failed?.palette,
       localePreference: _pendingLocalePreference ?? failed?.localePreference,
@@ -509,20 +543,23 @@ class AppState extends ChangeNotifier {
   }
 
   void _setLoadNotice(
-    RepositoryLoadStatus classStatus,
-    RepositoryLoadStatus roomStatus,
+    RepositoryLoadResult<List<ClassGroup>> classLoad,
+    RepositoryLoadResult<List<SavedRoom>> roomLoad,
   ) {
     final messages = <String>[];
     final notices = <PersistenceNotice>[];
     var hasError = false;
+    skippedClassCount = classLoad.skipped;
+    skippedRoomCount = roomLoad.skipped;
 
     void addStatus(
-      RepositoryLoadStatus status,
+      RepositoryLoadResult<Object?> load,
       String label,
       PersistenceNotice recovered,
+      PersistenceNotice partial,
       PersistenceNotice corrupted,
     ) {
-      switch (status) {
+      switch (load.status) {
         case RepositoryLoadStatus.ok:
           break;
         case RepositoryLoadStatus.recoveredFromBackup:
@@ -530,6 +567,14 @@ class AppState extends ChangeNotifier {
           messages.add(
             'Les données $label étaient endommagées. La dernière sauvegarde '
             'valide a été chargée.',
+          );
+        case RepositoryLoadStatus.recoveredPartially:
+          hasError = true;
+          notices.add(partial);
+          messages.add(
+            '${load.skipped} enregistrement(s) des données $label étaient '
+            "illisibles et n'ont pas été chargés. Les autres sont intacts ; "
+            "une copie des données d'origine a été conservée.",
           );
         case RepositoryLoadStatus.corrupted:
           hasError = true;
@@ -543,20 +588,34 @@ class AppState extends ChangeNotifier {
     }
 
     addStatus(
-      classStatus,
+      classLoad,
       'des classes',
       PersistenceNotice.classesRecovered,
+      PersistenceNotice.classesPartial,
       PersistenceNotice.classesCorrupted,
     );
     addStatus(
-      roomStatus,
+      roomLoad,
       'des salles enregistrées',
       PersistenceNotice.roomsRecovered,
+      PersistenceNotice.roomsPartial,
       PersistenceNotice.roomsCorrupted,
     );
     _loadNotice = messages.isEmpty ? null : messages.join('\n');
     _loadNotices = notices;
     _loadNoticeIsError = hasError;
+  }
+
+  /// La lecture du stockage a échoué : on n'écrira rien sur les classes ni sur
+  /// les salles tant que l'application n'aura pas été relancée.
+  void _setLoadFailed() {
+    loadFailed = true;
+    _loadNotices = const [PersistenceNotice.loadFailed];
+    _loadNotice =
+        "Les données enregistrées n'ont pas pu être lues. Pour ne pas les "
+        'écraser, les modifications de cette session ne seront pas '
+        "enregistrées. Relancez l'application.";
+    _loadNoticeIsError = true;
   }
 
   void _setSaveError(Object error) {

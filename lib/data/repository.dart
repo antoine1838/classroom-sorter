@@ -9,13 +9,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/classroom.dart';
 import '../models/saved_room.dart';
 
-enum RepositoryLoadStatus { ok, recoveredFromBackup, corrupted }
+enum RepositoryLoadStatus {
+  ok,
+  recoveredFromBackup,
+
+  /// La liste a été lue, moins quelques enregistrements illisibles.
+  recoveredPartially,
+  corrupted,
+}
 
 class RepositoryLoadResult<T> {
   final T data;
   final RepositoryLoadStatus status;
 
-  const RepositoryLoadResult(this.data, this.status);
+  /// Enregistrements illisibles laissés de côté, pour
+  /// [RepositoryLoadStatus.recoveredPartially] ; 0 sinon.
+  final int skipped;
+
+  const RepositoryLoadResult(this.data, this.status, {this.skipped = 0});
 }
 
 class Repository {
@@ -185,6 +196,18 @@ class Repository {
     // séparée reste disponible pour une récupération manuelle éventuelle.
     await _preserveCorruptData(prefs, corruptKey, raw);
 
+    // Un enregistrement illisible ne doit pas emporter les autres : la liste
+    // la plus récente, moins ses enregistrements illisibles, vaut mieux que
+    // la dernière sauvegarde, qui ignore le travail fait depuis.
+    final partial = _decodeLenient(raw, fromJson);
+    if (partial != null && partial.items.isNotEmpty) {
+      return RepositoryLoadResult(
+        partial.items,
+        RepositoryLoadStatus.recoveredPartially,
+        skipped: partial.skipped,
+      );
+    }
+
     final backupRaw = prefs.getString(backupKey);
     if (backupRaw != null && backupRaw.isNotEmpty) {
       final backup = _tryDecodeList(backupRaw, fromJson);
@@ -249,6 +272,31 @@ class Repository {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Lit chaque enregistrement séparément : ceux qui échouent sont comptés et
+  /// laissés de côté. `null` quand [raw] n'est pas une liste JSON.
+  ({List<T> items, int skipped})? _decodeLenient<T>(
+    String raw,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } catch (_) {
+      return null;
+    }
+    if (decoded is! List<Object?>) return null;
+    final items = <T>[];
+    var skipped = 0;
+    for (final entry in decoded) {
+      try {
+        items.add(fromJson(entry as Map<String, dynamic>));
+      } catch (_) {
+        skipped++;
+      }
+    }
+    return (items: items, skipped: skipped);
   }
 
   Future<void> _preserveCorruptData(

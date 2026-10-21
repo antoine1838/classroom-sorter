@@ -9,9 +9,12 @@ réglages). Données **stockées localement** sur l'appareil (hors-ligne, aucune
 sur Internet — adapté aux données élèves). Les écritures sont sérialisées et
 une copie locale de la dernière sauvegarde valide permet une restauration
 automatique si les données principales deviennent illisibles ; l'application
-prévient alors explicitement l'utilisateur. Sur Android, ce stockage — copie de
-secours comprise — est exclu des sauvegardes cloud et des transferts
-automatiques vers un autre appareil.
+prévient alors explicitement l'utilisateur. Un enregistrement illisible
+(une classe, une salle) est laissé de côté sans emporter les autres, et une
+copie des données d'origine est conservée. Si le stockage ne peut pas être lu
+du tout, l'application l'indique et n'écrit rien pour ne pas l'écraser. Sur
+Android, ce stockage — copie de secours comprise — est exclu des sauvegardes
+cloud et des transferts automatiques vers un autre appareil.
 
 ## Fonctionnalités
 
@@ -77,8 +80,10 @@ automatiques vers un autre appareil.
   supprimer) et d'**exporter le plan en PDF** (A4 paysage, partage ou
   impression). Depuis l'accueil, chaque classe a son historique et un bouton
   d'**export** vers un fichier `.planclasse` (JSON) ; le bouton d'**import**, en
-  haut, recrée une classe depuis un tel fichier. Ces fichiers contiennent les
-  noms des élèves : l'appli le rappelle avant de les partager.
+  haut, recrée une classe depuis un tel fichier, après avoir retiré ce qui ne
+  mène nulle part (place du plan ou règle qui désigne un élève absent, salle
+  hors des dimensions de l'éditeur). Ces fichiers contiennent les noms des
+  élèves : l'appli le rappelle avant de les partager.
 - **Réglages** : langue (système, français, anglais), thème (clair, sombre,
   automatique), vue de l'onglet Élèves et palette de couleurs du genre.
 - **Aide** : un **tutoriel guidé** (icône « école » de l'accueil) sur une classe
