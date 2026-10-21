@@ -26,8 +26,8 @@ class ClassGroupOps {
   }
 
   void resizeRoom({int? rows, int? cols}) {
-    if (rows != null) cls.room.rows = rows.clamp(1, 15);
-    if (cols != null) cls.room.cols = cols.clamp(1, 15);
+    if (rows != null) cls.room.rows = rows.clamp(Room.minSize, Room.maxSize);
+    if (cols != null) cls.room.cols = cols.clamp(Room.minSize, Room.maxSize);
     cls.room
       ..pruneColAisles()
       ..pruneRowAisles()

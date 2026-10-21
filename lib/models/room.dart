@@ -15,6 +15,11 @@ extension FacingRotation on Facing {
 }
 
 class Room {
+  /// Bornes de la grille : celles de l'éditeur de salle. Une salle lue d'un
+  /// fichier ou du stockage est ramenée dans ces bornes.
+  static const minSize = 1;
+  static const maxSize = 15;
+
   int rows;
   int cols;
 
@@ -56,6 +61,17 @@ class Room {
   static (int, int) parse(String key) {
     final parts = key.split(',');
     return (int.parse(parts[0]), int.parse(parts[1]));
+  }
+
+  /// Comme [parse], mais rend `null` pour une clé mal formée plutôt que de
+  /// lever une exception : utile pour des données lues, éventuellement
+  /// modifiées à la main.
+  static (int, int)? tryParse(String key) {
+    final parts = key.split(',');
+    if (parts.length != 2) return null;
+    final row = int.tryParse(parts[0]);
+    final col = int.tryParse(parts[1]);
+    return row == null || col == null ? null : (row, col);
   }
 
   bool inBounds(int r, int c) => r >= 0 && r < rows && c >= 0 && c < cols;
@@ -157,8 +173,8 @@ class Room {
 
   /// Supprime les orientations des cases devenues hors grille ou désactivées.
   void pruneFacing() => facing.removeWhere((k, _) {
-    final (r, c) = parse(k);
-    return !isSeat(r, c);
+    final position = tryParse(k);
+    return position == null || !isSeat(position.$1, position.$2);
   });
 
   Map<String, dynamic> toJson() => {
@@ -170,9 +186,18 @@ class Room {
     'facing': facing.map((k, f) => MapEntry(k, f.name)),
   };
 
-  factory Room.fromJson(Map<String, dynamic> j) => Room(
-    rows: (j['rows'] ?? 5) as int,
-    cols: (j['cols'] ?? 7) as int,
+  /// Lit une salle et la rend cohérente : dimensions dans [minSize]..[maxSize],
+  /// couloirs et orientations ramenés à ce qui existe dans la grille. Des
+  /// données lues (stockage local ou fichier importé) peuvent avoir été
+  /// modifiées à la main ou venir d'une version plus ancienne.
+  factory Room.fromJson(Map<String, dynamic> j) => Room._fromRawJson(j)
+    ..pruneColAisles()
+    ..pruneRowAisles()
+    ..pruneFacing();
+
+  factory Room._fromRawJson(Map<String, dynamic> j) => Room(
+    rows: ((j['rows'] ?? 5) as int).clamp(minSize, maxSize),
+    cols: ((j['cols'] ?? 7) as int).clamp(minSize, maxSize),
     disabled: ((j['disabled'] ?? const <dynamic>[]) as List)
         .map((e) => e as String)
         .toSet(),
