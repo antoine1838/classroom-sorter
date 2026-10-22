@@ -10,9 +10,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plandeclasse/app_state.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
+import 'package:plandeclasse/models/room.dart';
+import 'package:plandeclasse/models/saved_room.dart';
 import 'package:plandeclasse/screens/home_screen.dart';
 
 const _classesKey = 'plandeclasse_classes_v1';
+const _roomsKey = 'plandeclasse_saved_rooms_v1';
 const _tutorialSeenKey = 'plandeclasse_tutorial_seen_v1';
 
 Map<String, dynamic> _brokenClass(String id) => {
@@ -159,6 +162,28 @@ void main() {
         );
       },
     );
+
+    testWidgets('une salle enregistrée illisible : le texte la compte', (
+      tester,
+    ) async {
+      await pumpHome(tester, {
+        _roomsKey: jsonEncode([
+          SavedRoom(
+            id: 'a',
+            name: 'B204',
+            room: Room(rows: 2, cols: 2),
+          ).toJson(),
+          {'id': 'b', 'name': 'Cassée', 'room': 'pas une salle'},
+        ]),
+      });
+
+      expect(
+        find.textContaining(
+          '1 salle enregistrée était illisible et n’a pas été chargée',
+        ),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('en anglais aussi', (tester) async {
       await pumpHome(tester, {
