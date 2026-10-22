@@ -81,9 +81,10 @@ cloud et des transferts automatiques vers un autre appareil.
   impression). Depuis l'accueil, chaque classe a son historique et un bouton
   d'**export** vers un fichier `.planclasse` (JSON) ; le bouton d'**import**, en
   haut, recrée une classe depuis un tel fichier, après avoir retiré ce qui ne
-  mène nulle part (place du plan ou règle qui désigne un élève absent, salle
-  hors des dimensions de l'éditeur). Ces fichiers contiennent les noms des
-  élèves : l'appli le rappelle avant de les partager.
+  mène nulle part (place du plan ou règle qui désigne un élève absent, élève
+  en double, salle hors des dimensions de l'éditeur) ; l'appli indique alors ce
+  qui a été retiré. Ces fichiers contiennent les noms des élèves : l'appli le
+  rappelle avant de les partager.
 - **Réglages** : langue (système, français, anglais), thème (clair, sombre,
   automatique), vue de l'onglet Élèves et palette de couleurs du genre.
 - **Aide** : un **tutoriel guidé** (icône « école » de l'accueil) sur une classe

@@ -350,6 +350,14 @@
   "importPlanFile": "Import class",
   "fileExported": "File exported.",
   "fileImported": "A new class was created from the file.",
+  "importCleanedIntro": "To stay consistent, the import removed {details}.",
+  "@importCleanedIntro": {"placeholders": {"details": {}}},
+  "importCleanedPlaces": "{count, plural, one{1 inconsistent seat assignment} other{{count} inconsistent seat assignments}}",
+  "@importCleanedPlaces": {"placeholders": {"count": {}}},
+  "importCleanedRules": "{count, plural, one{1 rule naming a missing student} other{{count} rules naming a missing student}}",
+  "@importCleanedRules": {"placeholders": {"count": {}}},
+  "importCleanedStudents": "{count, plural, one{1 duplicate student} other{{count} duplicate students}}",
+  "@importCleanedStudents": {"placeholders": {"count": {}}},
   "invalidPlanFile": "This class file is invalid or incompatible.",
   "privacyExportWarning": "The file contains student names and details. Share it only with authorised people."
 }

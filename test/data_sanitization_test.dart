@@ -3,6 +3,9 @@
 // élèves ou des places qui n'existent pas. Elles doivent être nettoyées à la
 // lecture : sinon le moteur tombait plus tard sur un élève introuvable
 // (`_byId[sid]!`) et l'écran de validation plantait.
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandeclasse/engine/seating_engine.dart';
@@ -176,5 +179,86 @@ void main() {
       expect(imported.rules, isEmpty);
       expect(() => SeatingEngine(imported).evaluate(), returnsNormally);
     });
+  });
+
+  group('ce qui a été retiré à la lecture', () {
+    ClassGroup dirty() => ClassGroup(
+      id: 'c',
+      name: '6ème B',
+      room: Room(rows: 2, cols: 3, disabled: {'1,1'}),
+      students: [_student('ada'), _student('lin'), _student('ada')],
+      rules: [
+        Rule(
+          id: 'b-inconnu',
+          type: RuleType.separate,
+          studentAId: 'ada',
+          studentBId: 'fantôme',
+        ),
+        Rule(
+          id: 'a-inconnu',
+          type: RuleType.keepTogether,
+          studentAId: 'fantôme',
+          studentBId: 'lin',
+        ),
+      ],
+      assignment: {
+        '0,0': 'ada',
+        '0,1': 'fantôme',
+        'xx': 'lin',
+        '9,9': 'lin',
+        '1,1': 'lin',
+        '0,2': 'ada',
+        '1,0': 'lin',
+      },
+    );
+
+    test('une classe saine ne signale rien', () {
+      final result = ClassGroup.fromJsonWithCleanup(
+        ClassGroup(
+          id: 'c',
+          room: Room(rows: 1, cols: 2),
+          students: [_student('ada')],
+          assignment: {'0,0': 'ada'},
+        ).toJson(),
+      );
+
+      expect(result.cleanup.isEmpty, isTrue);
+    });
+
+    test('les élèves, les règles et les places retirés sont comptés', () {
+      final cleanup = ClassGroup.fromJsonWithCleanup(dirty().toJson()).cleanup;
+
+      expect(cleanup.isEmpty, isFalse);
+      expect(cleanup.studentsRemoved, 1);
+      expect(cleanup.rulesRemoved, 2);
+      expect(cleanup.placesRemoved, 5);
+    });
+
+    test('un fichier lu rapporte le même nettoyage', () {
+      final service = PlanFileService();
+
+      final result = service.decodeWithCleanup(service.encode(dirty()));
+
+      expect(result.classGroup.assignment, {'0,0': 'ada', '1,0': 'lin'});
+      expect(result.cleanup.placesRemoved, 5);
+      expect(result.cleanup.rulesRemoved, 2);
+      expect(result.cleanup.studentsRemoved, 1);
+    });
+
+    test(
+      "importer rapporte le nettoyage, et rend null si l'on annule",
+      () async {
+        final bytes = utf8.encode(PlanFileService().encode(dirty()));
+        final importing = PlanFileService(
+          pickFile: () async => Uint8List.fromList(bytes),
+        );
+        final cancelled = PlanFileService(pickFile: () async => null);
+
+        final imported = await importing.importClassWithCleanup();
+
+        expect(imported?.cleanup.placesRemoved, 5);
+        expect(await cancelled.importClassWithCleanup(), isNull);
+      },
+    );
   });
 }

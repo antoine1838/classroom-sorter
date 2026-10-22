@@ -350,6 +350,14 @@
   "importPlanFile": "Importer une classe",
   "fileExported": "Fichier exporté.",
   "fileImported": "Une nouvelle classe a été créée à partir du fichier.",
+  "importCleanedIntro": "Pour rester cohérent, l’import a retiré {details}.",
+  "@importCleanedIntro": {"placeholders": {"details": {}}},
+  "importCleanedPlaces": "{count, plural, one{1 place du plan incohérente} other{{count} places du plan incohérentes}}",
+  "@importCleanedPlaces": {"placeholders": {"count": {}}},
+  "importCleanedRules": "{count, plural, one{1 règle qui nommait un élève absent} other{{count} règles qui nommaient un élève absent}}",
+  "@importCleanedRules": {"placeholders": {"count": {}}},
+  "importCleanedStudents": "{count, plural, one{1 élève en double} other{{count} élèves en double}}",
+  "@importCleanedStudents": {"placeholders": {"count": {}}},
   "invalidPlanFile": "Ce fichier de classe est invalide ou n’est pas compatible.",
   "privacyExportWarning": "Le fichier contient les noms et informations des élèves. Partagez-le uniquement avec des personnes autorisées."
 }
