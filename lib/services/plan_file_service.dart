@@ -30,7 +30,13 @@ class PlanFileService {
         'class': classGroup.toJson(),
       });
 
-  ClassGroup decode(String source) {
+  ClassGroup decode(String source) => decodeWithCleanup(source).classGroup;
+
+  /// Comme [decode], en disant ce qui a été retiré du fichier parce que cela ne
+  /// menait nulle part (élèves ou places absents).
+  ({ClassGroup classGroup, DataCleanup cleanup}) decodeWithCleanup(
+    String source,
+  ) {
     try {
       final decoded = jsonDecode(source);
       if (decoded is! Map ||
@@ -39,7 +45,7 @@ class PlanFileService {
           decoded['class'] is! Map) {
         throw const FormatException('Format de fichier de plan invalide.');
       }
-      return ClassGroup.fromJson(
+      return ClassGroup.fromJsonWithCleanup(
         (decoded['class'] as Map).cast<String, dynamic>(),
       );
     } on FormatException {
@@ -71,9 +77,14 @@ class PlanFileService {
     return destination != null;
   }
 
-  Future<ClassGroup?> importClass() async {
+  Future<ClassGroup?> importClass() async =>
+      (await importClassWithCleanup())?.classGroup;
+
+  /// Comme [importClass], avec ce qui a été retiré du fichier lu.
+  Future<({ClassGroup classGroup, DataCleanup cleanup})?>
+  importClassWithCleanup() async {
     final bytes = await _pickFile();
-    return bytes == null ? null : decode(utf8.decode(bytes));
+    return bytes == null ? null : decodeWithCleanup(utf8.decode(bytes));
   }
 
   static Future<Uint8List?> _pickWithPlatform() async {

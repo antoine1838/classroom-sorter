@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../actions/class_group_ops.dart';
 import '../app_state.dart';
+import '../l10n/data_cleanup_localizations.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/classroom.dart';
 import '../services/plan_file_service.dart';
@@ -258,11 +259,17 @@ class HomeScreen extends StatelessWidget {
   Future<void> _importPlanFile(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     try {
-      final imported = await _planFileService.importClass();
+      final imported = await _planFileService.importClassWithCleanup();
       if (imported == null || !context.mounted) return;
-      state.importClass(imported);
+      state.importClass(imported.classGroup);
+      // Un fichier nettoyé à la lecture le dit : sans cela, des places ou des
+      // règles disparaîtraient sans que personne sache pourquoi.
+      final cleanup = imported.cleanup;
+      final message = cleanup.isEmpty
+          ? l10n.fileImported
+          : '${l10n.fileImported} ${localizedDataCleanup(cleanup, l10n)}';
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.fileImported)));
+          .showSnackBar(SnackBar(content: Text(message)));
     } on FormatException {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context)

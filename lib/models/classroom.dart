@@ -41,6 +41,29 @@ class BalanceSettings {
   );
 }
 
+/// Ce que la lecture d'une classe a dû retirer parce que cela ne menait nulle
+/// part (voir [ClassGroup.fromJsonWithCleanup]).
+class DataCleanup {
+  const DataCleanup({
+    this.studentsRemoved = 0,
+    this.rulesRemoved = 0,
+    this.placesRemoved = 0,
+  });
+
+  /// Élèves dont l'id était déjà pris.
+  final int studentsRemoved;
+
+  /// Règles qui nommaient un élève inconnu.
+  final int rulesRemoved;
+
+  /// Places du plan incohérentes (clé mal formée, hors grille, place
+  /// désactivée, élève inconnu ou déjà placé ailleurs).
+  final int placesRemoved;
+
+  bool get isEmpty =>
+      studentsRemoved == 0 && rulesRemoved == 0 && placesRemoved == 0;
+}
+
 class ClassGroup {
   final String id;
   String name;
@@ -106,7 +129,10 @@ class ClassGroup {
   /// - une règle qui nomme un élève inconnu ;
   /// - une place du plan dont la clé est mal formée, hors grille ou désactivée,
   ///   qui désigne un élève inconnu, ou un élève déjà placé ailleurs.
-  void _dropDanglingReferences() {
+  DataCleanup _dropDanglingReferences() {
+    final studentsBefore = students.length;
+    final rulesBefore = rules.length;
+    final placesBefore = assignment.length;
     final knownIds = <String>{};
     students.removeWhere((s) => !knownIds.add(s.id));
     rules.removeWhere(
@@ -122,6 +148,11 @@ class ClassGroup {
           !knownIds.contains(sid) ||
           !placed.add(sid);
     });
+    return DataCleanup(
+      studentsRemoved: studentsBefore - students.length,
+      rulesRemoved: rulesBefore - rules.length,
+      placesRemoved: placesBefore - assignment.length,
+    );
   }
 
   Map<String, dynamic> toJson() => {
@@ -139,7 +170,19 @@ class ClassGroup {
   /// Lit une classe et retire ce qui ne mène nulle part : voir
   /// [_dropDanglingReferences].
   factory ClassGroup.fromJson(Map<String, dynamic> j) =>
-      ClassGroup._fromRawJson(j).._dropDanglingReferences();
+      ClassGroup.fromJsonWithCleanup(j).classGroup;
+
+  /// Comme [ClassGroup.fromJson], en disant ce qui a été retiré : l'import d'un
+  /// fichier s'en sert pour prévenir l'utilisateur.
+  static ({ClassGroup classGroup, DataCleanup cleanup}) fromJsonWithCleanup(
+    Map<String, dynamic> j,
+  ) {
+    final classGroup = ClassGroup._fromRawJson(j);
+    return (
+      classGroup: classGroup,
+      cleanup: classGroup._dropDanglingReferences(),
+    );
+  }
 
   factory ClassGroup._fromRawJson(Map<String, dynamic> j) => ClassGroup(
     id: j['id'] as String,
