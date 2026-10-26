@@ -88,6 +88,35 @@ void main() {
     expect(exported?.assignment, {'0,0': 'lea'});
   });
 
+  testWidgets('toucher une archive l’exporte en PDF', (tester) async {
+    ClassGroup? exported;
+    await _pump(
+      tester,
+      _classWithSnapshots(),
+      exportPdf: (cls, _, _) async => exported = cls,
+    );
+
+    await tester.tap(find.text('Matin'));
+    await tester.pumpAndSettle();
+
+    expect(exported?.name, '6ème B');
+  });
+
+  testWidgets('dit quand l’export PDF de l’archive échoue', (tester) async {
+    await _pump(
+      tester,
+      _classWithSnapshots(),
+      exportPdf: (_, _, _) async => throw StateError('partage refusé'),
+    );
+
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Exporter en PDF'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('L’export a échoué. Réessayez.'), findsOneWidget);
+  });
+
   testWidgets('restaurer crée une copie et supprimer retire une archive', (
     tester,
   ) async {

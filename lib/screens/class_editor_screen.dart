@@ -25,6 +25,7 @@ import '../tutorial/tutorial_guide.dart';
 import '../widgets/plan_viewport.dart';
 import '../widgets/room_thumbnail.dart';
 import '../widgets/seat_grid.dart';
+import '../widgets/text_prompt_dialog.dart';
 import 'plan_history_screen.dart';
 import '../services/plan_pdf_service.dart';
 
@@ -438,22 +439,12 @@ class ClassEditorScreen extends StatelessWidget {
   }
 
   Future<void> _rename(BuildContext context) async {
-    final ctrl = TextEditingController(text: cls.name);
     final name = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(_l10n(context).renameClass),
-        content: TextField(controller: ctrl, autofocus: true),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(_l10n(context).cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: Text(_l10n(context).ok),
-          ),
-        ],
+      builder: (_) => TextPromptDialog(
+        title: _l10n(context).renameClass,
+        confirmLabel: _l10n(context).ok,
+        initial: cls.name,
       ),
     );
     if (name != null && name.isNotEmpty) {

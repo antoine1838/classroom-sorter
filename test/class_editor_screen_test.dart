@@ -1423,6 +1423,79 @@ void main() {
       expect(calls, ['sharePdf']);
     });
 
+    testWidgets('dit quand le partage du PDF échoue', (t) async {
+      final calls = <String>[];
+      const channel = MethodChannel('net.nfet.printing');
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        calls.add(call.method);
+        throw PlatformException(code: 'denied');
+      });
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      await _pump(t, _cls(rows: 2, cols: 3, students: 2));
+      await _tab(t, 'Plan');
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.byIcon(Icons.more_vert));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Exporter en PDF'));
+      // Même attente en temps réel que pour l'export réussi : le PDF se
+      // construit hors du temps simulé avant d'atteindre le canal.
+      await t.runAsync(() async {
+        for (var i = 0; i < 100 && calls.isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        // Le temps que l'erreur remonte du canal jusqu'à l'écran.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await t.pumpAndSettle();
+
+      expect(calls, ['sharePdf']);
+
+      expect(find.text('L’export a échoué. Réessayez.'), findsOneWidget);
+    });
+
+    testWidgets('le rapport survit à un passage par un autre onglet', (
+      t,
+    ) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+      expect(find.byKey(kReportButtonKey), findsOneWidget);
+
+      // Salle est assez loin du Plan pour que TabBarView détruise la page.
+      await _tab(t, 'Salle');
+      await _tab(t, 'Plan');
+
+      expect(find.byKey(kReportButtonKey), findsOneWidget);
+    });
+
+    testWidgets('un passage par un autre onglet qui change le plan périme le '
+        'rapport', (t) async {
+      final cls = _cls(rows: 2, cols: 3, students: 4);
+      await _pump(t, cls);
+      await _tab(t, 'Plan');
+      await t.tap(find.text('Générer le plan'));
+      await t.pumpAndSettle();
+
+      await _tab(t, 'Règles');
+      await t.tap(find.text('Mixer filles / garçons'));
+      await t.pumpAndSettle();
+      await _tab(t, 'Salle');
+      await _tab(t, 'Plan');
+
+      expect(find.byKey(kReportButtonKey), findsNothing);
+    });
+
     testWidgets(
       'modifier un objectif invalide le rapport mais conserve le plan',
       (t) async {

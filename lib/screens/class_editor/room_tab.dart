@@ -105,27 +105,12 @@ class _RoomTab extends StatelessWidget {
   /// le confirme.
   Future<void> _saveRoomAsNew(BuildContext context) async {
     final l10n = _l10n(context);
-    final ctrl = TextEditingController();
     final name = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(l10n.saveRoom),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(hintText: l10n.roomNameHint),
-          onSubmitted: (v) => Navigator.pop(context, v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: Text(l10n.save),
-          ),
-        ],
+      builder: (_) => TextPromptDialog(
+        title: l10n.saveRoom,
+        hint: l10n.roomNameHint,
+        confirmLabel: l10n.save,
       ),
     );
     if (name == null || name.isEmpty || !context.mounted) return;
@@ -470,22 +455,12 @@ class _RoomLayoutDialogState extends State<_RoomLayoutDialog> {
 
   Future<void> _renameSavedRoom(SavedRoom saved) async {
     final l10n = _l10n(context);
-    final ctrl = TextEditingController(text: saved.name);
     final name = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(l10n.renameRoom),
-        content: TextField(controller: ctrl, autofocus: true),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: Text(l10n.ok),
-          ),
-        ],
+      builder: (_) => TextPromptDialog(
+        title: l10n.renameRoom,
+        confirmLabel: l10n.ok,
+        initial: saved.name,
       ),
     );
     if (name == null || name.isEmpty || !mounted) return;

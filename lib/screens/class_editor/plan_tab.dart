@@ -18,7 +18,7 @@ class _PlanTab extends StatefulWidget {
   State<_PlanTab> createState() => _PlanTabState();
 }
 
-class _PlanTabState extends State<_PlanTab> {
+class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
   PlanResult? _result;
   String? _resultSignature;
   bool _generating = false;
@@ -35,6 +35,12 @@ class _PlanTabState extends State<_PlanTab> {
 
   ClassGroup get cls => widget.cls;
   ClassGroupOps get _ops => ClassGroupOps(cls, commit: widget.state.touch);
+
+  /// Le rapport (et le zoom) survivent à un passage par un autre onglet :
+  /// TabBarView détruit sinon la page dès qu'elle sort de l'écran. Si le plan
+  /// ou les règles changent entre-temps, [didUpdateWidget] périme le rapport.
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void didUpdateWidget(covariant _PlanTab oldWidget) {
@@ -105,6 +111,7 @@ class _PlanTabState extends State<_PlanTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final rail = planUsesRail(context);
     final grid = Padding(
       padding: rail
@@ -316,11 +323,19 @@ class _PlanTabState extends State<_PlanTab> {
     );
   }
 
-  Future<void> _exportPdf() => PlanPdfService().export(
-    cls,
-    l10n: _l10n(context),
-    genderPalette: widget.state.genderColorPalette,
-  );
+  Future<void> _exportPdf() async {
+    final l10n = _l10n(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await PlanPdfService().export(
+        cls,
+        l10n: l10n,
+        genderPalette: widget.state.genderColorPalette,
+      );
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.exportFailed)));
+    }
+  }
 
   Future<void> _archive() async {
     if (cls.assignment.isEmpty) {
@@ -329,38 +344,14 @@ class _PlanTabState extends State<_PlanTab> {
       ).showSnackBar(SnackBar(content: Text(_l10n(context).noPlanToArchive)));
       return;
     }
-    final controller = TextEditingController();
     final label = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_l10n(context).archivePlanTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_l10n(context).archivePlanDescription),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: _l10n(context).archiveLabel,
-                hintText: _l10n(context).archiveLabelHint,
-              ),
-              onSubmitted: (value) => Navigator.pop(context, value.trim()),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(_l10n(context).cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: Text(_l10n(context).archive),
-          ),
-        ],
+      builder: (_) => TextPromptDialog(
+        title: _l10n(context).archivePlanTitle,
+        intro: Text(_l10n(context).archivePlanDescription),
+        label: _l10n(context).archiveLabel,
+        hint: _l10n(context).archiveLabelHint,
+        confirmLabel: _l10n(context).archive,
       ),
     );
     if (label == null || !mounted) return;

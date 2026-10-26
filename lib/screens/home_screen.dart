@@ -10,6 +10,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../models/classroom.dart';
 import '../services/plan_file_service.dart';
 import '../tutorial/tutorial_guide.dart';
+import '../widgets/text_prompt_dialog.dart';
 import 'class_editor_screen.dart';
 import 'faq_screen.dart';
 import 'plan_history_screen.dart';
@@ -248,11 +249,16 @@ class HomeScreen extends StatelessWidget {
     ClassGroup classGroup,
   ) async {
     final l10n = AppLocalizations.of(context)!;
+    // Pris avant les attentes : un échec doit se dire même si l'écran a changé.
+    final messenger = ScaffoldMessenger.of(context);
     if (!await _confirmPrivacyExport(context)) return;
-    final exported = await _planFileService.exportClass(classGroup);
-    if (exported && context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.fileExported)));
+    try {
+      final exported = await _planFileService.exportClass(classGroup);
+      if (exported) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.fileExported)));
+      }
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.exportFailed)));
     }
   }
 
@@ -299,11 +305,13 @@ class HomeScreen extends StatelessWidget {
   }
 
   Future<void> _addClass(BuildContext context) async {
-    final name = await _promptText(
-      context,
-      title: AppLocalizations.of(context)!.className,
-      hint: AppLocalizations.of(context)!.classNameHint,
-      okLabel: AppLocalizations.of(context)!.create,
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => TextPromptDialog(
+        title: AppLocalizations.of(context)!.className,
+        hint: AppLocalizations.of(context)!.classNameHint,
+        confirmLabel: AppLocalizations.of(context)!.create,
+      ),
     );
     if (name == null) return;
     final c = state.addClass(name);
@@ -411,39 +419,6 @@ class _FirstTutorialPromptState extends State<_FirstTutorialPrompt> {
 
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
-}
-
-/// Petite boîte de dialogue « saisir un texte », réutilisable.
-Future<String?> _promptText(
-  BuildContext context, {
-  required String title,
-  String hint = '',
-  String initial = '',
-  String okLabel = 'OK',
-}) {
-  final ctrl = TextEditingController(text: initial);
-  return showDialog<String>(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: ctrl,
-        autofocus: true,
-        decoration: InputDecoration(hintText: hint),
-        onSubmitted: (v) => Navigator.pop(context, v.trim()),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-          child: Text(okLabel),
-        ),
-      ],
-    ),
-  );
 }
 
 class _EmptyState extends StatelessWidget {

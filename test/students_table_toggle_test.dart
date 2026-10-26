@@ -3,6 +3,8 @@
 // recocher la valeur active revient à la valeur par défaut du champ (pas de
 // Level.nonDefini/Energy.nonDefini distinct : le milieu fait office de
 // défaut, voir students_grid_cycle_test.dart pour la vue Compacte).
+import 'dart:ui' show CheckedState;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,6 +33,37 @@ Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls) async {
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets(
+    'Vue Complète : une case annonce élève, champ, valeur et son état coché',
+    (tester) async {
+      final s = Student(id: 's1', firstName: 'Ana', lastName: 'Test');
+      final cls = ClassGroup(
+        id: 'c1',
+        name: 'Test',
+        room: Room(rows: 2, cols: 2),
+        students: [s],
+      );
+      final semantics = tester.ensureSemantics();
+      await _pumpEditor(tester, cls);
+
+      final label = find.bySemanticsLabel('Ana Test, Niveau : Fort');
+      expect(
+        tester.getSemantics(label).getSemanticsData().flagsCollection.isChecked,
+        CheckedState.isFalse,
+      );
+
+      tester.semantics.tap(find.semantics.byLabel('Ana Test, Niveau : Fort'));
+      await tester.pumpAndSettle();
+
+      expect(s.level, Level.fort);
+      expect(
+        tester.getSemantics(label).getSemanticsData().flagsCollection.isChecked,
+        CheckedState.isTrue,
+      );
+      semantics.dispose();
+    },
+  );
 
   testWidgets(
     'Vue Complète : cocher une valeur, recocher revient à la valeur par défaut',

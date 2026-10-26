@@ -456,35 +456,46 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
   }
 
   Widget _buildNameCell(ColorScheme cs, Student s, int i) {
+    void edit() => _editStudent(context, existing: s);
     return Container(
       height: _kRowH,
       color: _rowColor(cs, i),
-      child: InkWell(
-        onTap: () => _editStudent(context, existing: s),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  s.fullName,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-              if (s.notes.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Tooltip(
-                    message: s.notes,
-                    child: Icon(
-                      Icons.sticky_note_2_outlined,
-                      size: 15,
-                      color: cs.outline,
+      // Nom, puis note : une seule annonce, comme un bouton, au lieu du
+      // texte et de l'icône de note lus séparément.
+      child: Semantics(
+        button: true,
+        label: s.notes.isEmpty ? s.fullName : '${s.fullName}, ${s.notes}',
+        hint: _l10n(context).editStudentHint,
+        onTap: edit,
+        child: ExcludeSemantics(
+          child: InkWell(
+            onTap: edit,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      s.fullName,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
                     ),
                   ),
-                ),
-            ],
+                  if (s.notes.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Tooltip(
+                        message: s.notes,
+                        child: Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 15,
+                          color: cs.outline,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -519,13 +530,11 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
 
   Future<void> _importList(BuildContext context) async {
     final l10n = _l10n(context);
-    final ctrl = TextEditingController();
     final text = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(l10n.importStudentsTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+      builder: (_) => TextPromptDialog(
+        title: l10n.importStudentsTitle,
+        intro: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(l10n.importStudentsInstructions),
@@ -533,29 +542,13 @@ mixin _StudentsMatrixMixin<T extends StatefulWidget> on State<T> {
               l10n.importStudentsHyphenHint,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              maxLines: 8,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: l10n.importStudentsExample,
-              ),
-            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text),
-            child: Text(l10n.import),
-          ),
-        ],
+        hint: l10n.importStudentsExample,
+        confirmLabel: l10n.import,
+        maxLines: 8,
+        textCapitalization: TextCapitalization.words,
+        border: const OutlineInputBorder(),
       ),
     );
     if (text == null) return;
@@ -729,30 +722,43 @@ class _StudentsTabCompactState extends State<_StudentsTabCompact>
   /// (boucle). Couleur d'accent sauf sur la valeur par défaut du champ, en
   /// gris pour rester lisible parmi les valeurs réellement choisies.
   Widget _cycleCell(ColorScheme cs, _AttrField field, Student s, double width) {
+    final l10n = _l10n(context);
     final idx = field.indexOf(s);
     final value = field.values[idx];
     final color = idx == field.defaultIndex ? cs.outlineVariant : cs.primary;
+    void cycle() {
+      field.setIndex(s, (idx + 1) % field.values.length);
+      state.touch();
+    }
+
     return SizedBox(
       key: ValueKey('attrCell_${field.id}_${s.id}'),
       width: width,
-      child: Tooltip(
-        message: value.label,
-        child: InkWell(
-          onTap: () {
-            field.setIndex(s, (idx + 1) % field.values.length);
-            state.touch();
-          },
-          child: Center(
-            child: value.barHeight != null
-                ? Container(
-                    width: 8,
-                    height: value.barHeight,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  )
-                : Icon(value.icon, color: color, size: 22),
+      // Sans libellé, un lecteur d'écran ne lirait que la valeur (« Fille »),
+      // sans dire de quel élève ni de quel champ il s'agit.
+      child: Semantics(
+        button: true,
+        label: l10n.studentAttributeCell(s.fullName, field.label, value.label),
+        hint: l10n.attributeCycleHint,
+        onTap: cycle,
+        child: ExcludeSemantics(
+          child: Tooltip(
+            message: value.label,
+            child: InkWell(
+              onTap: cycle,
+              child: Center(
+                child: value.barHeight != null
+                    ? Container(
+                        width: 8,
+                        height: value.barHeight,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      )
+                    : Icon(value.icon, color: color, size: 22),
+              ),
+            ),
           ),
         ),
       ),
@@ -955,6 +961,11 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
             key: ValueKey(
               'completeCell_${field.id}_${field.values[k].id}_${s.id}',
             ),
+            label: _l10n(context).studentAttributeCell(
+              s.fullName,
+              field.label,
+              field.values[k].label,
+            ),
             on: active == k,
             onTap: () {
               field.setIndex(s, active == k ? field.defaultIndex : k);
@@ -977,19 +988,30 @@ class _StudentsTabCompleteState extends State<_StudentsTabComplete>
   Widget _checkCell(
     ColorScheme cs, {
     required Key key,
+    required String label,
     required bool on,
     required VoidCallback onTap,
   }) {
     return SizedBox(
       key: key,
       width: _cellW,
-      child: InkWell(
+      // Une case porte « élève, champ : valeur » et son état : sans cela, la
+      // matrice n'est qu'une grille d'icônes identiques pour un lecteur
+      // d'écran.
+      child: Semantics(
+        checked: on,
+        label: label,
         onTap: onTap,
-        child: Center(
-          child: Icon(
-            on ? Icons.check_box : Icons.check_box_outline_blank,
-            color: on ? cs.primary : cs.outlineVariant,
-            size: 22,
+        child: ExcludeSemantics(
+          child: InkWell(
+            onTap: onTap,
+            child: Center(
+              child: Icon(
+                on ? Icons.check_box : Icons.check_box_outline_blank,
+                color: on ? cs.primary : cs.outlineVariant,
+                size: 22,
+              ),
+            ),
           ),
         ),
       ),
