@@ -1,0 +1,7 @@
+Fixes in 1.13.2:
+• Fairer seating when there are more students than seats.
+• PDF is translated; rows beyond 8 and long names no longer disappear.
+• One corrupted record no longer loses your whole class list.
+• Import tells you what it removed from an inconsistent file.
+• Export failures are shown; the plan report is kept when switching tabs.
+• Student matrix readable by screen readers.

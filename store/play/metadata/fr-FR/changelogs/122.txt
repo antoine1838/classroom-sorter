@@ -1,0 +1,7 @@
+Correctifs 1.13.2 :
+• Placement plus équitable quand il y a plus d’élèves que de places.
+• PDF traduit ; rangs au-delà de 8 et noms longs ne disparaissent plus.
+• Une donnée corrompue ne fait plus perdre toute la liste de classes.
+• L’import indique ce qu’il a retiré d’un fichier incohérent.
+• Échecs d’export signalés ; rapport du Plan gardé en changeant d’onglet.
+• Matrice des élèves lisible par les lecteurs d’écran.
