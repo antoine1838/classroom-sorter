@@ -40,6 +40,7 @@ Archive and export
 • Archive a plan under a name ("Term 1"), view it later or restore it as a new class.
 • PDF export to print or share the plan.
 • Export a class to a file and import it elsewhere. It contains student names: share it only with authorised people.
+• On import, the app tells you what it removed from an inconsistent file (seats, rules, duplicate students).
 
 Getting started
 • Guided tutorial on a temporary demo class, and an offline FAQ.

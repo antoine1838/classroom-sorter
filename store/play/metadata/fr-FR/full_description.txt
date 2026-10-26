@@ -40,6 +40,7 @@ Archiver et exporter
 • Archivez un plan sous un nom (« Trimestre 1 »), consultez-le plus tard ou restaurez-le comme nouvelle classe.
 • Export PDF pour imprimer ou partager le plan.
 • Exportez une classe dans un fichier et importez-la ailleurs. Il contient les noms des élèves : ne le partagez qu'avec des personnes autorisées.
+• À l'import, l'appli signale ce qu'elle a retiré d'un fichier incohérent (places du plan, règles, élèves en double).
 
 Prise en main
 • Tutoriel guidé sur une classe de démonstration temporaire, et FAQ hors ligne.
