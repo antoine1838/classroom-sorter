@@ -483,6 +483,21 @@ void main() {
       expect(find.text('Fichier exporté.'), findsOneWidget);
     });
 
+    testWidgets('dit quand l’export de la classe échoue', (t) async {
+      final service = PlanFileService(
+        saveFile: (_, _) async => throw PlatformException(code: 'denied'),
+      );
+      await _pump(t, classes: [_cls('6ème B')], planFileService: service);
+
+      await t.tap(find.byTooltip('Exporter la classe'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(FilledButton, 'Exporter la classe'));
+      await t.pumpAndSettle();
+
+      expect(find.text('L’export a échoué. Réessayez.'), findsOneWidget);
+      expect(find.text('Fichier exporté.'), findsNothing);
+    });
+
     testWidgets('annuler la confidentialité ne lance pas l’export', (t) async {
       var exported = false;
       final service = PlanFileService(

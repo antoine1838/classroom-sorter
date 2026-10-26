@@ -60,6 +60,9 @@ cloud et des transferts automatiques vers un autre appareil.
   violées (dur en rouge, perfectible en orange), et **glisser-déposer** pour
   ajuster à la main. Bouton *Régénérer* pour une autre proposition, bouton
   *Valider* pour recontrôler règles et équilibre après un ajustement manuel.
+  Le rapport survit à un détour par un autre onglet, tant que rien de ce qui
+  compte pour le plan (salle, élèves, règles, objectifs, places) n'a changé
+  entre-temps.
   Lisible à toute taille d'écran : la salle s'affiche en entier en **portrait**
   (avec **zoom** à deux doigts, à la molette de souris sur bureau/web, ou avec
   les **boutons de zoom** de la barre de commandes) comme en **paysage** (cases plus larges, chrome qui se replie en rail au besoin),
@@ -84,7 +87,8 @@ cloud et des transferts automatiques vers un autre appareil.
   mène nulle part (place du plan ou règle qui désigne un élève absent, élève
   en double, salle hors des dimensions de l'éditeur) ; l'appli indique alors ce
   qui a été retiré. Ces fichiers contiennent les noms des élèves : l'appli le
-  rappelle avant de les partager.
+  rappelle avant de les partager. Un export (fichier ou PDF) qui échoue le
+  dit dans une barre d'information plutôt que d'échouer en silence.
 - **Réglages** : langue (système, français, anglais), thème (clair, sombre,
   automatique), vue de l'onglet Élèves et palette de couleurs du genre.
 - **Aide** : un **tutoriel guidé** (icône « école » de l'accueil) sur une classe
@@ -238,6 +242,8 @@ lib/
 │               plan_viewport.dart — zoom / pan du plan, sans conflit avec le
 │                                    glisser-déposer d'un élève
 │               room_thumbnail.dart — aperçu d'une salle
+│               text_prompt_dialog.dart — « saisir un texte » (renommer,
+│                                         nommer une salle ou une archive…)
 ├── l10n/          app_fr.arb (gabarit) et app_en.arb ; le code généré
 │                  (generated/) n'est pas versionné
 ├── app_state.dart État global (ChangeNotifier) + persistance

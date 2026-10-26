@@ -1,5 +1,7 @@
 // Vérifie la nouvelle interaction de la grille Élèves : une colonne par
 // champ, un tap sur la cellule passe à la valeur suivante (boucle).
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,6 +32,65 @@ Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls) async {
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets(
+    'Grille Élèves : une cellule annonce élève, champ et valeur à un lecteur d’écran',
+    (tester) async {
+      final s = Student(id: 's1', firstName: 'Ana', lastName: 'Test');
+      final cls = ClassGroup(
+        id: 'c1',
+        name: 'Test',
+        room: Room(rows: 2, cols: 2),
+        students: [s],
+      );
+      final semantics = tester.ensureSemantics();
+      await _pumpEditor(tester, cls);
+
+      final cell = tester.getSemantics(
+        find.bySemanticsLabel('Ana Test, Genre : Non précisé'),
+      );
+      expect(
+        cell.getSemanticsData().hint,
+        'Activer pour passer à la valeur suivante.',
+      );
+      expect(cell.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
+      // L'annonce suit la valeur : l'action du lecteur d'écran cycle comme le tap.
+      tester.semantics.tap(
+        find.semantics.byLabel('Ana Test, Genre : Non précisé'),
+      );
+      await tester.pumpAndSettle();
+      expect(s.gender, Gender.garcon);
+      expect(find.bySemanticsLabel('Ana Test, Genre : Garçon'), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('Grille Élèves : le nom est un bouton qui annonce sa note', (
+    tester,
+  ) async {
+    final s = Student(
+      id: 's1',
+      firstName: 'Ana',
+      lastName: 'Test',
+      notes: 'Devant, svp',
+    );
+    final cls = ClassGroup(
+      id: 'c1',
+      name: 'Test',
+      room: Room(rows: 2, cols: 2),
+      students: [s],
+    );
+    final semantics = tester.ensureSemantics();
+    await _pumpEditor(tester, cls);
+
+    final name = tester.getSemantics(
+      find.bySemanticsLabel('Ana Test, Devant, svp'),
+    );
+    expect(name.getSemanticsData().hint, 'Activer pour modifier l’élève.');
+    expect(name.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    semantics.dispose();
+  });
 
   testWidgets(
     'Grille Élèves : un tap sur une cellule passe à la valeur suivante (boucle)',
