@@ -143,3 +143,66 @@ Source : [`docs/index.html`](../../docs/index.html) à la racine du dépôt, pub
 via **GitHub Pages** (`main` / `docs`). Contenu : app hors ligne, aucune donnée
 collectée / transmise / partagée par l'application, stockage local et exclusion
 explicite des sauvegardes cloud et transferts automatiques Android.
+
+## Publication automatique (brouillon en production)
+
+Après la Release GitHub, le job `publish-play` de
+[`release.yml`](../../.github/workflows/release.yml) dépose l'AAB et les notes
+`changelogs/<buildNumber>.txt` (fr-FR et en-US) dans la Play Console, en
+**brouillon sur la piste production**. Rien n'atteint les utilisateurs avant
+votre clic **« Envoyer en examen »** dans la Console.
+
+Aucune clé n'est stockée : le job présente son jeton OIDC GitHub à Google
+(*Workload Identity Federation*) et reçoit un accès éphémère. Le job est inerte
+tant que la variable de dépôt `GCP_WORKLOAD_IDENTITY_PROVIDER` n'est pas posée,
+et il attend l'approbation de l'environnement `play-production`.
+
+### Mise en place, une fois (dans vos comptes)
+
+Les commandes `gcloud` sont à adapter (`PROJECT_ID`, `PROJECT_NUMBER`) ; le
+compte de service ne reçoit **aucun** rôle Google Cloud.
+
+1. **Google Cloud** : activer l'API *Google Play Android Developer*, créer le
+   compte de service, la fédération et l'autorisation d'usage.
+
+   ```bash
+   gcloud services enable androidpublisher.googleapis.com --project=PROJECT_ID
+   gcloud iam service-accounts create play-publisher --project=PROJECT_ID
+   gcloud iam workload-identity-pools create github --project=PROJECT_ID --location=global
+   ```
+
+   Le fournisseur n'accepte que l'environnement `play-production` de ce dépôt
+   (c'est la valeur `sub` du jeton quand un job déclare un `environment`) :
+
+   ```bash
+   gcloud iam workload-identity-pools providers create-oidc classroom-sorter --project=PROJECT_ID --location=global --workload-identity-pool=github --issuer-uri="https://token.actions.githubusercontent.com" --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" --attribute-condition="assertion.sub=='repo:antoine1838/classroom-sorter:environment:play-production'"
+   ```
+
+   ```bash
+   gcloud iam service-accounts add-iam-policy-binding play-publisher@PROJECT_ID.iam.gserviceaccount.com --project=PROJECT_ID --role=roles/iam.workloadIdentityUser --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/antoine1838/classroom-sorter"
+   ```
+
+2. **Play Console** → Utilisateurs et autorisations → inviter l'adresse
+   `play-publisher@PROJECT_ID.iam.gserviceaccount.com` avec, sur cette appli
+   seulement, le droit de publier en production (libellé à confirmer dans la
+   Console, l'écran évolue).
+3. **GitHub** → Settings → *Environments* → créer **`play-production`** :
+   *Required reviewers* = vous, et *Deployment branches and tags* limité aux
+   tags `v*`. Sans cet environnement configuré, GitHub le crée sans protection.
+4. **GitHub** → Settings → *Secrets and variables* → *Actions* → onglet
+   *Variables* (ce ne sont pas des secrets) :
+   - `GCP_WORKLOAD_IDENTITY_PROVIDER` =
+     `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/classroom-sorter`
+   - `GCP_SERVICE_ACCOUNT` = `play-publisher@PROJECT_ID.iam.gserviceaccount.com`
+
+### À chaque release
+
+Le tag `vX.Y.Z` lance le build et la Release GitHub, puis `publish-play`
+attend votre approbation dans l'onglet *Actions*. Une fois approuvé, le
+brouillon apparaît dans la Console (Production → Versions) avec l'AAB et les
+notes des deux langues : relisez-le, puis **Envoyer en examen**.
+
+⚠️ Non éprouvé de bout en bout : le job n'a pas encore tourné contre la vraie
+Console. Le premier essai se fait à la prochaine release, sans risque puisque
+le statut est `draft`. Les captures et la fiche texte restent gérées à la main
+(l'API les écraserait).

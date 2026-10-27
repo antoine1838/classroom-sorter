@@ -182,6 +182,12 @@ manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 Elle rejoue aussi `flutter analyze` et `flutter test` avant d'écrire le
 keystore : un tag sur un commit qui ne passe pas les contrôles ne publie rien.
 
+Un second job, `publish-play`, peut ensuite déposer l'AAB et les notes de
+version dans la Play Console **en brouillon** (piste production), sans clé
+stockée (jeton OIDC) et après approbation manuelle ; il reste inerte tant que
+la configuration n'est pas posée. Procédure dans
+[store/play/README.md](store/play/README.md#publication-automatique-brouillon-en-production).
+
 ## Qualité
 
 Sur chaque push sur `main` et chaque pull request, le CI
