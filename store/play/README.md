@@ -159,8 +159,19 @@ et il attend l'approbation de l'environnement `play-production`.
 
 ### Mise en place, une fois (dans vos comptes)
 
-Les commandes `gcloud` sont à adapter (`PROJECT_ID`, `PROJECT_NUMBER`) ; le
-compte de service ne reçoit **aucun** rôle Google Cloud.
+Les commandes `gcloud` sont à adapter ; le compte de service ne reçoit
+**aucun** rôle Google Cloud.
+
+- `PROJECT_ID` est le nom du projet Google Cloud (`mon-projet-123`).
+- `PROJECT_NUMBER` est son identifiant **numérique** (`123456789012`), qui n'est
+  pas le même :
+
+  ```bash
+  gcloud projects describe PROJECT_ID --format="value(projectNumber)"
+  ```
+
+  (Aussi visible dans la console Google Cloud, carte « Informations sur le
+  projet » de la page d'accueil.)
 
 1. **Google Cloud** : activer l'API *Google Play Android Developer*, créer le
    compte de service, la fédération et l'autorisation d'usage.
@@ -190,10 +201,15 @@ compte de service ne reçoit **aucun** rôle Google Cloud.
    *Required reviewers* = vous, et *Deployment branches and tags* limité aux
    tags `v*`. Sans cet environnement configuré, GitHub le crée sans protection.
 4. **GitHub** → Settings → *Secrets and variables* → *Actions* → onglet
-   *Variables* (ce ne sont pas des secrets) :
+   *Variables* → **New repository variable** (ce ne sont pas des secrets) :
    - `GCP_WORKLOAD_IDENTITY_PROVIDER` =
      `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/classroom-sorter`
    - `GCP_SERVICE_ACCOUNT` = `play-publisher@PROJECT_ID.iam.gserviceaccount.com`
+
+   Des variables **de dépôt**, pas d'environnement (section *Environment
+   variables* de la même page) : `publish-play` teste la première dans son
+   `if:`, avant que GitHub ait résolu l'environnement du job. Posée côté
+   environnement, elle y serait vide et le job serait sauté sans erreur.
 
 ### À chaque release
 
