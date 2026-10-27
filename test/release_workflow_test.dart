@@ -193,8 +193,9 @@ void main() {
       reason: 'permissions par défaut du workflow = lecture seule',
     );
     final jobs = jobBlocks(releaseWorkflow);
-    expect(jobs.keys, ['build-release']);
+    expect(jobs.keys, ['build-release', 'publish-play']);
     expect(jobs['build-release'], contains('contents: write'));
+    expect(jobs['publish-play'], isNot(contains('contents: write')));
     expect(
       releaseWorkflow.indexOf('contents: write'),
       greaterThan(releaseWorkflow.indexOf('\njobs:\n')),
@@ -237,5 +238,96 @@ void main() {
     }
     expect(releaseWorkflow, contains('Secret de signature manquant'));
     expect(releaseWorkflow, contains('flutter build appbundle --release'));
+  });
+
+  group('publication Play (brouillon en production, sans clé stockée)', () {
+    late String publish;
+    late String build;
+
+    setUpAll(() {
+      final jobs = jobBlocks(releaseWorkflow);
+      publish = jobs['publish-play']!;
+      build = jobs['build-release']!;
+    });
+
+    test(
+      'attend la release, sur tag seulement, et reste inerte sans config',
+      () {
+        expect(publish, contains('needs: build-release'));
+        expect(publish, contains("startsWith(github.ref, 'refs/tags/v')"));
+        expect(
+          publish,
+          contains("vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''"),
+          reason:
+              'tant que la variable n\'est pas posée, la release reste telle '
+              'qu\'avant',
+        );
+      },
+    );
+
+    test('dépose un brouillon sur la production de l\'appli', () {
+      final applicationId = RegExp(r'applicationId\s*=\s*"([^"]+)"')
+          .firstMatch(File('android/app/build.gradle.kts').readAsStringSync())!;
+
+      expect(publish, contains('packageName: ${applicationId.group(1)}'));
+      expect(publish, contains('track: production'));
+      expect(
+        publish,
+        contains('status: draft'),
+        reason: 'rien n\'atteint les utilisateurs sans le clic de l\'éditeur',
+      );
+      expect(publish, isNot(contains('status: completed')));
+    });
+
+    test('passe par un environnement et un jeton OIDC, jamais une clé', () {
+      expect(publish, contains('environment: play-production'));
+      expect(publish, contains('id-token: write'));
+      expect(publish, contains('contents: read'));
+      expect(publish, contains('google-github-actions/auth@'));
+      expect(publish, contains('workload_identity_provider:'));
+      expect(publish, isNot(contains('secrets.')));
+      expect(publish, isNot(contains('serviceAccountJsonPlainText')));
+      expect(publish, isNot(contains('credentials_json')));
+      expect(
+        build,
+        isNot(contains('id-token')),
+        reason: 'le job qui voit le keystore ne reçoit pas de jeton OIDC',
+      );
+    });
+
+    test(
+      'envoie l\'AAB et les notes du build courant, dans les deux langues',
+      () {
+        // Le nom de l'artefact est celui que le job de build publie, et le
+        // numéro de build celui qu'il a validé : rien n'est redéduit ici.
+        expect(
+          build,
+          contains(r'name: classroom-sorter-${{ env.APK_LABEL }}-aab'),
+        );
+        expect(
+          publish,
+          contains(
+            r'name: classroom-sorter-${{ needs.build-release.outputs.version }}'
+            '-aab',
+          ),
+        );
+        expect(
+          build,
+          contains('build-number: \${{ steps.version.outputs.build-number }}'),
+        );
+        expect(
+          publish,
+          contains(r'${{ needs.build-release.outputs.build-number }}'),
+        );
+        expect(publish, contains('for locale in ${locales.join(' ')}; do'));
+        expect(
+          publish,
+          contains(
+            r'changelogs/$BUILD_NUMBER.txt" "build/whatsnew/whatsnew-$locale"',
+          ),
+        );
+        expect(publish, contains('whatsNewDirectory: build/whatsnew'));
+      },
+    );
   });
 }
