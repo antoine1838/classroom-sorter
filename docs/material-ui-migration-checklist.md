@@ -30,6 +30,6 @@ Ne régénérer (`--update-goldens`) qu’après validation visuelle des écarts
 |---------|----------|------|
 | `file_picker` | MAJ transitive via `pub get` | `saveFile` sans paramètres dépréciés |
 | `printing` | Legacy Material **dans** le plugin | Pas de bridge ; tests export PDF OK |
-| `window_manager` | Legacy Material **dans** le plugin | Pas de bridge ; tests fenêtre OK |
+| `window_manager` | 0.7 + `legacy.dart` dans `desktop_window_io.dart` uniquement | Pas d’import direct dans `main.dart` (build Web) ; tests fenêtre OK |
 
-MAJ majeures `printing` / `window_manager` : **PR 3** si souhaité.
+`printing` : pas de bump majeur dans cette vague (hors scope).
