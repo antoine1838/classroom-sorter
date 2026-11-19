@@ -27,7 +27,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: true
 
       - name: Récupérer les dépendances
@@ -46,7 +46,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: true
 
       - name: Récupérer les dépendances
@@ -65,7 +65,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: true
 
       - name: Récupérer les dépendances
@@ -98,7 +98,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: true
 
       - name: Récupérer les dépendances
@@ -128,8 +128,8 @@ jobs:
       - name: Restaurer le SDK Flutter
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: D:/flutter/stable-3.47.6-x64
-          key: flutter-sdk-windows-d-3.47.6
+          path: D:/flutter/stable-3.50.0-x64
+          key: flutter-sdk-windows-d-3.50.0
 
       - name: Restaurer le cache pub
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -140,9 +140,9 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: false
-          cache-path: D:/flutter/stable-3.47.6-x64
+          cache-path: D:/flutter/stable-3.50.0-x64
 
       - name: Récupérer les dépendances
         run: flutter pub get
@@ -184,7 +184,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: true
 
       - name: Récupérer les dépendances
@@ -233,7 +233,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: true
 
       - name: Récupérer les dépendances
@@ -278,7 +278,7 @@ jobs:
       - name: Installer Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.47.6
+          flutter-version: 3.50.0
           cache: true
 
       - name: Préparer la référence
