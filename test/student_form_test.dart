@@ -345,6 +345,20 @@ void main() {
       expect(find.textContaining('importé'), findsNothing);
     });
 
+    testWidgets('fenêtre courte : le dialogue ne déborde pas', (t) async {
+      t.view.physicalSize = const Size(360, 380);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+
+      final cls = _cls();
+      await _pumpStudents(t, cls);
+      await openImport(t);
+
+      expect(t.takeException(), isNull);
+      expect(find.text('Importer des élèves'), findsOneWidget);
+    });
+
     testWidgets('un texte vide annonce zéro élève sans rien ajouter', (
       t,
     ) async {

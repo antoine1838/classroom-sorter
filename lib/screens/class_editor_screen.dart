@@ -194,8 +194,30 @@ const double _kButtonOverhead = 66;
 /// Largeur d'un bouton réduit à son icône.
 const double _kIconMinW = 48;
 
+/// Le badge du rapport consomme un peu plus qu'une icône nue.
+const double _kPlanBarReportIconW = 52;
+
+/// Icônes compactes dans la barre du plan (avant retour à la ligne).
+const double _kPlanBarCompactIconW = 40;
+
 const double _kPlanBarPadding = 24;
 const double _kPlanBarGap = 8;
+
+/// Sous cette largeur, les commandes à icônes seules se resserrent.
+const double _kPlanBarCompactWidth = 400;
+
+ButtonStyle planBarIconButtonStyle({required bool compact}) =>
+    IconButton.styleFrom(
+      visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
+      tapTargetSize: compact
+          ? MaterialTapTargetSize.shrinkWrap
+          : MaterialTapTargetSize.padded,
+      minimumSize: Size(
+        compact ? _kPlanBarCompactIconW : _kIconMinW,
+        compact ? _kPlanBarCompactIconW : _kIconMinW,
+      ),
+      iconSize: compact ? 22 : 24,
+    );
 
 /// Couleur d'un plan irréprochable, et celle des points perfectibles : ni
 /// l'erreur, ni le vert. Reprennent le vert et l'orange déjà employés par les

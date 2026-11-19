@@ -139,16 +139,51 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _controls({required bool vertical}) {
-    if (vertical) return _controlBar(vertical: true, labels: _PlanLabels.none);
+    if (vertical) {
+      return _controlBar(
+        vertical: true,
+        labels: _PlanLabels.none,
+        compact: false,
+        barWidth: double.infinity,
+      );
+    }
     // Même esprit que la barre d'outils de l'onglet Élèves : sous un certain
     // seuil, on ne garde que les icônes. Mais le seuil ne peut pas être une
     // constante — il dépend du nombre de contrôles présents.
     return LayoutBuilder(
-      builder: (context, constraints) => _controlBar(
-        vertical: false,
-        labels: _labelsFor(context, constraints.maxWidth),
-      ),
+      builder: (context, constraints) {
+        final labels = _labelsFor(context, constraints.maxWidth);
+        final iconsOnly = labels == _PlanLabels.none;
+        final compact =
+            iconsOnly && constraints.maxWidth < _kPlanBarCompactWidth;
+        return _controlBar(
+          vertical: false,
+          labels: labels,
+          compact: compact,
+          barWidth: constraints.maxWidth,
+        );
+      },
     );
+  }
+
+  int _controlCount() {
+    var n = 1;
+    if (cls.assignment.isNotEmpty) n += 3;
+    if (_result != null) n += 1;
+    n += 1;
+    return n;
+  }
+
+  double _planBarIconWidth({required bool compact}) {
+    if (compact) return _kPlanBarCompactIconW;
+    if (_result != null) return _kPlanBarReportIconW;
+    return _kIconMinW;
+  }
+
+  double _minWidthForIconBar({required bool compact}) {
+    final n = _controlCount();
+    final iconW = _planBarIconWidth(compact: compact);
+    return _kPlanBarPadding + n * iconW + (n - 1) * _kPlanBarGap;
   }
 
   /// Combien de libellés la largeur disponible permet d'afficher.
@@ -174,6 +209,7 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
     // commande restante ajoute son icône et l'espace qui la précède.
     final trailingIcons = (hasReport ? 1 : 0) + 1 + (hasPlan ? 2 : 0);
     final chrome = _kPlanBarPadding + _kPlanBarGap * trailingIcons;
+    final reportIconW = hasReport ? _kPlanBarReportIconW : _kIconMinW;
 
     if (hasReport &&
         width >=
@@ -183,7 +219,8 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
                 chrome) {
       return _PlanLabels.all;
     }
-    if (width >= needMain + _kIconMinW * trailingIcons + chrome) {
+    if (width >=
+        needMain + reportIconW + _kIconMinW * (trailingIcons - 1) + chrome) {
       return _PlanLabels.mainOnly;
     }
     return _PlanLabels.none;
@@ -206,21 +243,40 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
         : _l10n(context).improvementsCount(result.softCount);
   }
 
-  Widget _controlBar({required bool vertical, required _PlanLabels labels}) {
+  Widget _controlBar({
+    required bool vertical,
+    required _PlanLabels labels,
+    required bool compact,
+    required double barWidth,
+  }) {
     final mainLabelled = labels != _PlanLabels.none;
     final children = <Widget>[
-      _generateControl(labelled: mainLabelled),
-      if (cls.assignment.isNotEmpty) _validateControl(labelled: mainLabelled),
-      if (_result != null) _reportControl(labelled: labels == _PlanLabels.all),
-      if (cls.assignment.isNotEmpty) ...[_zoomInControl(), _zoomOutControl()],
+      _generateControl(labelled: mainLabelled, compact: compact),
+      if (cls.assignment.isNotEmpty)
+        _validateControl(labelled: mainLabelled, compact: compact),
+      if (_result != null)
+        _reportControl(labelled: labels == _PlanLabels.all, compact: compact),
+      if (cls.assignment.isNotEmpty) ...[
+        _zoomInControl(compact: compact),
+        _zoomOutControl(compact: compact),
+      ],
       if ((_viewport.currentState?.isZoomed ?? false) && planUsesRail(context))
-        _recenterControl(),
-      _planActionsControl(),
+        _recenterControl(compact: compact),
+      _planActionsControl(compact: compact),
     ];
-    return _spacedBar(children, vertical: vertical, labelled: mainLabelled);
+    final wrapIcons =
+        !vertical &&
+        !mainLabelled &&
+        barWidth < _minWidthForIconBar(compact: compact);
+    return _spacedBar(
+      children,
+      vertical: vertical,
+      labelled: mainLabelled,
+      wrapIcons: wrapIcons,
+    );
   }
 
-  Widget _generateControl({required bool labelled}) {
+  Widget _generateControl({required bool labelled, required bool compact}) {
     final label = _generateLabel;
     final onPressed = cls.students.isEmpty || _generating ? null : _generate;
     final icon = _generating
@@ -232,6 +288,7 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
         : const Icon(Icons.auto_awesome);
     if (!labelled) {
       return IconButton.filled(
+        style: planBarIconButtonStyle(compact: compact),
         tooltip: label,
         onPressed: onPressed,
         icon: icon,
@@ -246,10 +303,11 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  Widget _validateControl({required bool labelled}) {
+  Widget _validateControl({required bool labelled, required bool compact}) {
     const icon = Icon(Icons.fact_check);
     if (!labelled) {
       return IconButton.filledTonal(
+        style: planBarIconButtonStyle(compact: compact),
         tooltip: _l10n(context).validate,
         onPressed: _validate,
         icon: icon,
@@ -264,27 +322,35 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  Widget _recenterControl() => IconButton(
+  Widget _recenterControl({required bool compact}) => IconButton(
+    style: planBarIconButtonStyle(compact: compact),
     tooltip: _l10n(context).recenter,
     onPressed: () => setState(() => _viewport.currentState?.recenter()),
     icon: const Icon(Icons.center_focus_strong),
   );
 
-  Widget _zoomInControl() => IconButton(
+  Widget _zoomInControl({required bool compact}) => IconButton(
+    style: planBarIconButtonStyle(compact: compact),
     tooltip: _l10n(context).zoomIn,
     onPressed: () => _viewport.currentState?.zoomIn(),
     icon: const Icon(Icons.zoom_in),
   );
 
-  Widget _zoomOutControl() => IconButton(
+  Widget _zoomOutControl({required bool compact}) => IconButton(
+    style: planBarIconButtonStyle(compact: compact),
     tooltip: _l10n(context).zoomOut,
     onPressed: () => _viewport.currentState?.zoomOut(),
     icon: const Icon(Icons.zoom_out),
   );
 
-  Widget _planActionsControl() => Tooltip(
+  Widget _planActionsControl({required bool compact}) => Tooltip(
     message: _l10n(context).planHistory,
     child: PopupMenuButton<_PlanAction>(
+      padding: compact ? EdgeInsets.zero : const EdgeInsets.all(8),
+      constraints: BoxConstraints(
+        minWidth: compact ? _kPlanBarCompactIconW : _kIconMinW,
+        minHeight: compact ? _kPlanBarCompactIconW : _kIconMinW,
+      ),
       icon: const Icon(Icons.more_vert),
       onSelected: (action) {
         switch (action) {
@@ -365,6 +431,7 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
     List<Widget> controls, {
     required bool vertical,
     required bool labelled,
+    required bool wrapIcons,
   }) {
     final spaced = <Widget>[];
     for (final control in controls) {
@@ -402,7 +469,14 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
         : MainAxisAlignment.center;
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: Row(mainAxisAlignment: alignment, children: spaced),
+      child: wrapIcons
+          ? Wrap(
+              alignment: WrapAlignment.center,
+              spacing: _kPlanBarGap,
+              runSpacing: _kPlanBarGap,
+              children: spaced,
+            )
+          : Row(mainAxisAlignment: alignment, children: spaced),
     );
   }
 
@@ -411,7 +485,7 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
   /// En rangée, un bouton comme les deux autres — une icône nue à côté de deux
   /// boutons pleins passait tout simplement inaperçue. En rail, l'icône seule
   /// s'impose, faute de largeur, et le compteur passe par un badge.
-  Widget _reportControl({required bool labelled}) {
+  Widget _reportControl({required bool labelled, required bool compact}) {
     final result = _result!;
     final cs = Theme.of(context).colorScheme;
 
@@ -444,6 +518,7 @@ class _PlanTabState extends State<_PlanTab> with AutomaticKeepAliveClientMixin {
         label: Text('${result.hardCount + result.softCount}'),
         child: IconButton(
           key: kReportButtonKey,
+          style: planBarIconButtonStyle(compact: compact),
           tooltip: tooltip,
           onPressed: () => _showReport(context),
           icon: Icon(icon, color: colour),

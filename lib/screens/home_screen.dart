@@ -18,6 +18,15 @@ import 'settings_screen.dart';
 
 enum _HomeHelpAction { currentScreen, faq }
 
+/// Sous cette largeur, les cinq raccourcis de la barre passent sur une 2ᵉ ligne.
+const _kHomeToolbarWrapWidth = 520;
+
+/// Icônes plus serrées avant le passage sur deux lignes.
+const _kHomeToolbarCompactWidth = 600;
+
+/// Carte classe : les trois actions passent en colonne plutôt qu’en rangée.
+const _kClassCardVerticalActionsWidth = 400;
+
 class HomeScreen extends StatelessWidget {
   final AppState state;
   final PlanFileService _planFileService;
@@ -28,58 +37,33 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final width = MediaQuery.sizeOf(context).width;
+    final wrapToolbar = width < _kHomeToolbarWrapWidth;
+    final compactToolbar = width < _kHomeToolbarCompactWidth;
+    final toolbarActions = _toolbarActions(
+      context,
+      l10n,
+      compact: wrapToolbar || compactToolbar,
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.myClasses),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.auto_awesome_outlined),
-            tooltip: l10n.addDemoClass,
-            onPressed: () => _addDemoClass(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_open_outlined),
-            tooltip: l10n.importPlanFile,
-            onPressed: () => _importPlanFile(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: l10n.settings,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => SettingsScreen(state: state),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.school_outlined),
-            tooltip: l10n.tutorialTitle,
-            onPressed: () => _startTutorial(context),
-          ),
-          PopupMenuButton<_HomeHelpAction>(
-            icon: const Icon(Icons.help_outline),
-            tooltip: l10n.homeHelp,
-            onSelected: (action) => switch (action) {
-              _HomeHelpAction.currentScreen => showTutorialGuide(
-                context,
-                topic: TutorialTopic.home,
-              ),
-              _HomeHelpAction.faq => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const FaqScreen()),
-              ),
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: _HomeHelpAction.currentScreen,
-                child: Text(l10n.homeHelp),
-              ),
-              PopupMenuItem(
-                value: _HomeHelpAction.faq,
-                child: Text(l10n.faqTitle),
-              ),
-            ],
-          ),
-        ],
+        actions: wrapToolbar ? null : toolbarActions,
+        bottom: wrapToolbar
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(44),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 4, bottom: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: toolbarActions,
+                    ),
+                  ),
+                ),
+              )
+            : null,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addClass(context),
@@ -159,48 +143,173 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildClassCard(BuildContext context, ClassGroup c) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        leading: CircleAvatar(child: Text('${c.students.length}')),
-        title: Text(
-          c.name.isEmpty
-              ? AppLocalizations.of(context)!.classDefaultName
-              : c.name,
-        ),
-        subtitle: Text(
-          AppLocalizations.of(context)!
-              .classSummary(c.students.length, c.room.capacity),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.history),
-              tooltip: AppLocalizations.of(context)!.planHistory,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      PlanHistoryScreen(state: state, classGroup: c),
-                ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final verticalActions =
+              constraints.maxWidth < _kClassCardVerticalActionsWidth;
+          final compact =
+              constraints.maxWidth < _kClassCardVerticalActionsWidth + 40;
+          final title = c.name.isEmpty ? l10n.classDefaultName : c.name;
+          final subtitle = l10n.classSummary(
+            c.students.length,
+            c.room.capacity,
+          );
+          final actions = _classCardActions(
+            context,
+            l10n,
+            c,
+            compact: compact,
+            vertical: verticalActions,
+          );
+          return InkWell(
+            onTap: () => _open(context, c),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(child: Text('${c.students.length}')),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  actions,
+                ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.save_alt_outlined),
-              tooltip: AppLocalizations.of(context)!.exportPlanFile,
-              onPressed: () => _exportPlanFile(context, c),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: AppLocalizations.of(context)!.delete,
-              onPressed: () => _confirmDelete(context, c),
-            ),
-          ],
-        ),
-        onTap: () => _open(context, c),
+          );
+        },
       ),
     );
   }
+
+  List<Widget> _toolbarActions(
+    BuildContext context,
+    AppLocalizations l10n, {
+    required bool compact,
+  }) {
+    final style = compact ? _compactIconButtonStyle : null;
+    return [
+      IconButton(
+        style: style,
+        icon: const Icon(Icons.auto_awesome_outlined),
+        tooltip: l10n.addDemoClass,
+        onPressed: () => _addDemoClass(context),
+      ),
+      IconButton(
+        style: style,
+        icon: const Icon(Icons.file_open_outlined),
+        tooltip: l10n.importPlanFile,
+        onPressed: () => _importPlanFile(context),
+      ),
+      IconButton(
+        style: style,
+        icon: const Icon(Icons.settings_outlined),
+        tooltip: l10n.settings,
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => SettingsScreen(state: state)),
+        ),
+      ),
+      IconButton(
+        style: style,
+        icon: const Icon(Icons.school_outlined),
+        tooltip: l10n.tutorialTitle,
+        onPressed: () => _startTutorial(context),
+      ),
+      PopupMenuButton<_HomeHelpAction>(
+        tooltip: l10n.homeHelp,
+        icon: const Icon(Icons.help_outline),
+        padding: compact ? EdgeInsets.zero : const EdgeInsets.all(8),
+        constraints: compact
+            ? const BoxConstraints(minWidth: 40, minHeight: 40)
+            : const BoxConstraints(minWidth: 48, minHeight: 48),
+        onSelected: (action) => switch (action) {
+          _HomeHelpAction.currentScreen => showTutorialGuide(
+            context,
+            topic: TutorialTopic.home,
+          ),
+          _HomeHelpAction.faq => Navigator.of(
+            context,
+          ).push(MaterialPageRoute<void>(builder: (_) => const FaqScreen())),
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: _HomeHelpAction.currentScreen,
+            child: Text(l10n.homeHelp),
+          ),
+          PopupMenuItem(value: _HomeHelpAction.faq, child: Text(l10n.faqTitle)),
+        ],
+      ),
+    ];
+  }
+
+  Widget _classCardActions(
+    BuildContext context,
+    AppLocalizations l10n,
+    ClassGroup c, {
+    required bool compact,
+    required bool vertical,
+  }) {
+    final style = compact ? _compactIconButtonStyle : null;
+    final buttons = [
+      IconButton(
+        style: style,
+        icon: const Icon(Icons.history),
+        tooltip: l10n.planHistory,
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PlanHistoryScreen(state: state, classGroup: c),
+          ),
+        ),
+      ),
+      IconButton(
+        style: style,
+        icon: const Icon(Icons.save_alt_outlined),
+        tooltip: l10n.exportPlanFile,
+        onPressed: () => _exportPlanFile(context, c),
+      ),
+      IconButton(
+        style: style,
+        icon: const Icon(Icons.delete_outline),
+        tooltip: l10n.delete,
+        onPressed: () => _confirmDelete(context, c),
+      ),
+    ];
+    if (vertical) {
+      return Column(mainAxisSize: MainAxisSize.min, children: buttons);
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: buttons);
+  }
+
+  ButtonStyle? get _compactIconButtonStyle => IconButton.styleFrom(
+    visualDensity: VisualDensity.compact,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    minimumSize: const Size(40, 40),
+    iconSize: 22,
+  );
 
   Widget _withPersistenceBanner(
     BuildContext context,

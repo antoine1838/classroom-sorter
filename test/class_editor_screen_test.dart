@@ -1033,6 +1033,31 @@ void main() {
       );
     });
 
+    testWidgets('le dialogue de règle ne déborde pas sur un écran étroit', (
+      t,
+    ) async {
+      t.view.physicalSize = const Size(360, 800);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      final cls = ClassGroup(
+        id: 'c',
+        name: '6ème B',
+        room: Room(rows: 3, cols: 3),
+        students: [
+          Student(id: 'a', firstName: 'Inès', lastName: 'Blanc'),
+          Student(id: 'b', firstName: 'Chloé', lastName: 'Bonnet'),
+        ],
+      );
+      await _pump(t, cls);
+      await _tab(t, 'Règles');
+
+      await t.tap(find.widgetWithText(FilledButton, 'Règle'));
+      await t.pumpAndSettle();
+
+      expect(t.takeException(), isNull);
+    });
+
     testWidgets('créer une règle « Séparer »', (t) async {
       final cls = _cls();
       await _pump(t, cls);

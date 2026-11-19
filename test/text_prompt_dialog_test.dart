@@ -79,6 +79,52 @@ void main() {
     expect(find.widgetWithText(TextField, 'Salle 12'), findsOneWidget);
   });
 
+  testWidgets('intro et champ multiligne ne débordent pas sur fenêtre courte', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 380);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('fr'),
+        localizationsDelegates: appLocalizationDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => const TextPromptDialog(
+                title: 'Importer des élèves',
+                confirmLabel: 'Importer',
+                intro: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Un élève par ligne.'),
+                    Text(
+                      'Prénom composé : tiret.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                maxLines: 8,
+                hint: 'Camille Durand\nSami Ben Ali',
+              ),
+            ),
+            child: const Text('ouvrir'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('ouvrir'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+  });
+
   testWidgets('le contrôleur est libéré avec le dialogue', (tester) async {
     await _pump(tester, result: (_) {});
     final controller = tester

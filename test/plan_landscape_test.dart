@@ -270,6 +270,20 @@ void main() {
       expect(find.byIcon(Icons.fact_check), findsOneWidget);
     });
 
+    testWidgets('plan validé, écran étroit : pas de débordement sur la barre', (
+      t,
+    ) async {
+      await _pump(
+        t,
+        _cls(rows: 5, cols: 5, students: 25),
+        const Size(360, 800),
+      );
+      await t.tap(find.byIcon(Icons.fact_check));
+      await t.pumpAndSettle();
+
+      expect(hasOverflow(t), isFalse, reason: 'barre à icônes + badge rapport');
+    });
+
     testWidgets('les paliers ne reviennent jamais en arrière', (t) async {
       // Invariant : en rétrécissant, on ne peut que perdre des libellés, jamais
       // en regagner. Les seuils sont mesurés au TextPainter, donc les largeurs
