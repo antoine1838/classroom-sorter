@@ -581,6 +581,28 @@ void main() {
       expect(find.byType(ClassEditorScreen), findsOneWidget);
     });
 
+    testWidgets(
+      'écran étroit : barre d’actions sur deux lignes sans débordement',
+      (t) async {
+        t.view.physicalSize = const Size(360, 800);
+        t.view.devicePixelRatio = 1;
+        addTearDown(t.view.resetPhysicalSize);
+        addTearDown(t.view.resetDevicePixelRatio);
+
+        await _pump(t, classes: [_cls('6ème B')]);
+
+        expect(
+          (t.takeException()?.toString().toLowerCase() ?? '').contains(
+            'overflow',
+          ),
+          isFalse,
+        );
+        expect(find.byTooltip('Importer une classe'), findsOneWidget);
+        expect(find.text('6ème B'), findsOneWidget);
+        expect(find.textContaining('élèves'), findsOneWidget);
+      },
+    );
+
     testWidgets('le bouton aide relance le tutoriel sans créer de classe', (
       t,
     ) async {

@@ -188,7 +188,10 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
 
     List<DropdownMenuItem<String>> studentItems() => [
       for (final s in students)
-        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+        DropdownMenuItem(
+          value: s.id,
+          child: Text(s.fullName, overflow: TextOverflow.ellipsis),
+        ),
     ];
 
     return AlertDialog(
@@ -198,13 +201,17 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<RuleType>(
+              isExpanded: true,
               initialValue: _type,
               decoration: InputDecoration(labelText: widget.l10n.ruleType),
               items: [
                 for (final t in RuleType.values)
                   DropdownMenuItem(
                     value: t,
-                    child: Text(_ruleLabel(t, widget.l10n)),
+                    child: Text(
+                      _ruleLabel(t, widget.l10n),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
               ],
               onChanged: (v) => setState(() => _type = v ?? _type),
@@ -220,6 +227,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
               ),
             ),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _studentA,
               decoration: InputDecoration(labelText: widget.l10n.student),
               items: studentItems(),
@@ -228,6 +236,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
             if (_type.needsSecondStudent) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _studentB,
                 decoration: InputDecoration(
                   labelText: widget.l10n.secondStudent,
@@ -242,6 +251,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<int>(
+                      isExpanded: true,
                       initialValue: _row.clamp(0, room.rows - 1),
                       decoration: InputDecoration(labelText: widget.l10n.row),
                       items: [
@@ -257,6 +267,7 @@ class _RuleFormDialogState extends State<_RuleFormDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<int>(
+                      isExpanded: true,
                       initialValue: _col.clamp(0, room.cols - 1),
                       decoration: InputDecoration(
                         labelText: widget.l10n.column,

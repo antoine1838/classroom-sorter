@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import '../l10n/generated/app_localizations.dart';
@@ -59,11 +61,21 @@ class _TextPromptDialogState extends State<TextPromptDialog> {
 
   void _submit() => Navigator.pop(context, _controller.text.trim());
 
+  /// Hauteur max du corps : titre, actions et clavier doivent rester visibles.
+  double _contentMaxHeight(BuildContext context) {
+    final viewport = MediaQuery.sizeOf(context).height;
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    final available = viewport - inset - 160;
+    return math.max(120, math.min(320, available * 0.55));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final multiline = widget.maxLines > 1;
     final field = TextField(
       controller: _controller,
       autofocus: true,
+      minLines: multiline ? math.min(3, widget.maxLines) : 1,
       maxLines: widget.maxLines,
       textCapitalization: widget.textCapitalization,
       decoration: InputDecoration(
@@ -71,17 +83,38 @@ class _TextPromptDialogState extends State<TextPromptDialog> {
         hintText: widget.hint,
         border: widget.border,
       ),
-      onSubmitted: (_) => _submit(),
+      onSubmitted: multiline ? null : (_) => _submit(),
+    );
+    final fieldBox = multiline
+        ? ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: math.min(180, _contentMaxHeight(context) * 0.65),
+            ),
+            child: field,
+          )
+        : field;
+    final body = widget.intro == null
+        ? fieldBox
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [widget.intro!, const SizedBox(height: 8), fieldBox],
+          );
+    final scrollable = widget.intro != null || multiline;
+    final content = SizedBox(
+      width: double.maxFinite,
+      child: scrollable
+          ? ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: _contentMaxHeight(context),
+              ),
+              child: SingleChildScrollView(child: body),
+            )
+          : body,
     );
     return AlertDialog(
       title: Text(widget.title),
-      content: widget.intro == null
-          ? field
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [widget.intro!, const SizedBox(height: 8), field],
-            ),
+      content: content,
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
