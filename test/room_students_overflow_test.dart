@@ -7,7 +7,7 @@
 // d'Élèves cèdent la place avant de déborder, et qu'un filet
 // (CustomScrollView) absorbe le reste plutôt que de laisser échapper un
 // RenderFlex overflow.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

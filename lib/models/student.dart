@@ -18,7 +18,7 @@ enum Level { faible, moyen, fort }
 enum Energy { calme, modere, agite }
 
 // Nommé StudentSize (et non « Size ») pour ne pas entrer en conflit avec
-// dart:ui/Flutter Size, importé partout via package:flutter/material.dart.
+// dart:ui/Flutter Size, importé via material_ui ou widgets selon le fichier.
 enum StudentSize { petit, moyen, grand }
 
 class Student {

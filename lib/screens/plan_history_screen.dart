@@ -1,7 +1,7 @@
 /// Historique local des plans archivés pour une classe.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../app_state.dart';
 import '../l10n/generated/app_localizations.dart';

@@ -70,8 +70,6 @@ class PlanFileService {
     final destination = await FilePicker.saveFile(
       dialogTitle: 'Enregistrer le plan',
       fileName: filename,
-      type: FileType.custom,
-      allowedExtensions: [extension],
       bytes: bytes,
     );
     return destination != null;

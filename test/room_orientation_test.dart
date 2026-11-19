@@ -1,7 +1,7 @@
 // Vérifie l'orientation « vue du professeur » : le bandeau DEVANT (tableau) et
 // le rang de devant (rang logique 0) sont affichés EN BAS, les rangs du fond
 // EN HAUT — tout en conservant l'index logique des places (r=0 reste le devant).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandeclasse/engine/seating_engine.dart';

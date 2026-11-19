@@ -8,11 +8,12 @@
 // donnée à ce bloc dans l'issue. Les tests passent par l'écran complet plutôt
 // que par le dialogue isolé : celui-ci est privé, et c'est de toute façon
 // l'enchaînement grille -> formulaire -> modèle qui doit être garanti.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/delegates.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
@@ -39,7 +40,7 @@ Future<AppState> _pumpStudents(WidgetTester t, ClassGroup cls) async {
   await t.pumpWidget(
     MaterialApp(
       locale: const Locale('fr'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appLocalizationDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(state: state, cls: cls),
     ),
@@ -380,7 +381,7 @@ void main() {
       await t.pumpWidget(
         MaterialApp(
           locale: const Locale('fr'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ClassEditorScreen(state: state, cls: cls),
         ),

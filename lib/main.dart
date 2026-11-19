@@ -4,12 +4,13 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
 import 'data/repository.dart';
+import 'l10n/delegates.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
 
@@ -119,7 +120,7 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
         ),
         locale: _state.locale,
         themeMode: _state.themeMode,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: HomeScreen(state: _state),
       ),

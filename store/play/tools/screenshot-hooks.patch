@@ -9,10 +9,11 @@ index 70ad247..92cea4d 100644
 +import 'dart:convert';
  import 'dart:io';
  
- import 'package:flutter/material.dart';
+ import 'package:material_ui/material_ui.dart';
 @@ -10,8 +11,57 @@ import 'package:window_manager/window_manager.dart';
  import 'app_state.dart';
  import 'data/repository.dart';
+ import 'l10n/delegates.dart';
  import 'l10n/generated/app_localizations.dart';
 +import 'models/classroom.dart';
 +import 'models/room_layouts.dart';
@@ -120,7 +121,7 @@ index 70ad247..92cea4d 100644
      if (_isDesktop) windowManager.removeListener(this);
 @@ -115,7 +182,7 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
          themeMode: _state.themeMode,
-         localizationsDelegates: AppLocalizations.localizationsDelegates,
+         localizationsDelegates: appLocalizationDelegates,
          supportedLocales: AppLocalizations.supportedLocales,
 -        home: HomeScreen(state: _state),
 +        home: _home(),

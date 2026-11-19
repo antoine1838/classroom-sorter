@@ -5,12 +5,12 @@
 // onglets + rangée de boutons) ne laissait pas assez de hauteur, et le
 // FittedBox réduisait la salle jusqu'à l'invisible. On vérifie donc ici que la
 // grille reçoit assez de place pour rester lisible.
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/delegates.dart';
 import 'package:plandeclasse/engine/seating_engine.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
@@ -61,7 +61,7 @@ Future<void> _pump(WidgetTester t, ClassGroup cls, Size size) async {
   final state = AppState()..classes.add(cls);
   await t.pumpWidget(
     MaterialApp(
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      localizationsDelegates: appLocalizationDelegates,
       supportedLocales: const [Locale('fr')],
       home: ClassEditorScreen(
         state: state,

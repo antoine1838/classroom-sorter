@@ -3,7 +3,7 @@
 /// côté tableau) est affiché en bas, comme le reste de l'application.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../models/room.dart';
 

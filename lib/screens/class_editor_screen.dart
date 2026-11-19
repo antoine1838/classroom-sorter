@@ -4,7 +4,7 @@ library;
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../actions/class_group_ops.dart';
 import '../app_state.dart';
