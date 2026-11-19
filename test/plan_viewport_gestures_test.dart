@@ -9,7 +9,7 @@
 // de déplacement du système ne sont pas reproduits ici. La validation finale se
 // fait sur l'appareil (voir notes/refonte-ecran-plan.md).
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandeclasse/widgets/plan_viewport.dart';

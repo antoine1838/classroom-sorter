@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plandeclasse/l10n/delegates.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/screens/faq_screen.dart';
 
 Widget _app({Locale locale = const Locale('fr')}) => MaterialApp(
   locale: locale,
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  localizationsDelegates: appLocalizationDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
   home: const FaqScreen(),
 );

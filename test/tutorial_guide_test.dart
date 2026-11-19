@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plandeclasse/l10n/delegates.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/tutorial/tutorial_guide.dart';
 
 Widget _app(Widget child) => MaterialApp(
   locale: const Locale('fr'),
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  localizationsDelegates: appLocalizationDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
   home: child,
 );

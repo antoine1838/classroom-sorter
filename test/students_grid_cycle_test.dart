@@ -2,11 +2,12 @@
 // champ, un tap sur la cellule passe à la valeur suivante (boucle).
 import 'dart:ui' show SemanticsAction;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/delegates.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/classroom.dart';
 import 'package:plandeclasse/models/room.dart';
@@ -20,7 +21,7 @@ Future<void> _pumpEditor(WidgetTester tester, ClassGroup cls) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('fr'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appLocalizationDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: ClassEditorScreen(state: state, cls: cls),
     ),

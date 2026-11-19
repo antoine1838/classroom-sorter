@@ -1,7 +1,7 @@
 /// Tutoriel et aide contextuelle de l'application.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../l10n/generated/app_localizations.dart';
 

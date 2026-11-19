@@ -4,7 +4,7 @@
 // genre) et le CALLBACK de tap au niveau de PlanGrid — le contenu de la
 // feuille et l'enchaînement vers le formulaire d'édition sont couverts dans
 // class_editor_screen_test.dart, qui a accès à l'écran complet.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandeclasse/engine/plan_issue.dart';

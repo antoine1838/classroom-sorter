@@ -1,8 +1,9 @@
 // Le dialogue « saisir un texte » partagé par six écrans : il rend le texte
 // rogné, et il libère son contrôleur une fois fermé.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plandeclasse/l10n/delegates.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/widgets/text_prompt_dialog.dart';
 
@@ -15,7 +16,7 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('fr'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appLocalizationDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Builder(
         builder: (context) => TextButton(

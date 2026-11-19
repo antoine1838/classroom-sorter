@@ -1,10 +1,11 @@
 // Écran Réglages : le choix de vue Élèves doit se refléter dans l'état global
 // et être persisté (c'est le même réglage que le raccourci dans l'onglet Élèves).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plandeclasse/app_state.dart';
+import 'package:plandeclasse/l10n/delegates.dart';
 import 'package:plandeclasse/l10n/generated/app_localizations.dart';
 import 'package:plandeclasse/models/student.dart';
 import 'package:plandeclasse/screens/settings_screen.dart';
@@ -15,7 +16,7 @@ Future<AppState> _pump(WidgetTester tester) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('fr'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appLocalizationDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: SettingsScreen(state: state),
     ),
@@ -28,7 +29,7 @@ Future<void> _pumpEnglishSettings(WidgetTester tester, AppState state) =>
     tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: SettingsScreen(state: state),
       ),
