@@ -17,6 +17,16 @@ pluginManagement {
     }
 }
 
+// Aide le composite build Flutter (:gradle) à résoudre kotlin-gradle-plugin sur CI.
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "9.3.1" apply false

@@ -3,26 +3,15 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
 import 'data/repository.dart';
+import 'desktop_window.dart';
 import 'l10n/delegates.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
-
-/// `dart:io` [Platform] lève une exception sur Web, et [defaultTargetPlatform]
-/// y décrit le système du navigateur : il faut donc écarter le Web d'abord.
-bool get _isDesktop =>
-    !kIsWeb &&
-    (defaultTargetPlatform == TargetPlatform.windows ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.linux);
-
-const _kDefaultWindowSize = Size(1280, 800);
 
 /// Active explicitement le rendu qui s'étend sous les barres système.
 ///
@@ -31,30 +20,20 @@ const _kDefaultWindowSize = Size(1280, 800);
 Future<void> configureEdgeToEdge() =>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-void main() async {
+/// Initialisation partagée par [main] et les tests (couverture Sonar).
+@visibleForTesting
+Future<void> bootstrapApp() async {
   WidgetsFlutterBinding.ensureInitialized();
   await configureEdgeToEdge();
-  if (_isDesktop) {
-    await windowManager.ensureInitialized();
-    final saved = await Repository().loadWindowBounds();
-    await windowManager.waitUntilReadyToShow(
-      WindowOptions(
-        size: saved == null
-            ? _kDefaultWindowSize
-            : Size(saved.width, saved.height),
-        title: 'Plan de classe',
-      ),
-      () async {
-        if (saved != null) {
-          await windowManager.setPosition(Offset(saved.x, saved.y));
-        }
-        await windowManager.show();
-        await windowManager.focus();
-      },
-    );
-  }
+  await configureDesktopWindowAtStartup();
+}
+
+// coverage:ignore-start
+void main() async {
+  await bootstrapApp();
   runApp(const ClassroomSortApp());
 }
+// coverage:ignore-end
 
 class ClassroomSortApp extends StatefulWidget {
   const ClassroomSortApp({super.key});
@@ -64,41 +43,26 @@ class ClassroomSortApp extends StatefulWidget {
 }
 
 class _ClassroomSortAppState extends State<ClassroomSortApp>
-    with WindowListener {
+    with DesktopWindowAppState {
   final AppState _state = AppState();
   final Repository _windowRepo = Repository();
+
+  @override
+  Repository get desktopWindowRepository => _windowRepo;
 
   @override
   void initState() {
     super.initState();
     unawaited(_state.init());
-    if (_isDesktop) windowManager.addListener(this);
+    bindDesktopWindowLifecycle();
   }
 
   @override
   void dispose() {
-    if (_isDesktop) windowManager.removeListener(this);
+    unbindDesktopWindowLifecycle();
     _state.dispose();
     super.dispose();
   }
-
-  /// Sauvegarde la taille/position courante — appelé une fois le
-  /// redimensionnement/déplacement terminé (pas à chaque pixel).
-  Future<void> _saveWindowBounds() async {
-    final bounds = await windowManager.getBounds();
-    await _windowRepo.saveWindowBounds(
-      bounds.left,
-      bounds.top,
-      bounds.width,
-      bounds.height,
-    );
-  }
-
-  @override
-  void onWindowResized() => _saveWindowBounds();
-
-  @override
-  void onWindowMoved() => _saveWindowBounds();
 
   @override
   Widget build(BuildContext context) {

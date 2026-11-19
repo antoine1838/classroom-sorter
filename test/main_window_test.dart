@@ -1,56 +1,18 @@
+// ignore_for_file: deprecated_member_use
+
 // Mémorisation de la taille et de la position de la fenêtre sur bureau
-// (lib/main.dart). Le plugin window_manager est simulé : on lui envoie les
-// événements que le système d'exploitation lui enverrait quand l'utilisateur
-// termine de redimensionner ou de déplacer la fenêtre, et on lit ce que
-// l'application a enregistré. Ce que fait réellement Windows de ces valeurs au
-// lancement suivant n'est pas vérifiable ici.
+// (lib/main.dart). window_manager 0.7 s’appuie sur nativeapi : en VM de test,
+// on simule les limites via [debugWindowBoundsOverride] et on déclenche les
+// rappels [WindowListener] à la main.
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/legacy.dart';
 
 import 'package:plandeclasse/data/repository.dart';
+import 'package:plandeclasse/desktop_window.dart';
 import 'package:plandeclasse/main.dart';
-
-const _channel = MethodChannel('window_manager');
-
-/// Simule la fenêtre : `getBounds` renvoie les dimensions courantes de [bounds].
-void _mockWindow(WidgetTester tester, Rect Function() bounds) {
-  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(_channel, (
-    call,
-  ) async {
-    if (call.method != 'getBounds') return null;
-    final rect = bounds();
-    return <String, Object?>{
-      'x': rect.left,
-      'y': rect.top,
-      'width': rect.width,
-      'height': rect.height,
-    };
-  });
-  addTearDown(
-    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      _channel,
-      null,
-    ),
-  );
-}
-
-/// Envoie au plugin l'événement [eventName] (`resized`, `moved`…) puis laisse
-/// aboutir l'enregistrement asynchrone qui en découle.
-Future<void> _sendWindowEvent(WidgetTester tester, String eventName) async {
-  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
-    _channel.name,
-    const StandardMethodCodec().encodeMethodCall(
-      MethodCall('onEvent', {'eventName': eventName}),
-    ),
-    (_) {},
-  );
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 50)),
-  );
-}
 
 typedef _Bounds = ({double x, double y, double width, double height});
 
@@ -58,11 +20,8 @@ Future<_Bounds?> _savedBounds(WidgetTester tester) async =>
     tester.runAsync<_Bounds?>(Repository().loadWindowBounds);
 
 /// Exécute [body] avec Windows comme plateforme. flutter_test vérifie à la fin
-/// du test que la surcharge a été retirée : elle l'est donc ici, pas dans un
-/// `tearDown`, qui passerait trop tard. L'application est démontée avant,
-/// toujours sous Windows : son `dispose` ne retire son écouteur du plugin
-/// (un singleton) que sur bureau, et un écouteur resté en place recevrait les
-/// événements des tests suivants.
+/// du test que la surcharge a été retirée : elle l’est donc ici, pas dans un
+/// `tearDown`, qui passerait trop tard.
 Future<void> _onDesktop(
   WidgetTester tester,
   Future<void> Function() body,
@@ -73,6 +32,7 @@ Future<void> _onDesktop(
     await tester.pumpWidget(const SizedBox());
   } finally {
     debugDefaultTargetPlatformOverride = null;
+    debugWindowBoundsOverride = null;
   }
 }
 
@@ -83,13 +43,19 @@ void main() {
     'sur bureau, redimensionner puis déplacer la fenêtre est mémorisé',
     (tester) => _onDesktop(tester, () async {
       var bounds = const Rect.fromLTWH(10, 20, 900, 600);
-      _mockWindow(tester, () => bounds);
+      debugWindowBoundsOverride = () async => bounds;
       await tester.pumpWidget(const ClassroomSortApp());
       await tester.pump();
 
       expect(await _savedBounds(tester), isNull);
 
-      await _sendWindowEvent(tester, 'resized');
+      final listener = windowManager.listeners.single;
+      listener.onWindowResized();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+
       expect(await _savedBounds(tester), (
         x: 10.0,
         y: 20.0,
@@ -98,7 +64,12 @@ void main() {
       ));
 
       bounds = const Rect.fromLTWH(300, 120, 1100, 700);
-      await _sendWindowEvent(tester, 'moved');
+      listener.onWindowMoved();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+
       expect(await _savedBounds(tester), (
         x: 300.0,
         y: 120.0,
@@ -111,27 +82,61 @@ void main() {
   testWidgets(
     'fermer l\'application cesse d\'écouter la fenêtre',
     (tester) => _onDesktop(tester, () async {
-      var bounds = const Rect.fromLTWH(10, 20, 900, 600);
-      _mockWindow(tester, () => bounds);
+      debugWindowBoundsOverride = () async =>
+          const Rect.fromLTWH(10, 20, 900, 600);
       await tester.pumpWidget(const ClassroomSortApp());
       await tester.pump();
-      await _sendWindowEvent(tester, 'resized');
+
+      final listener = windowManager.listeners.single;
+      listener.onWindowResized();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
 
       await tester.pumpWidget(const SizedBox());
-      bounds = const Rect.fromLTWH(500, 500, 400, 300);
-      await _sendWindowEvent(tester, 'resized');
+      await tester.pump();
+
+      expect(windowManager.listeners, isEmpty);
+      listener.onWindowMoved();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
 
       expect((await _savedBounds(tester))?.x, 10.0);
     }),
   );
 
+  testWidgets(
+    'sans override, la sauvegarde utilise getBounds',
+    (tester) => _onDesktop(tester, () async {
+      debugWindowBoundsOverride = null;
+      await tester.pumpWidget(const ClassroomSortApp());
+      await tester.pump();
+
+      final listener = windowManager.listeners.single;
+      listener.onWindowResized();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+
+      // En VM, getBounds() renvoie (0,0,0,0) : l’important est d’exécuter la branche prod.
+      expect(await _savedBounds(tester), (
+        x: 0.0,
+        y: 0.0,
+        width: 0.0,
+        height: 0.0,
+      ));
+    }),
+  );
+
   testWidgets('sur mobile, la fenêtre n\'est pas écoutée', (tester) async {
-    _mockWindow(tester, () => const Rect.fromLTWH(10, 20, 900, 600));
     await tester.pumpWidget(const ClassroomSortApp());
     await tester.pump();
 
-    await _sendWindowEvent(tester, 'resized');
-
+    expect(windowManager.listeners, isEmpty);
     expect(await _savedBounds(tester), isNull);
   });
 }
