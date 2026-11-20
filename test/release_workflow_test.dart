@@ -186,19 +186,70 @@ void main() {
     expect(keystore, lessThan(firstBuild));
   });
 
-  test('la release n\'a le droit d\'écriture que dans son job', () {
+  test('seule la publication GitHub peut écrire dans le dépôt', () {
     expect(
       releaseWorkflow,
       contains('\npermissions:\n  contents: read\n'),
       reason: 'permissions par défaut du workflow = lecture seule',
     );
     final jobs = jobBlocks(releaseWorkflow);
-    expect(jobs.keys, ['build-release', 'publish-play']);
-    expect(jobs['build-release'], contains('contents: write'));
-    expect(jobs['publish-play'], isNot(contains('contents: write')));
+    expect(jobs.keys, [
+      'build-release',
+      'publish-github-release',
+      'publish-play',
+    ]);
+
+    final build = jobs['build-release']!;
+    final github = jobs['publish-github-release']!;
+    final play = jobs['publish-play']!;
+
+    expect(build, contains('contents: read'));
+    expect(build, isNot(contains('contents: write')));
+    expect(build, contains('persist-credentials: false'));
+    expect(build, isNot(contains('softprops/action-gh-release@')));
+
+    expect(github, contains('needs: build-release'));
+    expect(github, contains("startsWith(github.ref, 'refs/tags/v')"));
+    expect(github, contains('contents: write'));
+    expect(github, contains('softprops/action-gh-release@'));
+    expect(github, isNot(contains('actions/checkout@')));
+    expect(github, isNot(contains('secrets.')));
+
+    expect(play, isNot(contains('contents: write')));
     expect(
-      releaseWorkflow.indexOf('contents: write'),
-      greaterThan(releaseWorkflow.indexOf('\njobs:\n')),
+      RegExp('contents: write').allMatches(releaseWorkflow),
+      hasLength(1),
+      reason: 'un seul job minimal reçoit le jeton d\'écriture',
+    );
+  });
+
+  test('la publication GitHub ne consomme que les artefacts du build', () {
+    final publish = jobBlocks(releaseWorkflow)['publish-github-release']!;
+
+    expect(
+      publish,
+      contains(
+        r'name: classroom-sorter-${{ needs.build-release.outputs.version }}',
+      ),
+    );
+    expect(
+      publish,
+      contains(
+        r'name: classroom-sorter-${{ needs.build-release.outputs.version }}'
+        '-aab',
+      ),
+    );
+    expect(
+      publish,
+      contains(
+        r'build/release/classroom-sorter-${{ needs.build-release.outputs.version }}.apk',
+      ),
+    );
+    expect(
+      publish,
+      contains(
+        r'build/release/classroom-sorter-${{ needs.build-release.outputs.version }}.aab',
+      ),
     );
   });
 

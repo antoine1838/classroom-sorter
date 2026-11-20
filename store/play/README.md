@@ -146,7 +146,7 @@ explicite des sauvegardes cloud et transferts automatiques Android.
 
 ## Publication automatique (brouillon en production)
 
-Après la Release GitHub, le job `publish-play` de
+Après le build signé, le job `publish-play` de
 [`release.yml`](../../.github/workflows/release.yml) dépose l'AAB et les notes
 `changelogs/<buildNumber>.txt` (fr-FR et en-US) dans la Play Console, en
 **brouillon sur la piste production**. Rien n'atteint les utilisateurs avant
@@ -213,10 +213,12 @@ Les commandes `gcloud` sont à adapter ; le compte de service ne reçoit
 
 ### À chaque release
 
-Le tag `vX.Y.Z` lance le build et la Release GitHub, puis `publish-play`
-attend votre approbation dans l'onglet *Actions*. Une fois approuvé, le
-brouillon apparaît dans la Console (Production → Versions) avec l'AAB et les
-notes des deux langues : relisez-le, puis **Envoyer en examen**.
+Le tag `vX.Y.Z` lance le build. Deux jobs séparés consomment ensuite ses
+artefacts : l'un crée la Release GitHub avec le seul jeton `contents: write` du
+workflow ; `publish-play` attend votre approbation dans l'onglet *Actions*.
+Une fois approuvé, le brouillon apparaît dans la Console (Production →
+Versions) avec l'AAB et les notes des deux langues : relisez-le, puis
+**Envoyer en examen**.
 
 ⚠️ Non éprouvé de bout en bout : le job n'a pas encore tourné contre la vraie
 Console. Le premier essai se fait à la prochaine release, sans risque puisque
