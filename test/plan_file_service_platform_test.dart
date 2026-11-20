@@ -113,11 +113,14 @@ void main() {
       final picker = _FakeFilePicker(destination: Uri.file('/tmp/plan'));
       FilePickerPlatform.instance = picker;
 
-      final saved = await PlanFileService().exportClass(_class());
+      final saved = await PlanFileService().exportClass(
+        _class(),
+        dialogTitle: 'Export class',
+      );
 
       expect(saved, isTrue);
       expect(picker.savedFileName, '6ème-B.planclasse');
-      expect(picker.savedDialogTitle, isNotEmpty);
+      expect(picker.savedDialogTitle, 'Export class');
       final restored = PlanFileService().decode(
         utf8.decode(picker.savedBytes!),
       );
@@ -128,7 +131,13 @@ void main() {
     test('rend faux quand l\'utilisateur annule', () async {
       FilePickerPlatform.instance = _FakeFilePicker();
 
-      expect(await PlanFileService().exportClass(_class()), isFalse);
+      expect(
+        await PlanFileService().exportClass(
+          _class(),
+          dialogTitle: 'Exporter la classe',
+        ),
+        isFalse,
+      );
     });
   });
 

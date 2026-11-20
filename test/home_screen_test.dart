@@ -59,6 +59,7 @@ Future<AppState> _pump(
   List<ClassGroup> classes = const [],
   bool initialised = true,
   PlanFileService? planFileService,
+  Locale locale = const Locale('fr'),
 }) async {
   await tester.binding.setSurfaceSize(const Size(1000, 1400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -69,7 +70,7 @@ Future<AppState> _pump(
 
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('fr'),
+      locale: locale,
       localizationsDelegates: appLocalizationDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: HomeScreen(state: state, planFileService: planFileService),
@@ -462,10 +463,12 @@ void main() {
     });
 
     testWidgets('exporte après confirmation de confidentialité', (t) async {
+      String? savedDialogTitle;
       String? savedName;
       Uint8List? savedBytes;
       final service = PlanFileService(
-        saveFile: (name, bytes) async {
+        saveFile: (dialogTitle, name, bytes) async {
+          savedDialogTitle = dialogTitle;
           savedName = name;
           savedBytes = bytes;
           return true;
@@ -479,14 +482,38 @@ void main() {
       await t.tap(find.widgetWithText(FilledButton, 'Exporter la classe'));
       await t.pumpAndSettle();
 
+      expect(savedDialogTitle, 'Exporter la classe');
       expect(savedName, '6ème B.planclasse');
       expect(savedBytes, isNotNull);
       expect(find.text('Fichier exporté.'), findsOneWidget);
     });
 
+    testWidgets('localise le titre de la boîte d’export en anglais', (t) async {
+      String? savedDialogTitle;
+      final service = PlanFileService(
+        saveFile: (dialogTitle, _, _) async {
+          savedDialogTitle = dialogTitle;
+          return false;
+        },
+      );
+      await _pump(
+        t,
+        classes: [_cls('Grade 6 B')],
+        planFileService: service,
+        locale: const Locale('en'),
+      );
+
+      await t.tap(find.byTooltip('Export class'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(FilledButton, 'Export class'));
+      await t.pumpAndSettle();
+
+      expect(savedDialogTitle, 'Export class');
+    });
+
     testWidgets('dit quand l’export de la classe échoue', (t) async {
       final service = PlanFileService(
-        saveFile: (_, _) async => throw PlatformException(code: 'denied'),
+        saveFile: (_, _, _) async => throw PlatformException(code: 'denied'),
       );
       await _pump(t, classes: [_cls('6ème B')], planFileService: service);
 
@@ -502,7 +529,7 @@ void main() {
     testWidgets('annuler la confidentialité ne lance pas l’export', (t) async {
       var exported = false;
       final service = PlanFileService(
-        saveFile: (_, _) async {
+        saveFile: (_, _, _) async {
           exported = true;
           return true;
         },

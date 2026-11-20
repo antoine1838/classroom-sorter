@@ -8,7 +8,11 @@ import 'package:file_picker/file_picker.dart';
 
 import '../models/classroom.dart';
 
-typedef PlanFileSaver = Future<bool> Function(String filename, Uint8List bytes);
+typedef PlanFileSaver = Future<bool> Function(
+  String dialogTitle,
+  String filename,
+  Uint8List bytes,
+);
 typedef PlanFilePicker = Future<Uint8List?> Function();
 
 class PlanFileService {
@@ -55,20 +59,27 @@ class PlanFileService {
     }
   }
 
-  Future<bool> exportClass(ClassGroup classGroup) async {
+  /// Exporte [classGroup] avec un titre de boîte de dialogue fourni par l'UI,
+  /// seule couche qui connaît la langue active.
+  Future<bool> exportClass(
+    ClassGroup classGroup, {
+    required String dialogTitle,
+  }) async {
     final filename = '${_safeFilename(classGroup.name)}.$extension';
     return _saveFile(
+      dialogTitle,
       filename,
       Uint8List.fromList(utf8.encode(encode(classGroup))),
     );
   }
 
   static Future<bool> _saveWithPlatform(
+    String dialogTitle,
     String filename,
     Uint8List bytes,
   ) async {
     final destination = await FilePicker.saveFile(
-      dialogTitle: 'Enregistrer le plan',
+      dialogTitle: dialogTitle,
       fileName: filename,
       bytes: bytes,
     );

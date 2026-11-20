@@ -362,7 +362,10 @@ class HomeScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     if (!await _confirmPrivacyExport(context)) return;
     try {
-      final exported = await _planFileService.exportClass(classGroup);
+      final exported = await _planFileService.exportClass(
+        classGroup,
+        dialogTitle: l10n.exportPlanFile,
+      );
       if (exported) {
         messenger.showSnackBar(SnackBar(content: Text(l10n.fileExported)));
       }

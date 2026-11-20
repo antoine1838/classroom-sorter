@@ -64,10 +64,12 @@ void main() {
   });
 
   test('exporte un fichier nommé de façon sûre', () async {
+    String? receivedDialogTitle;
     String? filename;
     Uint8List? bytes;
     final service = PlanFileService(
-      saveFile: (name, data) async {
+      saveFile: (dialogTitle, name, data) async {
+        receivedDialogTitle = dialogTitle;
         filename = name;
         bytes = data;
         return true;
@@ -76,9 +78,11 @@ void main() {
 
     final exported = await service.exportClass(
       ClassGroup(id: 'c', name: '6ème/B'),
+      dialogTitle: 'Export class',
     );
 
     expect(exported, isTrue);
+    expect(receivedDialogTitle, 'Export class');
     expect(filename, '6ème-B.planclasse');
     expect(service.decode(utf8.decode(bytes!)).name, '6ème/B');
   });
