@@ -26,8 +26,27 @@ class RepositoryLoadResult<T> {
   /// [RepositoryLoadStatus.recoveredPartially] ; 0 sinon.
   final int skipped;
 
-  const RepositoryLoadResult(this.data, this.status, {this.skipped = 0});
+  /// Données internes aux enregistrements qui ont été nettoyées sans écarter
+  /// l'enregistrement lui-même.
+  final DataCleanup cleanup;
+
+  const RepositoryLoadResult(
+    this.data,
+    this.status, {
+    this.skipped = 0,
+    this.cleanup = const DataCleanup(),
+  });
 }
+
+typedef _DecodedRecord<T> = ({T data, DataCleanup cleanup});
+
+_DecodedRecord<ClassGroup> _decodeClassGroup(Map<String, dynamic> json) {
+  final decoded = ClassGroup.fromJsonWithCleanup(json);
+  return (data: decoded.classGroup, cleanup: decoded.cleanup);
+}
+
+_DecodedRecord<SavedRoom> _decodeSavedRoom(Map<String, dynamic> json) =>
+    (data: SavedRoom.fromJson(json), cleanup: const DataCleanup());
 
 class Repository {
   static const _key = 'plandeclasse_classes_v1';
@@ -50,7 +69,7 @@ class Repository {
         key: _key,
         backupKey: _backupKey,
         corruptKey: _corruptKey,
-        fromJson: ClassGroup.fromJson,
+        fromJson: _decodeClassGroup,
       );
 
   Future<void> save(List<ClassGroup> classes) {
@@ -63,7 +82,7 @@ class Repository {
       backupKey: _backupKey,
       corruptKey: _corruptKey,
       raw: raw,
-      fromJson: ClassGroup.fromJson,
+      fromJson: _decodeClassGroup,
     );
   }
 
@@ -158,7 +177,7 @@ class Repository {
         key: _savedRoomsKey,
         backupKey: _savedRoomsBackupKey,
         corruptKey: _savedRoomsCorruptKey,
-        fromJson: SavedRoom.fromJson,
+        fromJson: _decodeSavedRoom,
       );
 
   Future<void> saveSavedRooms(List<SavedRoom> rooms) {
@@ -168,7 +187,7 @@ class Repository {
       backupKey: _savedRoomsBackupKey,
       corruptKey: _savedRoomsCorruptKey,
       raw: raw,
-      fromJson: SavedRoom.fromJson,
+      fromJson: _decodeSavedRoom,
     );
   }
 
@@ -176,7 +195,7 @@ class Repository {
     required String key,
     required String backupKey,
     required String corruptKey,
-    required T Function(Map<String, dynamic>) fromJson,
+    required _DecodedRecord<T> Function(Map<String, dynamic>) fromJson,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(key);
@@ -189,7 +208,11 @@ class Repository {
 
     final decoded = _tryDecodeList(raw, fromJson);
     if (decoded != null) {
-      return RepositoryLoadResult(decoded, RepositoryLoadStatus.ok);
+      return RepositoryLoadResult(
+        decoded.data,
+        RepositoryLoadStatus.ok,
+        cleanup: decoded.cleanup,
+      );
     }
 
     // Ne jamais écraser la seule trace des données illisibles : une copie
@@ -205,6 +228,7 @@ class Repository {
         partial.items,
         RepositoryLoadStatus.recoveredPartially,
         skipped: partial.skipped,
+        cleanup: partial.cleanup,
       );
     }
 
@@ -216,8 +240,9 @@ class Repository {
         // les données de secours restent chargées pour cette session.
         await prefs.setString(key, backupRaw);
         return RepositoryLoadResult(
-          backup,
+          backup.data,
           RepositoryLoadStatus.recoveredFromBackup,
+          cleanup: backup.cleanup,
         );
       }
     }
@@ -233,17 +258,18 @@ class Repository {
     required String backupKey,
     required String corruptKey,
     required String raw,
-    required T Function(Map<String, dynamic>) fromJson,
+    required _DecodedRecord<T> Function(Map<String, dynamic>) fromJson,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final previous = prefs.getString(key);
+    final decodedPrevious = previous == null || previous.isEmpty
+        ? null
+        : _tryDecodeList(previous, fromJson);
     final previousIsValid =
-        previous != null &&
-        previous.isNotEmpty &&
-        _tryDecodeList(previous, fromJson) != null;
+        decodedPrevious != null && decodedPrevious.cleanup.isEmpty;
 
     if (previousIsValid) {
-      await _setString(prefs, backupKey, previous);
+      await _setString(prefs, backupKey, previous!);
     } else if (previous != null && previous.isNotEmpty) {
       await _preserveCorruptData(prefs, corruptKey, previous);
     }
@@ -253,22 +279,30 @@ class Repository {
     // Première sauvegarde, ou valeur principale antérieure corrompue sans
     // secours exploitable : initialiser aussi un point de restauration.
     final backup = prefs.getString(backupKey);
+    final decodedBackup = backup == null || backup.isEmpty
+        ? null
+        : _tryDecodeList(backup, fromJson);
     final backupIsValid =
-        backup != null &&
-        backup.isNotEmpty &&
-        _tryDecodeList(backup, fromJson) != null;
+        decodedBackup != null && decodedBackup.cleanup.isEmpty;
     if (!previousIsValid && !backupIsValid) {
       await _setString(prefs, backupKey, raw);
     }
   }
 
-  List<T>? _tryDecodeList<T>(
+  ({List<T> data, DataCleanup cleanup})? _tryDecodeList<T>(
     String raw,
-    T Function(Map<String, dynamic>) fromJson,
+    _DecodedRecord<T> Function(Map<String, dynamic>) fromJson,
   ) {
     try {
       final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
-      return list.map(fromJson).toList();
+      final data = <T>[];
+      var cleanup = const DataCleanup();
+      for (final entry in list) {
+        final decoded = fromJson(entry);
+        data.add(decoded.data);
+        cleanup = cleanup + decoded.cleanup;
+      }
+      return (data: data, cleanup: cleanup);
     } catch (_) {
       return null;
     }
@@ -276,9 +310,9 @@ class Repository {
 
   /// Lit chaque enregistrement séparément : ceux qui échouent sont comptés et
   /// laissés de côté. `null` quand [raw] n'est pas une liste JSON.
-  ({List<T> items, int skipped})? _decodeLenient<T>(
+  ({List<T> items, int skipped, DataCleanup cleanup})? _decodeLenient<T>(
     String raw,
-    T Function(Map<String, dynamic>) fromJson,
+    _DecodedRecord<T> Function(Map<String, dynamic>) fromJson,
   ) {
     final Object? decoded;
     try {
@@ -289,14 +323,17 @@ class Repository {
     if (decoded is! List<Object?>) return null;
     final items = <T>[];
     var skipped = 0;
+    var cleanup = const DataCleanup();
     for (final entry in decoded) {
       try {
-        items.add(fromJson(entry as Map<String, dynamic>));
+        final item = fromJson(entry as Map<String, dynamic>);
+        items.add(item.data);
+        cleanup = cleanup + item.cleanup;
       } catch (_) {
         skipped++;
       }
     }
-    return (items: items, skipped: skipped);
+    return (items: items, skipped: skipped, cleanup: cleanup);
   }
 
   Future<void> _preserveCorruptData(

@@ -11,10 +11,12 @@ une copie locale de la dernière sauvegarde valide permet une restauration
 automatique si les données principales deviennent illisibles ; l'application
 prévient alors explicitement l'utilisateur. Un enregistrement illisible
 (une classe, une salle) est laissé de côté sans emporter les autres, et une
-copie des données d'origine est conservée. Si le stockage ne peut pas être lu
-du tout, l'application l'indique et n'écrit rien pour ne pas l'écraser. Sur
-Android, ce stockage — copie de secours comprise — est exclu des sauvegardes
-cloud et des transferts automatiques vers un autre appareil.
+copie des données d'origine est conservée. Une archive de plan illisible est
+ignorée seule : sa classe reste disponible et le nombre d'archives retirées est
+signalé. Si le stockage ne peut pas être lu du tout, l'application l'indique et
+n'écrit rien pour ne pas l'écraser. Sur Android, ce stockage — copie de secours
+comprise — est exclu des sauvegardes cloud et des transferts automatiques vers
+un autre appareil.
 
 ## Fonctionnalités
 
@@ -173,7 +175,10 @@ politique de confidentialité) sont regroupées dans **`store/play/`** — voir
 
 Sur un tag `vX.Y.Z`, le workflow [.github/workflows/release.yml](.github/workflows/release.yml)
 construit l'**APK** (installable directement) et l'**AAB signé** (tous les ABI, à
-téléverser sur Google Play), et les joint à la Release GitHub. La ligne
+téléverser sur Google Play). Ce job reste en lecture seule et ne conserve pas
+les identifiants Git du checkout ; un job séparé, seul détenteur de
+`contents: write`, télécharge ensuite ces artefacts et les joint à la Release
+GitHub. La ligne
 `version: X.Y.Z+N` du `pubspec.yaml` est l'unique source de vérité : le tag doit
 être `vX.Y.Z`, et le changelog Play Store `changelogs/N.txt` doit exister dans
 chaque langue (`fr-FR` et `en-US`). Une
@@ -182,7 +187,7 @@ manque, au lieu de produire silencieusement un AAB signé avec la clé de debug.
 Elle rejoue aussi `flutter analyze` et `flutter test` avant d'écrire le
 keystore : un tag sur un commit qui ne passe pas les contrôles ne publie rien.
 
-Un second job, `publish-play`, peut ensuite déposer l'AAB et les notes de
+Le job `publish-play` peut aussi déposer l'AAB et les notes de
 version dans la Play Console **en brouillon** (piste production), sans clé
 stockée (jeton OIDC) et après approbation manuelle ; il reste inerte tant que
 la configuration n'est pas posée. Procédure dans

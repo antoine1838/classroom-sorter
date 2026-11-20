@@ -47,6 +47,7 @@ enum ThemePreference { system, light, dark }
 enum PersistenceNotice {
   classesRecovered,
   roomsRecovered,
+  classesCleaned,
 
   /// Quelques classes ou salles illisibles ont été laissées de côté ; leur
   /// nombre est dans [AppState.skippedClassCount] / [AppState.skippedRoomCount].
@@ -87,6 +88,10 @@ class AppState extends ChangeNotifier {
   /// Classes et salles enregistrées illisibles, laissées de côté au chargement.
   int skippedClassCount = 0;
   int skippedRoomCount = 0;
+
+  /// Éléments incohérents retirés à l'intérieur des classes chargées. Une
+  /// archive invalide apparaît ici sans faire disparaître sa classe.
+  DataCleanup loadedClassCleanup = const DataCleanup();
 
   /// Le stockage n'a pas pu être lu : rien n'est écrit sur les classes et les
   /// salles de cette session, pour ne pas écraser des données que l'on n'a
@@ -601,6 +606,16 @@ class AppState extends ChangeNotifier {
       PersistenceNotice.roomsPartial,
       PersistenceNotice.roomsCorrupted,
     );
+    loadedClassCleanup = classLoad.cleanup;
+    if (!loadedClassCleanup.isEmpty) {
+      hasError = true;
+      notices.add(PersistenceNotice.classesCleaned);
+      messages.add(
+        '${loadedClassCleanup.totalRemoved} élément(s) incohérent(s) ont été '
+        'ignorés dans les classes chargées. Les classes concernées restent '
+        'disponibles.',
+      );
+    }
     _loadNotice = messages.isEmpty ? null : messages.join('\n');
     _loadNotices = notices;
     _loadNoticeIsError = hasError;

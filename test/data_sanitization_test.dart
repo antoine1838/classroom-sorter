@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandeclasse/engine/seating_engine.dart';
 import 'package:plandeclasse/models/classroom.dart';
+import 'package:plandeclasse/models/plan_snapshot.dart';
 import 'package:plandeclasse/models/room.dart';
 import 'package:plandeclasse/models/rule.dart';
 import 'package:plandeclasse/models/student.dart';
@@ -136,6 +137,32 @@ void main() {
 
       expect(cls.students.map((s) => s.firstName), ['Ada', 'lin']);
     });
+
+    test('ignore seulement les archives illisibles', () {
+      final source = ClassGroup(id: 'c', name: '6ème B');
+      final valid = PlanSnapshot.fromClassGroup(
+        id: 'valide',
+        label: 'Trimestre 1',
+        source: source,
+      );
+      final json = source.toJson()
+        ..['snapshots'] = [
+          valid.toJson(),
+          {
+            ...valid.toJson(),
+            'id': 'date-invalide',
+            'createdAt': 'pas une date',
+          },
+          'pas une archive',
+        ];
+
+      final result = ClassGroup.fromJsonWithCleanup(json);
+
+      expect(result.classGroup.name, '6ème B');
+      expect(result.classGroup.snapshots.map((s) => s.id), ['valide']);
+      expect(result.cleanup.snapshotsRemoved, 2);
+      expect(result.cleanup.totalRemoved, 2);
+    });
   });
 
   group('le moteur', () {
@@ -178,6 +205,29 @@ void main() {
       expect(imported.assignment, {'0,0': 'ada', '0,2': 'lin'});
       expect(imported.rules, isEmpty);
       expect(() => SeatingEngine(imported).evaluate(), returnsNormally);
+    });
+
+    test('conserve la classe et signale une archive illisible', () {
+      final service = PlanFileService();
+      final envelope = jsonDecode(
+        service.encode(ClassGroup(id: 'c', name: '6ème B')),
+      ) as Map<String, dynamic>;
+      final classJson = envelope['class'] as Map<String, dynamic>;
+      classJson['snapshots'] = [
+        {
+          'id': 'cassée',
+          'label': 'Trimestre 1',
+          'createdAt': 'pas une date',
+          'schemaVersion': 1,
+          'classData': <String, dynamic>{},
+        },
+      ];
+
+      final result = service.decodeWithCleanup(jsonEncode(envelope));
+
+      expect(result.classGroup.name, '6ème B');
+      expect(result.classGroup.snapshots, isEmpty);
+      expect(result.cleanup.snapshotsRemoved, 1);
     });
   });
 

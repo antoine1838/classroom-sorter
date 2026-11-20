@@ -26,15 +26,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write  # nécessaire pour que le job crée la Release
-    # Repris par publish-play : ni le nom de l'artefact AAB ni le changelog à
-    # envoyer ne doivent être redéduits ailleurs.
+      contents: read
+    # Repris par les jobs de publication : les noms des artefacts et le
+    # changelog à envoyer ne doivent pas être redéduits ailleurs.
     outputs:
       version: ${{ steps.version.outputs.version }}
       build-number: ${{ steps.version.outputs.build-number }}
     steps:
       - name: Checkout du code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Le code et les tests du dépôt ne doivent pas retrouver un jeton Git
+          # dans la configuration locale pendant le build signé.
+          persist-credentials: false
 
       - name: Paquets Linux pour nativeapi
         run: |
@@ -176,14 +180,36 @@ jobs:
           path: ${{ env.AAB_PATH }}
           if-no-files-found: error
 
-      - name: Publier la Release GitHub (sur tag)
-        if: startsWith(github.ref, 'refs/tags/v')
+  # Le seul job autorisé à écrire dans le dépôt ne voit ni le code, ni les
+  # secrets de signature : il récupère uniquement les artefacts déjà produits
+  # par le build en lecture seule.
+  publish-github-release:
+    needs: build-release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Récupérer l'APK de la release
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: classroom-sorter-${{ needs.build-release.outputs.version }}
+          path: build/release
+
+      - name: Récupérer l'AAB de la release
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: classroom-sorter-${{ needs.build-release.outputs.version }}-aab
+          path: build/release
+
+      - name: Publier la Release GitHub
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           # APK (installable directement) + AAB (à téléverser sur Play).
           files: |
-            ${{ env.APK_PATH }}
-            ${{ env.AAB_PATH }}
+            build/release/classroom-sorter-${{ needs.build-release.outputs.version }}.apk
+            build/release/classroom-sorter-${{ needs.build-release.outputs.version }}.aab
           generate_release_notes: true
 
   # Dépose l'AAB et les notes de version dans la Play Console en BROUILLON :

@@ -112,6 +112,10 @@ class HomeScreen extends StatelessWidget {
       (notice) => switch (notice) {
         PersistenceNotice.classesRecovered => l10n.persistenceClassesRecovered,
         PersistenceNotice.roomsRecovered => l10n.persistenceRoomsRecovered,
+        PersistenceNotice.classesCleaned => localizedPersistenceCleanup(
+          state.loadedClassCleanup,
+          l10n,
+        ),
         PersistenceNotice.classesPartial => l10n.persistenceClassesPartial(
           state.skippedClassCount,
         ),
@@ -362,7 +366,10 @@ class HomeScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     if (!await _confirmPrivacyExport(context)) return;
     try {
-      final exported = await _planFileService.exportClass(classGroup);
+      final exported = await _planFileService.exportClass(
+        classGroup,
+        dialogTitle: l10n.exportPlanFile,
+      );
       if (exported) {
         messenger.showSnackBar(SnackBar(content: Text(l10n.fileExported)));
       }

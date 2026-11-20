@@ -36,15 +36,21 @@ void main() async {
 // coverage:ignore-end
 
 class ClassroomSortApp extends StatefulWidget {
-  const ClassroomSortApp({super.key});
+  const ClassroomSortApp({super.key, this.debugState});
+
+  /// État injecté par les tests de cycle de vie. En production, l'application
+  /// crée, initialise et libère toujours sa propre instance.
+  @visibleForTesting
+  final AppState? debugState;
 
   @override
   State<ClassroomSortApp> createState() => _ClassroomSortAppState();
 }
 
 class _ClassroomSortAppState extends State<ClassroomSortApp>
-    with DesktopWindowAppState {
-  final AppState _state = AppState();
+    with WidgetsBindingObserver, DesktopWindowAppState {
+  late final AppState _state;
+  late final bool _ownsState;
   final Repository _windowRepo = Repository();
 
   @override
@@ -53,14 +59,33 @@ class _ClassroomSortAppState extends State<ClassroomSortApp>
   @override
   void initState() {
     super.initState();
-    unawaited(_state.init());
-    bindDesktopWindowLifecycle();
+    _ownsState = widget.debugState == null;
+    _state = widget.debugState ?? AppState();
+    WidgetsBinding.instance.addObserver(this);
+    if (_ownsState) unawaited(_state.init());
+    bindDesktopWindowLifecycle(_state.flushPendingSaves);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        return;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        // Les écritures démarrent dès la mutation. Ce point de synchronisation
+        // leur laisse aussi la transition vers l'arrière-plan pour se terminer.
+        unawaited(_state.flushPendingSaves());
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unbindDesktopWindowLifecycle();
-    _state.dispose();
+    if (_ownsState) _state.dispose();
     super.dispose();
   }
 
