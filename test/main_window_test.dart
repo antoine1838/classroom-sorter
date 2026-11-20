@@ -4,17 +4,41 @@
 // (lib/main.dart). window_manager 0.7 s’appuie sur nativeapi : en VM de test,
 // on simule les limites via [debugWindowBoundsOverride] et on déclenche les
 // rappels [WindowListener] à la main.
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/legacy.dart';
 
+import 'package:plandeclasse/app_state.dart';
 import 'package:plandeclasse/data/repository.dart';
 import 'package:plandeclasse/desktop_window.dart';
 import 'package:plandeclasse/main.dart';
+import 'package:plandeclasse/models/classroom.dart';
 
 typedef _Bounds = ({double x, double y, double width, double height});
+
+class _BlockingRepository extends Repository {
+  final saveStarted = Completer<void>();
+  final allowSave = Completer<void>();
+  List<String>? savedClassNames;
+
+  @override
+  Future<void> save(List<ClassGroup> classes) async {
+    savedClassNames = classes.map((classGroup) => classGroup.name).toList();
+    if (!saveStarted.isCompleted) saveStarted.complete();
+    await allowSave.future;
+  }
+}
+
+class _FailingFlushAppState extends AppState {
+  @override
+  Future<void> flushPendingSaves() async {
+    throw StateError('échec de sauvegarde simulé');
+  }
+}
 
 Future<_Bounds?> _savedBounds(WidgetTester tester) async =>
     tester.runAsync<_Bounds?>(Repository().loadWindowBounds);
@@ -33,6 +57,7 @@ Future<void> _onDesktop(
   } finally {
     debugDefaultTargetPlatformOverride = null;
     debugWindowBoundsOverride = null;
+    debugWindowDestroyOverride = null;
   }
 }
 
@@ -105,6 +130,75 @@ void main() {
       );
 
       expect((await _savedBounds(tester))?.x, 10.0);
+    }),
+  );
+
+  testWidgets(
+    'fermer la fenêtre attend la dernière sauvegarde',
+    (tester) => _onDesktop(tester, () async {
+      final repository = _BlockingRepository();
+      final state = AppState(repository: repository);
+      await tester.runAsync(state.init);
+      addTearDown(state.dispose);
+
+      var destroyed = false;
+      final destroyCalled = Completer<void>();
+      debugWindowBoundsOverride = () async =>
+          const Rect.fromLTWH(10, 20, 900, 600);
+      debugWindowDestroyOverride = () async {
+        destroyed = true;
+        destroyCalled.complete();
+      };
+
+      await tester.pumpWidget(ClassroomSortApp(debugState: state));
+      await tester.pump();
+      expect(await windowManager.isPreventClose(), isTrue);
+
+      state.addClass('6ème A');
+      await tester.runAsync(() => repository.saveStarted.future);
+
+      windowManager.listeners.single.onWindowClose();
+      await tester.pump();
+
+      expect(destroyed, isFalse);
+      repository.allowSave.complete();
+      await tester.runAsync(() => destroyCalled.future);
+
+      expect(destroyed, isTrue);
+      expect(repository.savedClassNames, ['6ème A']);
+    }),
+  );
+
+  testWidgets(
+    'une erreur de sauvegarde est signalée sans bloquer la fermeture',
+    (tester) => _onDesktop(tester, () async {
+      final state = _FailingFlushAppState();
+      await tester.runAsync(state.init);
+      addTearDown(state.dispose);
+
+      final reportedErrors = <FlutterErrorDetails>[];
+      final previousErrorHandler = FlutterError.onError;
+      final destroyCalled = Completer<void>();
+      debugWindowBoundsOverride = () async =>
+          const Rect.fromLTWH(10, 20, 900, 600);
+      debugWindowDestroyOverride = () async => destroyCalled.complete();
+      FlutterError.onError = reportedErrors.add;
+      try {
+        await tester.pumpWidget(ClassroomSortApp(debugState: state));
+        await tester.pump();
+
+        windowManager.listeners.single.onWindowClose();
+        await tester.runAsync(() => destroyCalled.future);
+
+        expect(reportedErrors, hasLength(1));
+        expect(reportedErrors.single.exception, isA<StateError>());
+        expect(
+          reportedErrors.single.context.toString(),
+          contains('avant fermeture'),
+        );
+      } finally {
+        FlutterError.onError = previousErrorHandler;
+      }
     }),
   );
 

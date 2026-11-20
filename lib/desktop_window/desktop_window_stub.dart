@@ -6,13 +6,16 @@ import 'package:plandeclasse/data/repository.dart';
 @visibleForTesting
 Future<Rect> Function()? debugWindowBoundsOverride;
 
+@visibleForTesting
+Future<void> Function()? debugWindowDestroyOverride;
+
 Future<void> configureDesktopWindowAtStartup() async {}
 
 mixin DesktopWindowAppState<T extends StatefulWidget> on State<T> {
   /// Référence au [Repository] pour persister les dimensions de fenêtre.
   Repository get desktopWindowRepository;
 
-  void bindDesktopWindowLifecycle() {}
+  void bindDesktopWindowLifecycle(Future<void> Function() flushPendingSaves) {}
 
   void unbindDesktopWindowLifecycle() {}
 }
