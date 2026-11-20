@@ -327,6 +327,8 @@
   "@persistenceClassesPartial": {"placeholders": {"count": {}}},
   "persistenceRoomsPartial": "{count, plural, one{{count} salle enregistrée était illisible et n’a pas été chargée} other{{count} salles enregistrées étaient illisibles et n’ont pas été chargées}}. Les autres sont intactes ; une copie des données d’origine a été conservée.",
   "@persistenceRoomsPartial": {"placeholders": {"count": {}}},
+  "persistenceClassesCleaned": "Certaines données incohérentes ont été ignorées au chargement : {details}. Les classes concernées restent disponibles.",
+  "@persistenceClassesCleaned": {"placeholders": {"details": {}}},
   "persistenceLoadFailed": "Les données enregistrées n’ont pas pu être lues. Pour ne pas les écraser, les modifications de cette session ne seront pas enregistrées. Relancez l’application.",
   "persistenceSaveFailed": "La sauvegarde locale a échoué. Vos dernières modifications ne sont peut-être pas enregistrées.",
   "planHistory": "Historique des plans",
@@ -363,6 +365,8 @@
   "@importCleanedRules": {"placeholders": {"count": {}}},
   "importCleanedStudents": "{count, plural, one{1 élève en double} other{{count} élèves en double}}",
   "@importCleanedStudents": {"placeholders": {"count": {}}},
+  "importCleanedSnapshots": "{count, plural, one{1 archive illisible} other{{count} archives illisibles}}",
+  "@importCleanedSnapshots": {"placeholders": {"count": {}}},
   "invalidPlanFile": "Ce fichier de classe est invalide ou n’est pas compatible.",
   "privacyExportWarning": "Le fichier contient les noms et informations des élèves. Partagez-le uniquement avec des personnes autorisées."
 }

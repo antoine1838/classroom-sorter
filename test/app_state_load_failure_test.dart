@@ -19,8 +19,8 @@ const _classesKey = 'plandeclasse_classes_v1';
 const _roomsKey = 'plandeclasse_saved_rooms_v1';
 const _tutorialSeenKey = 'plandeclasse_tutorial_seen_v1';
 
-Map<String, dynamic> _brokenClass(String id) => {
-  ...ClassGroup(id: id, name: 'Cassée $id').toJson(),
+Map<String, dynamic> _classWithBrokenSnapshot(String id) => {
+  ...ClassGroup(id: id, name: 'Classe $id').toJson(),
   'snapshots': [
     {
       'id': 's',
@@ -32,9 +32,19 @@ Map<String, dynamic> _brokenClass(String id) => {
   ],
 };
 
+Map<String, dynamic> _unreadableClass(String id) => {
+  ...ClassGroup(id: id, name: 'Cassée $id').toJson(),
+  'id': 42,
+};
+
 String _partialClasses(int broken) => jsonEncode([
   ClassGroup(id: 'a', name: '6ème A').toJson(),
-  for (var i = 0; i < broken; i++) _brokenClass('b$i'),
+  for (var i = 0; i < broken; i++) _unreadableClass('b$i'),
+]);
+
+String _classesWithBrokenSnapshots(int broken) => jsonEncode([
+  ClassGroup(id: 'a', name: '6ème A').toJson(),
+  for (var i = 0; i < broken; i++) _classWithBrokenSnapshot('b$i'),
 ]);
 
 void main() {
@@ -52,6 +62,29 @@ void main() {
       expect(state.persistenceMessageIsError, isTrue);
       expect(state.loadFailed, isFalse);
     });
+
+    test(
+      'des archives illisibles sont comptées sans écarter leur classe',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          _classesKey: _classesWithBrokenSnapshots(2),
+        });
+        final state = AppState();
+
+        await state.init();
+
+        expect(state.classes.map((c) => c.name), [
+          '6ème A',
+          'Classe b0',
+          'Classe b1',
+        ]);
+        expect(state.classes.expand((c) => c.snapshots), isEmpty);
+        expect(state.skippedClassCount, 0);
+        expect(state.loadedClassCleanup.snapshotsRemoved, 2);
+        expect(state.persistenceNotices, [PersistenceNotice.classesCleaned]);
+        expect(state.persistenceMessageIsError, isTrue);
+      },
+    );
 
     test(
       'un stockage illisible ne laisse pas le chargement tourner sans fin',
@@ -111,6 +144,7 @@ void main() {
 
       expect(state.persistenceNotices, isEmpty);
       expect(state.skippedClassCount, 0);
+      expect(state.loadedClassCleanup.isEmpty, isTrue);
       expect(state.loadFailed, isFalse);
     });
   });
@@ -163,6 +197,33 @@ void main() {
         );
       },
     );
+
+    testWidgets('une archive illisible : la classe reste affichée', (
+      tester,
+    ) async {
+      await pumpHome(tester, {_classesKey: _classesWithBrokenSnapshots(1)});
+
+      expect(find.textContaining('1 archive illisible'), findsOneWidget);
+      expect(
+        find.textContaining('Les classes concernées restent disponibles'),
+        findsOneWidget,
+      );
+      expect(find.text('Classe b0'), findsOneWidget);
+    });
+
+    testWidgets('plusieurs archives illisibles sont comptées en anglais', (
+      tester,
+    ) async {
+      await pumpHome(tester, {
+        _classesKey: _classesWithBrokenSnapshots(2),
+      }, locale: const Locale('en'));
+
+      expect(find.textContaining('2 unreadable archives'), findsOneWidget);
+      expect(
+        find.textContaining('The affected classes remain available'),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('une salle enregistrée illisible : le texte la compte', (
       tester,

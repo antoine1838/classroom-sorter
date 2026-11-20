@@ -112,6 +112,10 @@ class HomeScreen extends StatelessWidget {
       (notice) => switch (notice) {
         PersistenceNotice.classesRecovered => l10n.persistenceClassesRecovered,
         PersistenceNotice.roomsRecovered => l10n.persistenceRoomsRecovered,
+        PersistenceNotice.classesCleaned => localizedPersistenceCleanup(
+          state.loadedClassCleanup,
+          l10n,
+        ),
         PersistenceNotice.classesPartial => l10n.persistenceClassesPartial(
           state.skippedClassCount,
         ),

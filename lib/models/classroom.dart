@@ -48,6 +48,7 @@ class DataCleanup {
     this.studentsRemoved = 0,
     this.rulesRemoved = 0,
     this.placesRemoved = 0,
+    this.snapshotsRemoved = 0,
   });
 
   /// Élèves dont l'id était déjà pris.
@@ -60,8 +61,24 @@ class DataCleanup {
   /// désactivée, élève inconnu ou déjà placé ailleurs).
   final int placesRemoved;
 
+  /// Archives illisibles, ignorées sans écarter leur classe.
+  final int snapshotsRemoved;
+
   bool get isEmpty =>
-      studentsRemoved == 0 && rulesRemoved == 0 && placesRemoved == 0;
+      studentsRemoved == 0 &&
+      rulesRemoved == 0 &&
+      placesRemoved == 0 &&
+      snapshotsRemoved == 0;
+
+  int get totalRemoved =>
+      studentsRemoved + rulesRemoved + placesRemoved + snapshotsRemoved;
+
+  DataCleanup operator +(DataCleanup other) => DataCleanup(
+    studentsRemoved: studentsRemoved + other.studentsRemoved,
+    rulesRemoved: rulesRemoved + other.rulesRemoved,
+    placesRemoved: placesRemoved + other.placesRemoved,
+    snapshotsRemoved: snapshotsRemoved + other.snapshotsRemoved,
+  );
 }
 
 class ClassGroup {
@@ -177,14 +194,47 @@ class ClassGroup {
   static ({ClassGroup classGroup, DataCleanup cleanup}) fromJsonWithCleanup(
     Map<String, dynamic> j,
   ) {
-    final classGroup = ClassGroup._fromRawJson(j);
+    final decodedSnapshots = _decodeSnapshots(j['snapshots']);
+    final classGroup = ClassGroup._fromRawJson(
+      j,
+      snapshots: decodedSnapshots.snapshots,
+    );
     return (
       classGroup: classGroup,
-      cleanup: classGroup._dropDanglingReferences(),
+      cleanup:
+          classGroup._dropDanglingReferences() +
+          DataCleanup(snapshotsRemoved: decodedSnapshots.removed),
     );
   }
 
-  factory ClassGroup._fromRawJson(Map<String, dynamic> j) => ClassGroup(
+  static ({List<PlanSnapshot> snapshots, int removed}) _decodeSnapshots(
+    Object? raw,
+  ) {
+    if (raw == null) return (snapshots: <PlanSnapshot>[], removed: 0);
+    if (raw is! List<Object?>) {
+      return (snapshots: <PlanSnapshot>[], removed: 1);
+    }
+
+    final snapshots = <PlanSnapshot>[];
+    var removed = 0;
+    for (final entry in raw) {
+      if (entry is! Map<Object?, Object?>) {
+        removed++;
+        continue;
+      }
+      try {
+        snapshots.add(PlanSnapshot.fromJson(entry.cast<String, dynamic>()));
+      } catch (_) {
+        removed++;
+      }
+    }
+    return (snapshots: snapshots, removed: removed);
+  }
+
+  factory ClassGroup._fromRawJson(
+    Map<String, dynamic> j, {
+    required List<PlanSnapshot> snapshots,
+  }) => ClassGroup(
     id: j['id'] as String,
     name: (j['name'] ?? '') as String,
     room: Room.fromJson(
@@ -203,8 +253,6 @@ class ClassGroup {
       (k, v) => MapEntry(k as String, v as String),
     ),
     savedRoomId: j['savedRoomId'] as String?,
-    snapshots: ((j['snapshots'] ?? const <dynamic>[]) as List)
-        .map((entry) => PlanSnapshot.fromJson(entry as Map<String, dynamic>))
-        .toList(),
+    snapshots: snapshots,
   );
 }

@@ -52,4 +52,32 @@ void main() {
     expect(text, isNot(contains('place')));
     expect(text, isNot(contains('élève en double')));
   });
+
+  test('les archives illisibles ont leur compteur dans les deux langues', () {
+    const cleanup = DataCleanup(snapshotsRemoved: 2);
+
+    expect(
+      localizedDataCleanup(cleanup, fr),
+      'Pour rester cohérent, l’import a retiré 2 archives illisibles.',
+    );
+    expect(
+      localizedDataCleanup(cleanup, en),
+      'To stay consistent, the import removed 2 unreadable archives.',
+    );
+  });
+
+  test('le chargement local précise que les classes restent disponibles', () {
+    const cleanup = DataCleanup(snapshotsRemoved: 1);
+
+    expect(
+      localizedPersistenceCleanup(cleanup, fr),
+      'Certaines données incohérentes ont été ignorées au chargement : '
+      '1 archive illisible. Les classes concernées restent disponibles.',
+    );
+    expect(
+      localizedPersistenceCleanup(cleanup, en),
+      'Some inconsistent data was ignored while loading: '
+      '1 unreadable archive. The affected classes remain available.',
+    );
+  });
 }

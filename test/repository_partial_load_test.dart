@@ -18,9 +18,9 @@ const _classesCorruptKey = 'plandeclasse_classes_v1_corrupt';
 const _roomsKey = 'plandeclasse_saved_rooms_v1';
 const _roomsCorruptKey = 'plandeclasse_saved_rooms_v1_corrupt';
 
-/// Une classe dont l'archive a une date invalide : `ClassGroup.fromJson` lève.
+/// Une classe dont une archive a une date invalide.
 Map<String, dynamic> _classWithBrokenSnapshot(String id) => {
-  ...ClassGroup(id: id, name: 'Cassée $id').toJson(),
+  ...ClassGroup(id: id, name: 'Classe $id').toJson(),
   'snapshots': [
     {
       'id': 's',
@@ -32,6 +32,11 @@ Map<String, dynamic> _classWithBrokenSnapshot(String id) => {
   ],
 };
 
+Map<String, dynamic> _unreadableClass(String id) => {
+  ...ClassGroup(id: id, name: 'Cassée $id').toJson(),
+  'id': 42,
+};
+
 Map<String, dynamic> _validClass(String id, String name) =>
     ClassGroup(id: id, name: name).toJson();
 
@@ -39,38 +44,37 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('classes', () {
+    test('une archive illisible est retirée sans écarter sa classe', () async {
+      final raw = jsonEncode([
+        _validClass('a', '6ème A'),
+        _classWithBrokenSnapshot('b'),
+        'pas même un objet',
+        _validClass('c', '6ème C'),
+      ]);
+      SharedPreferences.setMockInitialValues({_classesKey: raw});
+
+      final result = await Repository().loadClassesWithStatus();
+      final prefs = await SharedPreferences.getInstance();
+
+      expect(result.status, RepositoryLoadStatus.recoveredPartially);
+      expect(result.data.map((c) => c.name), ['6ème A', 'Classe b', '6ème C']);
+      expect(result.data[1].snapshots, isEmpty);
+      expect(result.cleanup.snapshotsRemoved, 1);
+      expect(result.skipped, 1);
+      expect(
+        prefs.getString(_classesCorruptKey),
+        raw,
+        reason: 'les enregistrements écartés restent récupérables à la main',
+      );
+      expect(
+        prefs.getString(_classesKey),
+        raw,
+        reason: 'la lecture ne réécrit pas la valeur principale',
+      );
+    });
+
     test(
-      'une classe illisible est laissée de côté, les autres sont lues',
-      () async {
-        final raw = jsonEncode([
-          _validClass('a', '6ème A'),
-          _classWithBrokenSnapshot('b'),
-          'pas même un objet',
-          _validClass('c', '6ème C'),
-        ]);
-        SharedPreferences.setMockInitialValues({_classesKey: raw});
-
-        final result = await Repository().loadClassesWithStatus();
-        final prefs = await SharedPreferences.getInstance();
-
-        expect(result.status, RepositoryLoadStatus.recoveredPartially);
-        expect(result.data.map((c) => c.name), ['6ème A', '6ème C']);
-        expect(result.skipped, 2);
-        expect(
-          prefs.getString(_classesCorruptKey),
-          raw,
-          reason: 'les enregistrements écartés restent récupérables à la main',
-        );
-        expect(
-          prefs.getString(_classesKey),
-          raw,
-          reason: 'la lecture ne réécrit pas la valeur principale',
-        );
-      },
-    );
-
-    test(
-      'la liste la plus récente passe avant une sauvegarde plus ancienne',
+      'une archive cassée ne fait pas revenir à une sauvegarde plus ancienne',
       () async {
         final backup = jsonEncode([_validClass('vieux', 'Ancienne classe')]);
         SharedPreferences.setMockInitialValues({
@@ -83,15 +87,18 @@ void main() {
 
         final result = await Repository().loadClassesWithStatus();
 
-        expect(result.status, RepositoryLoadStatus.recoveredPartially);
-        expect(result.data.single.name, '6ème A');
+        expect(result.status, RepositoryLoadStatus.ok);
+        expect(result.data.map((c) => c.name), ['6ème A', 'Classe b']);
+        expect(result.data.last.snapshots, isEmpty);
+        expect(result.cleanup.snapshotsRemoved, 1);
+        expect(result.skipped, 0);
       },
     );
 
     test('rien de lisible : retour à la sauvegarde, comme avant', () async {
       final backup = jsonEncode([_validClass('vieux', 'Ancienne classe')]);
       SharedPreferences.setMockInitialValues({
-        _classesKey: jsonEncode([_classWithBrokenSnapshot('b')]),
+        _classesKey: jsonEncode([_unreadableClass('b')]),
         _classesBackupKey: backup,
       });
 
@@ -106,7 +113,7 @@ void main() {
       'rien de lisible et pas de sauvegarde : corruption signalée',
       () async {
         SharedPreferences.setMockInitialValues({
-          _classesKey: jsonEncode([_classWithBrokenSnapshot('b')]),
+          _classesKey: jsonEncode([_unreadableClass('b')]),
         });
 
         final result = await Repository().loadClassesWithStatus();
@@ -125,34 +132,46 @@ void main() {
 
       expect(result.status, RepositoryLoadStatus.ok);
       expect(result.skipped, 0);
+      expect(result.cleanup.isEmpty, isTrue);
     });
 
-    test(
-      'sauvegarder après une lecture partielle garde la copie d\'origine',
-      () async {
-        final raw = jsonEncode([
-          _validClass('a', '6ème A'),
-          _classWithBrokenSnapshot('b'),
-        ]);
-        SharedPreferences.setMockInitialValues({_classesKey: raw});
-        final repo = Repository();
-        final loaded = await repo.load();
+    test('sauvegarder après nettoyage garde la copie d\'origine', () async {
+      final raw = jsonEncode([
+        _validClass('a', '6ème A'),
+        _classWithBrokenSnapshot('b'),
+      ]);
+      SharedPreferences.setMockInitialValues({_classesKey: raw});
+      final repo = Repository();
+      final loaded = await repo.load();
 
-        await repo.save(loaded);
-        final prefs = await SharedPreferences.getInstance();
+      await repo.save(loaded);
+      final prefs = await SharedPreferences.getInstance();
 
-        expect(prefs.getString(_classesCorruptKey), raw);
-        expect(
-          (jsonDecode(prefs.getString(_classesKey)!) as List<Object?>).length,
-          1,
-          reason: 'la valeur principale ne contient plus que ce qui se lit',
-        );
-        expect(
-          (await repo.loadClassesWithStatus()).status,
-          RepositoryLoadStatus.ok,
-        );
-      },
-    );
+      expect(prefs.getString(_classesCorruptKey), raw);
+      expect(
+        (jsonDecode(prefs.getString(_classesKey)!) as List<Object?>).length,
+        2,
+        reason: 'les deux classes restent présentes après le nettoyage',
+      );
+      final reloaded = await repo.loadClassesWithStatus();
+      expect(reloaded.status, RepositoryLoadStatus.ok);
+      expect(reloaded.cleanup.isEmpty, isTrue);
+      expect(reloaded.data.last.snapshots, isEmpty);
+    });
+
+    test('un champ snapshots mal formé garde aussi la classe', () async {
+      final malformed = _validClass('a', '6ème A')..['snapshots'] = 'cassé';
+      SharedPreferences.setMockInitialValues({
+        _classesKey: jsonEncode([malformed]),
+      });
+
+      final result = await Repository().loadClassesWithStatus();
+
+      expect(result.status, RepositoryLoadStatus.ok);
+      expect(result.data.single.name, '6ème A');
+      expect(result.data.single.snapshots, isEmpty);
+      expect(result.cleanup.snapshotsRemoved, 1);
+    });
   });
 
   group('salles enregistrées', () {

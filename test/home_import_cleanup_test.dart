@@ -42,6 +42,7 @@ Future<AppState> _importFrom(
   WidgetTester tester,
   ClassGroup source, {
   Locale locale = const Locale('fr'),
+  String? encoded,
 }) async {
   SharedPreferences.setMockInitialValues({
     'plandeclasse_tutorial_seen_v1': true,
@@ -51,8 +52,9 @@ Future<AppState> _importFrom(
   final state = AppState();
   await tester.runAsync(state.init);
   final service = PlanFileService(
-    pickFile: () async =>
-        Uint8List.fromList(utf8.encode(PlanFileService().encode(source))),
+    pickFile: () async => Uint8List.fromList(
+      utf8.encode(encoded ?? PlanFileService().encode(source)),
+    ),
   );
   await tester.pumpWidget(
     MaterialApp(
@@ -110,5 +112,33 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Pour rester cohérent'), findsNothing);
+  });
+
+  testWidgets('une archive illisible est comptée sans perdre la classe', (
+    tester,
+  ) async {
+    final source = _class(dirty: false);
+    final envelope =
+        jsonDecode(PlanFileService().encode(source)) as Map<String, dynamic>;
+    final classJson = envelope['class'] as Map<String, dynamic>;
+    classJson['snapshots'] = [
+      {
+        'id': 'cassée',
+        'label': 'Trimestre 1',
+        'createdAt': 'pas une date',
+        'schemaVersion': 1,
+        'classData': <String, dynamic>{},
+      },
+    ];
+
+    final state = await _importFrom(
+      tester,
+      source,
+      encoded: jsonEncode(envelope),
+    );
+
+    expect(state.classes.single.name, '5ème A (importée)');
+    expect(state.classes.single.snapshots, isEmpty);
+    expect(find.textContaining('1 archive illisible'), findsOneWidget);
   });
 }
